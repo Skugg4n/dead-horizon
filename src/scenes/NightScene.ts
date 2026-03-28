@@ -137,6 +137,7 @@ export class NightScene extends Phaser.Scene {
 
   private setupWaveManager(): void {
     this.waveManager = new WaveManager(this, this.zombieGroup);
+    this.waveManager.setTarget(this.player);
 
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;

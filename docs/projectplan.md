@@ -87,7 +87,7 @@ Mål: Spelbart minimum. En karta, en spelare, zombies i vågor, dö och starta o
 
 - [x] 1F.1 Vid död: behåll stats, starta om wave 1
 - [x] 1F.2 SaveManager -- spara till localStorage
-- [ ] 1F.3 Laddskärm hämtar sparad data
+- [x] 1F.3 Laddskärm hämtar sparad data
 
 ### 1G: Grundläggande HUD
 

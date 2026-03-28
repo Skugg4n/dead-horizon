@@ -25,10 +25,15 @@ export class WaveManager {
   private spawnTimers: Phaser.Time.TimerEvent[] = [];
   private waveActive: boolean = false;
   private spawnZones: { x: number; y: number }[] = [];
+  private target: Phaser.GameObjects.Sprite | null = null;
 
   constructor(scene: Phaser.Scene, zombieGroup: Phaser.Physics.Arcade.Group) {
     this.scene = scene;
     this.zombieGroup = zombieGroup;
+  }
+
+  setTarget(target: Phaser.GameObjects.Sprite): void {
+    this.target = target;
   }
 
   setSpawnZones(zones: { x: number; y: number }[]): void {
@@ -104,8 +109,10 @@ export class WaveManager {
     const existing = this.zombieGroup.getFirstDead(false) as Zombie | null;
     if (existing) {
       existing.reset(zone.x + offsetX, zone.y + offsetY, config);
+      if (this.target) existing.setTarget(this.target);
     } else {
       const zombie = new Zombie(this.scene, zone.x + offsetX, zone.y + offsetY, config);
+      if (this.target) zombie.setTarget(this.target);
       this.zombieGroup.add(zombie);
     }
 

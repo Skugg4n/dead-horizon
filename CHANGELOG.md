@@ -1,5 +1,16 @@
 # Dead Horizon -- Changelog
 
+## [0.1.1] - 2026-03-28
+
+### Fixed
+- Zombies rorde sig inte -- target sattes aldrig pa spawnade fiender
+- WaveManager skickar nu spelar-referens till alla zombies vid spawn
+
+### Added
+- MenuScene visar sparad progress (runs, total kills)
+- New Game-knapp for att rensa sparad data
+- Versionsnummer lasas fran GAME_VERSION-konstant overallt
+
 ## [0.1.0] - 2026-03-28
 
 ### Added -- Fas 1: MVP Karn-loop

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { GAME_VERSION } from '../config/constants';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -26,7 +27,7 @@ export class BootScene extends Phaser.Scene {
     this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY + 10,
-      'v0.0.1 -- Loading...',
+      `v${GAME_VERSION} -- Loading...`,
       {
         fontFamily: 'monospace',
         fontSize: '14px',
