@@ -33,6 +33,7 @@ export class DayScene extends Phaser.Scene {
   private placementMode: boolean = false;
   private placementStructureId: string | null = null;
   private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
+  private placementJustStarted: boolean = false;
 
   // UI camera -- fixed at (0,0), never scrolls.
   // All UI elements are assigned here so their interactive zones
@@ -388,6 +389,8 @@ export class DayScene extends Phaser.Scene {
   private startPlacement(structureId: string): void {
     this.placementMode = true;
     this.placementStructureId = structureId;
+    // Prevent the same click that selected the menu item from placing the structure
+    this.placementJustStarted = true;
 
     // Create ghost preview (world-space element, only on main camera)
     if (this.ghostGraphics) {
@@ -430,6 +433,11 @@ export class DayScene extends Phaser.Scene {
       const gridY = Math.floor(worldPoint.y / TILE_SIZE) * TILE_SIZE;
 
       if (this.placementMode && this.placementStructureId) {
+        // Skip the click that opened placement mode (same pointer event)
+        if (this.placementJustStarted) {
+          this.placementJustStarted = false;
+          return;
+        }
         this.placeStructure(this.placementStructureId, gridX, gridY);
         return;
       }

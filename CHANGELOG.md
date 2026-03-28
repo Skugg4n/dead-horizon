@@ -1,5 +1,10 @@
 # Dead Horizon -- Changelog
 
+## [0.2.3] - 2026-03-28
+
+### Fixed
+- Build menu click immediately placed structure at click location instead of entering placement mode. Added placementJustStarted flag to skip the same pointer event that selected the menu item.
+
 ## [0.2.2] - 2026-03-28
 
 ### Fixed
