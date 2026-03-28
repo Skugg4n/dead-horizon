@@ -3,10 +3,14 @@ import { Player } from '../entities/Player';
 import { Zombie } from '../entities/Zombie';
 import { Projectile } from '../entities/Projectile';
 import { WaveManager } from '../systems/WaveManager';
+import { ResourceManager } from '../systems/ResourceManager';
 import { SaveManager } from '../systems/SaveManager';
 import { HUD } from '../ui/HUD';
+import { ResourceBar } from '../ui/ResourceBar';
 import { TILE_SIZE } from '../config/constants';
 import { distanceBetween, angleBetween } from '../utils/math';
+import type { ResourceType } from '../config/types';
+import zombieLootData from '../data/zombie-loot.json';
 
 const MAP_WIDTH = 40;  // tiles
 const MAP_HEIGHT = 30; // tiles
@@ -14,25 +18,38 @@ const AUTO_SHOOT_RANGE = 200;
 const AUTO_SHOOT_COOLDOWN = 400; // ms
 const PROJECTILE_DAMAGE = 10;
 
+interface LootDrop {
+  resource: ResourceType;
+  min: number;
+  max: number;
+  chance: number;
+}
+
 export class NightScene extends Phaser.Scene {
   private player!: Player;
   private zombieGroup!: Phaser.Physics.Arcade.Group;
   private projectileGroup!: Phaser.Physics.Arcade.Group;
   private waveManager!: WaveManager;
+  private resourceManager!: ResourceManager;
   private hud!: HUD;
+  // ResourceBar is constructed for its side effects (listens to events, renders UI)
   private shootCooldown: number = 0;
   private kills: number = 0;
-  private gameState = SaveManager.load();
+  private loadedAmmo: number = 0;
+  private gameState!: ReturnType<typeof SaveManager.load>;
 
   constructor() {
     super({ key: 'NightScene' });
   }
 
   create(): void {
+    this.gameState = SaveManager.load();
     this.kills = 0;
     this.shootCooldown = 0;
+    this.loadedAmmo = this.gameState.inventory.loadedAmmo;
 
     this.createMap();
+    this.renderPlacedStructures();
     this.createPlayer();
     this.createGroups();
     this.setupWaveManager();
@@ -40,7 +57,10 @@ export class NightScene extends Phaser.Scene {
     this.setupCamera();
     this.setupEvents();
 
+    this.resourceManager = new ResourceManager(this, this.gameState);
     this.hud = new HUD(this);
+    this.hud.updateAmmo(this.loadedAmmo);
+    new ResourceBar(this, this.resourceManager.getAll());
 
     // Start wave 1 after a brief delay
     this.time.delayedCall(1500, () => {
@@ -117,6 +137,27 @@ export class NightScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
   }
 
+  private renderPlacedStructures(): void {
+    const STRUCTURE_COLORS: Record<string, number> = {
+      barricade: 0x8B6914,
+      wall: 0x6B6B6B,
+      trap: 0xCC3333,
+      pillbox: 0x4A6741,
+      storage: 0x7B6B3A,
+      shelter: 0x5A4A3A,
+      farm: 0x3A6B3A,
+    };
+
+    for (const structure of this.gameState.base.structures) {
+      const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
+      const g = this.add.graphics();
+      g.fillStyle(color);
+      g.fillRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+      g.lineStyle(1, 0xE8DCC8, 0.6);
+      g.strokeRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+    }
+  }
+
   private createPlayer(): void {
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
@@ -190,11 +231,12 @@ export class NightScene extends Phaser.Scene {
   }
 
   private setupEvents(): void {
-    this.events.on('zombie-killed', () => {
+    this.events.on('zombie-killed', (zombie: Zombie) => {
       this.kills++;
       this.player.kills = this.kills;
       this.hud.updateKills(this.kills);
       this.waveManager.onEnemyKilled();
+      this.rollLootDrops(zombie.x, zombie.y);
     });
 
     this.events.on('wave-started', (wave: number) => {
@@ -205,15 +247,23 @@ export class NightScene extends Phaser.Scene {
     this.events.on('wave-complete', (wave: number) => {
       this.hud.showMessage('WAVE CLEAR!');
 
-      // Start next wave after delay
-      this.time.delayedCall(3000, () => {
-        this.waveManager.startWave(wave + 1);
-      });
+      // Only start next wave if there are more waves (5 total)
+      if (wave < 5) {
+        this.time.delayedCall(3000, () => {
+          this.waveManager.startWave(wave + 1);
+        });
+      }
     });
 
     this.events.on('all-waves-complete', () => {
       this.gameState.progress.totalKills += this.kills;
       this.gameState.progress.totalRuns++;
+      this.gameState.progress.currentWave++;
+      if (this.gameState.progress.currentWave > this.gameState.progress.highestWave) {
+        this.gameState.progress.highestWave = this.gameState.progress.currentWave;
+      }
+      this.gameState.inventory.loadedAmmo = this.loadedAmmo;
+      this.resourceManager.syncToState(this.gameState);
       SaveManager.save(this.gameState);
       this.scene.start('ResultScene', { kills: this.kills, wave: 5, survived: true });
     });
@@ -225,6 +275,8 @@ export class NightScene extends Phaser.Scene {
     this.events.on('player-died', () => {
       this.gameState.progress.totalKills += this.kills;
       this.gameState.progress.totalRuns++;
+      this.gameState.inventory.loadedAmmo = this.loadedAmmo;
+      this.resourceManager.syncToState(this.gameState);
       SaveManager.save(this.gameState);
 
       this.time.delayedCall(500, () => {
@@ -255,13 +307,17 @@ export class NightScene extends Phaser.Scene {
       }
     });
 
-    if (nearestZombie) {
+    if (nearestZombie && this.loadedAmmo > 0) {
       this.shootAt(nearestZombie);
       this.shootCooldown = AUTO_SHOOT_COOLDOWN;
     }
   }
 
   private shootAt(target: Zombie): void {
+    // Consume 1 loaded ammo per shot
+    this.loadedAmmo--;
+    this.hud.updateAmmo(this.loadedAmmo);
+
     const angle = angleBetween(
       this.player.x, this.player.y,
       target.x, target.y
@@ -276,5 +332,37 @@ export class NightScene extends Phaser.Scene {
       this.projectileGroup.add(proj);
       proj.fire(this.player.x, this.player.y, angle, PROJECTILE_DAMAGE);
     }
+  }
+
+  // Roll loot from zombie-loot.json and add to resources
+  private rollLootDrops(x: number, y: number): void {
+    const drops = zombieLootData.drops as LootDrop[];
+    let yOffset = 0;
+
+    for (const drop of drops) {
+      if (Math.random() < drop.chance) {
+        const amount = Math.floor(Math.random() * (drop.max - drop.min + 1)) + drop.min;
+        this.resourceManager.add(drop.resource, amount);
+        this.showFloatingText(x, y + yOffset, `+${amount} ${drop.resource}`);
+        yOffset -= 16;
+      }
+    }
+  }
+
+  private showFloatingText(x: number, y: number, message: string): void {
+    const text = this.add.text(x, y, message, {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color: '#FFD700',
+    }).setOrigin(0.5).setDepth(50);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 30,
+      alpha: 0,
+      duration: 1200,
+      ease: 'Power2',
+      onComplete: () => text.destroy(),
+    });
   }
 }

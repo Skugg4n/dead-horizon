@@ -1,0 +1,189 @@
+import Phaser from 'phaser';
+import { SaveManager } from './SaveManager';
+import { TILE_SIZE } from '../config/constants';
+import type { GameState, StructureInstance, ResourceType } from '../config/types';
+
+export interface StructureData {
+  id: string;
+  name: string;
+  hp: number;
+  cost: Record<string, number>;
+  apCost: number;
+  maxLevel: number;
+  effect: string;
+  trapDamage?: number;
+  foodPerDay?: number;
+}
+
+/**
+ * BuildingManager handles all structure placement, upgrades, and removal.
+ * Uses Phaser event system for communication:
+ *   'structure-placed' (instance)
+ *   'structure-destroyed' (instance)
+ *   'structure-upgraded' (instance)
+ */
+export class BuildingManager {
+  private scene: Phaser.Scene;
+  private gameState: GameState;
+  private structureDataMap: Map<string, StructureData> = new Map();
+
+  constructor(scene: Phaser.Scene, gameState: GameState, structureDataList: StructureData[]) {
+    this.scene = scene;
+    this.gameState = gameState;
+
+    for (const s of structureDataList) {
+      this.structureDataMap.set(s.id, s);
+    }
+  }
+
+  getStructureData(structureId: string): StructureData | undefined {
+    return this.structureDataMap.get(structureId);
+  }
+
+  getAllStructureData(): StructureData[] {
+    return Array.from(this.structureDataMap.values());
+  }
+
+  /** Check if player can afford to build a structure */
+  canAfford(structureId: string): boolean {
+    const data = this.structureDataMap.get(structureId);
+    if (!data) return false;
+
+    for (const [resource, amount] of Object.entries(data.cost)) {
+      const have = this.gameState.inventory.resources[resource as ResourceType] ?? 0;
+      if (have < amount) return false;
+    }
+    return true;
+  }
+
+  /** Check if there is enough AP to build */
+  hasEnoughAP(structureId: string, currentAP: number): boolean {
+    const data = this.structureDataMap.get(structureId);
+    if (!data) return false;
+    return currentAP >= data.apCost;
+  }
+
+  /** Check if a grid position is free of other structures */
+  isPositionFree(x: number, y: number): boolean {
+    return !this.gameState.base.structures.some(s => s.x === x && s.y === y);
+  }
+
+  /**
+   * Place a structure. Returns the instance if successful, null otherwise.
+   * Deducts resources and AP cost from currentAP (returned as new value).
+   */
+  place(
+    structureId: string,
+    gridX: number,
+    gridY: number,
+    currentAP: number
+  ): { instance: StructureInstance; apRemaining: number } | null {
+    const data = this.structureDataMap.get(structureId);
+    if (!data) return null;
+
+    if (currentAP < data.apCost) return null;
+    if (!this.canAfford(structureId)) return null;
+    if (!this.isPositionFree(gridX, gridY)) return null;
+
+    // Deduct resources
+    for (const [resource, amount] of Object.entries(data.cost)) {
+      this.gameState.inventory.resources[resource as ResourceType] -= amount;
+    }
+
+    const instance: StructureInstance = {
+      id: `${structureId}_${Date.now()}`,
+      structureId,
+      level: 1,
+      hp: data.hp,
+      maxHp: data.hp,
+      x: gridX,
+      y: gridY,
+    };
+
+    this.gameState.base.structures.push(instance);
+    this.scene.events.emit('structure-placed', instance);
+
+    return { instance, apRemaining: currentAP - data.apCost };
+  }
+
+  /**
+   * Upgrade a structure by instance id. Costs same resources as initial build.
+   * Returns new AP remaining or null if upgrade failed.
+   */
+  upgrade(instanceId: string, currentAP: number): { apRemaining: number } | null {
+    const instance = this.gameState.base.structures.find(s => s.id === instanceId);
+    if (!instance) return null;
+
+    const data = this.structureDataMap.get(instance.structureId);
+    if (!data) return null;
+
+    if (instance.level >= data.maxLevel) return null;
+    if (currentAP < data.apCost) return null;
+    if (!this.canAfford(instance.structureId)) return null;
+
+    // Deduct resources
+    for (const [resource, amount] of Object.entries(data.cost)) {
+      this.gameState.inventory.resources[resource as ResourceType] -= amount;
+    }
+
+    instance.level += 1;
+    // Increase HP by 50% per level
+    const newMaxHp = Math.floor(data.hp * (1 + 0.5 * (instance.level - 1)));
+    instance.maxHp = newMaxHp;
+    instance.hp = newMaxHp;
+
+    this.scene.events.emit('structure-upgraded', instance);
+
+    return { apRemaining: currentAP - data.apCost };
+  }
+
+  /**
+   * Sell/remove a structure. Refunds 50% of base cost (rounded down).
+   */
+  sell(instanceId: string): boolean {
+    const idx = this.gameState.base.structures.findIndex(s => s.id === instanceId);
+    if (idx === -1) return false;
+
+    const instance = this.gameState.base.structures[idx];
+    if (!instance) return false;
+    const data = this.structureDataMap.get(instance.structureId);
+
+    // Refund 50% of base cost
+    if (data) {
+      for (const [resource, amount] of Object.entries(data.cost)) {
+        const refund = Math.floor(amount * 0.5);
+        this.gameState.inventory.resources[resource as ResourceType] += refund;
+      }
+    }
+
+    this.gameState.base.structures.splice(idx, 1);
+    this.scene.events.emit('structure-destroyed', instance);
+
+    return true;
+  }
+
+  /** Apply damage to a structure (used during night phase) */
+  damageStructure(instanceId: string, damage: number): boolean {
+    const instance = this.gameState.base.structures.find(s => s.id === instanceId);
+    if (!instance) return false;
+
+    instance.hp -= damage;
+    if (instance.hp <= 0) {
+      instance.hp = 0;
+      this.sell(instanceId);
+      return true; // destroyed
+    }
+    return false;
+  }
+
+  /** Find structure at a world position (snapped to grid) */
+  getStructureAt(worldX: number, worldY: number): StructureInstance | undefined {
+    const gridX = Math.floor(worldX / TILE_SIZE) * TILE_SIZE;
+    const gridY = Math.floor(worldY / TILE_SIZE) * TILE_SIZE;
+    return this.gameState.base.structures.find(s => s.x === gridX && s.y === gridY);
+  }
+
+  save(): void {
+    SaveManager.save(this.gameState);
+  }
+}

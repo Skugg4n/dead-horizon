@@ -9,6 +9,7 @@ export class HUD {
   private killText: Phaser.GameObjects.Text;
   private staminaBar: Phaser.GameObjects.Graphics;
   private staminaBarBg: Phaser.GameObjects.Graphics;
+  private ammoText: Phaser.GameObjects.Text;
   private waveAnnouncementText: Phaser.GameObjects.Text;
   private container: Phaser.GameObjects.Container;
 
@@ -49,8 +50,16 @@ export class HUD {
     }).setOrigin(0.5, 0);
     this.container.add(this.waveText);
 
+    // Ammo counter
+    this.ammoText = scene.add.text(GAME_WIDTH - 16, 16, 'Ammo: 0', {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: '#FFD700',
+    }).setOrigin(1, 0);
+    this.container.add(this.ammoText);
+
     // Kill counter
-    this.killText = scene.add.text(GAME_WIDTH - 16, GAME_WIDTH > 600 ? 568 : 16, 'Kills: 0', {
+    this.killText = scene.add.text(GAME_WIDTH - 16, 34, 'Kills: 0', {
       fontFamily: 'monospace',
       fontSize: '14px',
       color: '#E8DCC8',
@@ -99,6 +108,18 @@ export class HUD {
       duration: 2000,
       ease: 'Power2',
     });
+  }
+
+  updateAmmo(ammo: number): void {
+    this.ammoText.setText(`Ammo: ${ammo}`);
+    // Flash red when ammo is low
+    if (ammo <= 0) {
+      this.ammoText.setColor('#F44336');
+    } else if (ammo <= 5) {
+      this.ammoText.setColor('#FFD700');
+    } else {
+      this.ammoText.setColor('#FFD700');
+    }
   }
 
   showMessage(text: string): void {

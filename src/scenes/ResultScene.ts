@@ -37,6 +37,6 @@ export class ResultScene extends Phaser.Scene {
 
     continueText.on('pointerover', () => continueText.setColor('#FFD700'));
     continueText.on('pointerout', () => continueText.setColor('#D4620B'));
-    continueText.on('pointerdown', () => this.scene.start('MenuScene'));
+    continueText.on('pointerdown', () => this.scene.start('DayScene'));
   }
 }

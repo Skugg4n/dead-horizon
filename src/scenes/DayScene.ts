@@ -1,21 +1,589 @@
 import Phaser from 'phaser';
+import { SaveManager } from '../systems/SaveManager';
+import { BuildingManager, type StructureData } from '../systems/BuildingManager';
+import { loadAmmo } from '../systems/AmmoLoader';
+import { ActionPointBar } from '../ui/ActionPointBar';
+import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY } from '../config/constants';
+import type { GameState, StructureInstance } from '../config/types';
+import structuresJson from '../data/structures.json';
+
+const MAP_WIDTH = 40;  // tiles
+const MAP_HEIGHT = 30; // tiles
+
+// Structure colors for rendering placed structures
+const STRUCTURE_COLORS: Record<string, number> = {
+  barricade: 0x8B6914,
+  wall: 0x6B6B6B,
+  trap: 0xCC3333,
+  pillbox: 0x4A6741,
+  storage: 0x7B6B3A,
+  shelter: 0x5A4A3A,
+  farm: 0x3A6B3A,
+};
 
 export class DayScene extends Phaser.Scene {
+  private gameState!: GameState;
+  private buildingManager!: BuildingManager;
+  private apBar!: ActionPointBar;
+  private currentAP!: number;
+  private mapContainer!: Phaser.GameObjects.Container;
+  private structureSprites: Phaser.GameObjects.Graphics[] = [];
+
+  // Placement mode state
+  private placementMode: boolean = false;
+  private placementStructureId: string | null = null;
+  private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
+
+  // UI camera -- fixed at (0,0), never scrolls.
+  // All UI elements are assigned here so their interactive zones
+  // always match their visual positions regardless of main camera scroll.
+  private uiCamera!: Phaser.Cameras.Scene2D.Camera;
+
+  // UI elements
+  private buildMenuContainer!: Phaser.GameObjects.Container;
+  private buildMenuVisible: boolean = false;
+  private structurePopup: Phaser.GameObjects.Container | null = null;
+  private infoText!: Phaser.GameObjects.Text;
+  private resourceText!: Phaser.GameObjects.Text;
+
   constructor() {
     super({ key: 'DayScene' });
   }
 
   create(): void {
-    // Placeholder for Fas 2
-    this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      'Day Scene -- Coming in Fas 2',
-      {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#E8DCC8',
+    this.gameState = SaveManager.load();
+    this.currentAP = AP_PER_DAY;
+
+    // Load structure data and create BuildingManager
+    const structureList = structuresJson.structures as unknown as StructureData[];
+    this.buildingManager = new BuildingManager(this, this.gameState, structureList);
+
+    this.placementMode = false;
+    this.placementStructureId = null;
+    this.structureSprites = [];
+
+    // Fade in from black (night-to-day transition)
+    this.cameras.main.setBackgroundColor('#3A5A2A');
+    this.cameras.main.fadeIn(800, 0, 0, 0);
+
+    this.createMap();
+    this.renderPlacedStructures();
+    this.setupCameras();
+
+    // UI layer (created after cameras so addToUI works)
+    this.apBar = new ActionPointBar(this, this.currentAP);
+    this.addToUI(this.apBar.getContainer());
+    this.createResourceDisplay();
+    this.createEndDayButton();
+    this.createBuildButton();
+    this.createLoadAmmoButton();
+    this.createBuildMenu();
+    this.createInfoText();
+
+    this.setupInput();
+
+    this.events.emit('day-started', this.gameState.progress.currentWave);
+  }
+
+  update(): void {
+    // Update ghost position during placement mode
+    if (this.placementMode && this.ghostGraphics) {
+      const pointer = this.input.activePointer;
+      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      // Snap to grid
+      const snappedX = Math.floor(worldPoint.x / TILE_SIZE) * TILE_SIZE;
+      const snappedY = Math.floor(worldPoint.y / TILE_SIZE) * TILE_SIZE;
+      this.ghostGraphics.setPosition(snappedX, snappedY);
+    }
+  }
+
+  private createMap(): void {
+    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+
+    this.mapContainer = this.add.container(0, 0);
+
+    // Ground (lighter green for daytime)
+    const ground = this.add.graphics();
+    ground.fillStyle(0x3A6B2A);
+    ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+    this.mapContainer.add(ground);
+
+    // Grid overlay to help with placement
+    const grid = this.add.graphics();
+    grid.lineStyle(1, 0x2D5A22, 0.3);
+    for (let x = 0; x <= mapPixelWidth; x += TILE_SIZE) {
+      grid.lineBetween(x, 0, x, mapPixelHeight);
+    }
+    for (let y = 0; y <= mapPixelHeight; y += TILE_SIZE) {
+      grid.lineBetween(0, y, mapPixelWidth, y);
+    }
+    this.mapContainer.add(grid);
+
+    // Horizontal road through the middle
+    const roadY = Math.floor(MAP_HEIGHT / 2) * TILE_SIZE;
+    const road = this.add.graphics();
+    road.fillStyle(0x6B5A43);
+    road.fillRect(0, roadY - TILE_SIZE, mapPixelWidth, TILE_SIZE * 2);
+    this.mapContainer.add(road);
+
+    // Road markings
+    const markings = this.add.graphics();
+    markings.fillStyle(0x8B7B5B);
+    for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 2) {
+      markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
+    }
+    this.mapContainer.add(markings);
+
+    // Base tent in center
+    const centerX = mapPixelWidth / 2;
+    const centerY = mapPixelHeight / 2;
+    const tent = this.add.graphics();
+    tent.fillStyle(0x7B7B7B);
+    tent.fillRect(centerX - 24, centerY - 24, 48, 48);
+    tent.lineStyle(2, 0xE8DCC8);
+    tent.strokeRect(centerX - 24, centerY - 24, 48, 48);
+    this.mapContainer.add(tent);
+
+    this.add.text(centerX, centerY - 32, 'BASE', {
+      fontFamily: 'monospace',
+      fontSize: '8px',
+      color: '#E8DCC8',
+    }).setOrigin(0.5);
+
+    this.physics.world.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
+  }
+
+  private renderPlacedStructures(): void {
+    // Clear old sprites
+    this.structureSprites.forEach(s => s.destroy());
+    this.structureSprites = [];
+
+    for (const structure of this.gameState.base.structures) {
+      this.drawStructure(structure);
+    }
+  }
+
+  private drawStructure(structure: StructureInstance): void {
+    const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
+    const g = this.add.graphics();
+    g.fillStyle(color);
+    g.fillRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+    g.lineStyle(1, 0xE8DCC8, 0.6);
+    g.strokeRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+    this.addToWorld(g);
+
+    // Level indicator
+    if (structure.level > 1) {
+      const lvlText = this.add.text(
+        structure.x + TILE_SIZE / 2,
+        structure.y + TILE_SIZE / 2,
+        `${structure.level}`,
+        { fontFamily: 'monospace', fontSize: '10px', color: '#FFFFFF' }
+      ).setOrigin(0.5);
+      lvlText.setDepth(5);
+      this.addToWorld(lvlText);
+    }
+
+    this.structureSprites.push(g);
+  }
+
+  private setupCameras(): void {
+    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+
+    // Main camera scrolls over the map
+    this.cameras.main.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
+    this.cameras.main.centerOn(mapPixelWidth / 2, mapPixelHeight / 2);
+
+    // Fixed UI camera at (0,0) -- never scrolls.
+    // UI elements are ignored by the main camera and only rendered here,
+    // so their interactive hit areas stay aligned with their screen positions.
+    this.uiCamera = this.cameras.add(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.uiCamera.setScroll(0, 0);
+    this.uiCamera.setName('ui');
+    // Prevent uiCamera from rendering world objects already on the display list
+    const existingObjects = [...this.children.list];
+    this.uiCamera.ignore(existingObjects);
+
+    // Day indicator (UI element)
+    const dayText = this.add.text(GAME_WIDTH / 2, 16, `DAY ${this.gameState.progress.currentWave}`, {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color: '#E8DCC8',
+    }).setOrigin(0.5).setDepth(100);
+    this.addToUI(dayText);
+  }
+
+  // Register game objects as UI-only: visible on uiCamera, hidden from main camera.
+  private addToUI(...objects: Phaser.GameObjects.GameObject[]): void {
+    for (const obj of objects) {
+      this.cameras.main.ignore(obj);
+    }
+  }
+
+  // Register game objects as world-only: hidden from uiCamera.
+  private addToWorld(...objects: Phaser.GameObjects.GameObject[]): void {
+    for (const obj of objects) {
+      this.uiCamera.ignore(obj);
+    }
+  }
+
+  private createResourceDisplay(): void {
+    const res = this.gameState.inventory.resources;
+    const text = `Scrap: ${res.scrap}  Food: ${res.food}  Ammo: ${res.ammo}  Parts: ${res.parts}  Meds: ${res.meds}`;
+    this.resourceText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 16, text, {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#E8DCC8',
+    }).setOrigin(0.5).setDepth(100);
+    this.addToUI(this.resourceText);
+  }
+
+  private updateResourceDisplay(): void {
+    const res = this.gameState.inventory.resources;
+    const text = `Scrap: ${res.scrap}  Food: ${res.food}  Ammo: ${res.ammo}  Parts: ${res.parts}  Meds: ${res.meds}`;
+    this.resourceText.setText(text);
+  }
+
+  private createEndDayButton(): void {
+    const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 40, '[ END DAY ]', {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#D4620B',
+    }).setOrigin(1, 1).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#D4620B'));
+    btn.on('pointerdown', () => this.endDay());
+    this.addToUI(btn);
+  }
+
+  private createBuildButton(): void {
+    const btn = this.add.text(16, GAME_HEIGHT - 40, '[ BUILD ]', {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#4CAF50',
+    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#4CAF50'));
+    btn.on('pointerdown', () => this.toggleBuildMenu());
+    this.addToUI(btn);
+  }
+
+  private createLoadAmmoButton(): void {
+    const btn = this.add.text(130, GAME_HEIGHT - 40, '[ LOAD AMMO ]', {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#4A90D9',
+    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#4A90D9'));
+    btn.on('pointerdown', () => {
+      if (this.currentAP < 1) {
+        this.showInfo('Not enough AP!');
+        return;
       }
-    ).setOrigin(0.5);
+      const result = loadAmmo(this.gameState, 1);
+      if (result.success) {
+        this.currentAP -= 1;
+        this.apBar.update(this.currentAP);
+        this.updateResourceDisplay();
+        this.showInfo(result.message);
+      } else {
+        this.showInfo(result.message);
+      }
+    });
+    this.addToUI(btn);
+  }
+
+  private createBuildMenu(): void {
+    this.buildMenuContainer = this.add.container(16, 80);
+    this.buildMenuContainer.setDepth(110);
+    this.buildMenuContainer.setVisible(false);
+
+    const allStructures = this.buildingManager.getAllStructureData();
+
+    // Background panel
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1A1A2E, 0.9);
+    bg.fillRect(0, 0, 220, allStructures.length * 40 + 16);
+    bg.lineStyle(1, 0x6B6B6B);
+    bg.strokeRect(0, 0, 220, allStructures.length * 40 + 16);
+    this.buildMenuContainer.add(bg);
+
+    // Structure entries
+    allStructures.forEach((s, i) => {
+      const y = 8 + i * 40;
+      const canAfford = this.buildingManager.canAfford(s.id);
+      const hasAP = this.buildingManager.hasEnoughAP(s.id, this.currentAP);
+      const available = canAfford && hasAP;
+
+      const costStr = Object.entries(s.cost).map(([r, n]) => `${n} ${r}`).join(', ');
+      const color = available ? '#E8DCC8' : '#6B6B6B';
+
+      const entry = this.add.text(8, y, `${s.name} (${s.apCost} AP)\n  ${costStr}`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: color,
+      });
+
+      if (available) {
+        entry.setInteractive({ useHandCursor: true });
+        entry.on('pointerover', () => entry.setColor('#FFD700'));
+        entry.on('pointerout', () => entry.setColor('#E8DCC8'));
+        entry.on('pointerdown', () => this.startPlacement(s.id));
+      }
+
+      this.buildMenuContainer.add(entry);
+    });
+
+    this.addToUI(this.buildMenuContainer);
+  }
+
+  private refreshBuildMenu(): void {
+    // Destroy and recreate to update affordability
+    this.buildMenuContainer.destroy();
+    this.createBuildMenu();
+    if (this.buildMenuVisible) {
+      this.buildMenuContainer.setVisible(true);
+    }
+  }
+
+  private createInfoText(): void {
+    this.infoText = this.add.text(GAME_WIDTH / 2, 50, '', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#C5A030',
+    }).setOrigin(0.5).setDepth(100);
+    this.addToUI(this.infoText);
+  }
+
+  private showInfo(msg: string): void {
+    this.infoText.setText(msg);
+    this.infoText.setAlpha(1);
+    this.tweens.add({
+      targets: this.infoText,
+      alpha: 0,
+      delay: 1500,
+      duration: 1000,
+      ease: 'Power2',
+    });
+  }
+
+  private toggleBuildMenu(): void {
+    this.buildMenuVisible = !this.buildMenuVisible;
+    if (this.buildMenuVisible) {
+      this.refreshBuildMenu();
+    }
+    this.buildMenuContainer.setVisible(this.buildMenuVisible);
+
+    if (!this.buildMenuVisible) {
+      this.cancelPlacement();
+    }
+  }
+
+  private startPlacement(structureId: string): void {
+    this.placementMode = true;
+    this.placementStructureId = structureId;
+
+    // Create ghost preview (world-space element, only on main camera)
+    if (this.ghostGraphics) {
+      this.ghostGraphics.destroy();
+    }
+    const color = STRUCTURE_COLORS[structureId] ?? 0x888888;
+    this.ghostGraphics = this.add.graphics();
+    this.ghostGraphics.fillStyle(color, 0.5);
+    this.ghostGraphics.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    this.ghostGraphics.lineStyle(1, 0xFFD700, 0.8);
+    this.ghostGraphics.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+    this.ghostGraphics.setDepth(50);
+    this.addToWorld(this.ghostGraphics);
+
+    this.buildMenuContainer.setVisible(false);
+    this.buildMenuVisible = false;
+    const data = this.buildingManager.getStructureData(structureId);
+    this.showInfo(`Click to place ${data?.name ?? structureId}. Right-click to cancel.`);
+  }
+
+  private cancelPlacement(): void {
+    this.placementMode = false;
+    this.placementStructureId = null;
+    if (this.ghostGraphics) {
+      this.ghostGraphics.destroy();
+      this.ghostGraphics = null;
+    }
+  }
+
+  private setupInput(): void {
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.rightButtonDown()) {
+        this.cancelPlacement();
+        this.closeStructurePopup();
+        return;
+      }
+
+      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const gridX = Math.floor(worldPoint.x / TILE_SIZE) * TILE_SIZE;
+      const gridY = Math.floor(worldPoint.y / TILE_SIZE) * TILE_SIZE;
+
+      if (this.placementMode && this.placementStructureId) {
+        this.placeStructure(this.placementStructureId, gridX, gridY);
+        return;
+      }
+
+      // Check if clicking an existing structure (when not in placement mode)
+      const existing = this.buildingManager.getStructureAt(worldPoint.x, worldPoint.y);
+      if (existing) {
+        this.showStructurePopup(existing);
+      } else {
+        this.closeStructurePopup();
+      }
+    });
+
+    // Allow camera panning with arrow keys
+    if (this.input.keyboard) {
+      const cursors = this.input.keyboard.createCursorKeys();
+      const panSpeed = 4;
+      this.events.on('update', () => {
+        if (cursors.left.isDown) this.cameras.main.scrollX -= panSpeed;
+        if (cursors.right.isDown) this.cameras.main.scrollX += panSpeed;
+        if (cursors.up.isDown) this.cameras.main.scrollY -= panSpeed;
+        if (cursors.down.isDown) this.cameras.main.scrollY += panSpeed;
+      });
+    }
+
+    // Right click to cancel placement
+    if (this.input.mouse) {
+      this.input.mouse.disableContextMenu();
+    }
+  }
+
+  private placeStructure(structureId: string, x: number, y: number): void {
+    const result = this.buildingManager.place(structureId, x, y, this.currentAP);
+
+    if (result) {
+      this.currentAP = result.apRemaining;
+      this.apBar.update(this.currentAP);
+      this.updateResourceDisplay();
+      this.drawStructure(result.instance);
+
+      const data = this.buildingManager.getStructureData(structureId);
+      this.showInfo(`${data?.name ?? 'Structure'} placed!`);
+      this.cancelPlacement();
+    } else {
+      // Determine reason for failure
+      const data = this.buildingManager.getStructureData(structureId);
+      if (!data) return;
+
+      if (!this.buildingManager.hasEnoughAP(structureId, this.currentAP)) {
+        this.showInfo('Not enough AP!');
+      } else if (!this.buildingManager.canAfford(structureId)) {
+        this.showInfo('Not enough resources!');
+      } else if (!this.buildingManager.isPositionFree(x, y)) {
+        this.showInfo('Something is already here!');
+      }
+    }
+  }
+
+  private showStructurePopup(instance: StructureInstance): void {
+    this.closeStructurePopup();
+
+    const data = this.buildingManager.getStructureData(instance.structureId);
+    if (!data) return;
+
+    // Convert structure world position to screen position for the popup
+    const cam = this.cameras.main;
+    const popupX = instance.x - cam.scrollX + TILE_SIZE + 8;
+    const popupY = instance.y - cam.scrollY;
+
+    this.structurePopup = this.add.container(popupX, popupY);
+    this.structurePopup.setDepth(120);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1A1A2E, 0.95);
+    bg.fillRect(0, 0, 160, 90);
+    bg.lineStyle(1, 0x6B6B6B);
+    bg.strokeRect(0, 0, 160, 90);
+    this.structurePopup.add(bg);
+
+    // Structure info
+    const info = this.add.text(8, 6, `${data.name} Lv${instance.level}\nHP: ${instance.hp}/${instance.maxHp}`, {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color: '#E8DCC8',
+    });
+    this.structurePopup.add(info);
+
+    // Upgrade button (if not max level)
+    if (instance.level < data.maxLevel) {
+      const canUpgrade = this.buildingManager.canAfford(instance.structureId)
+        && this.buildingManager.hasEnoughAP(instance.structureId, this.currentAP);
+      const upgradeColor = canUpgrade ? '#4CAF50' : '#6B6B6B';
+
+      const upgradeBtn = this.add.text(8, 48, '[ UPGRADE ]', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: upgradeColor,
+      });
+
+      if (canUpgrade) {
+        upgradeBtn.setInteractive({ useHandCursor: true });
+        upgradeBtn.on('pointerover', () => upgradeBtn.setColor('#FFD700'));
+        upgradeBtn.on('pointerout', () => upgradeBtn.setColor('#4CAF50'));
+        upgradeBtn.on('pointerdown', () => {
+          const result = this.buildingManager.upgrade(instance.id, this.currentAP);
+          if (result) {
+            this.currentAP = result.apRemaining;
+            this.apBar.update(this.currentAP);
+            this.updateResourceDisplay();
+            this.renderPlacedStructures();
+            this.closeStructurePopup();
+            this.showInfo(`${data.name} upgraded to Lv${instance.level}!`);
+          }
+        });
+      }
+      this.structurePopup.add(upgradeBtn);
+    }
+
+    // Sell button
+    const sellBtn = this.add.text(8, 68, '[ SELL ]', {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#F44336',
+    }).setInteractive({ useHandCursor: true });
+
+    sellBtn.on('pointerover', () => sellBtn.setColor('#FFD700'));
+    sellBtn.on('pointerout', () => sellBtn.setColor('#F44336'));
+    sellBtn.on('pointerdown', () => {
+      this.buildingManager.sell(instance.id);
+      this.updateResourceDisplay();
+      this.renderPlacedStructures();
+      this.closeStructurePopup();
+      this.showInfo(`${data.name} sold!`);
+    });
+    this.structurePopup.add(sellBtn);
+
+    this.addToUI(this.structurePopup);
+  }
+
+  private closeStructurePopup(): void {
+    if (this.structurePopup) {
+      this.structurePopup.destroy();
+      this.structurePopup = null;
+    }
+  }
+
+  private endDay(): void {
+    // Save state before transitioning
+    SaveManager.save(this.gameState);
+
+    // Fade out to night
+    this.cameras.main.fadeOut(800, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start('NightScene');
+    });
   }
 }

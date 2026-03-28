@@ -28,6 +28,7 @@ function createDefaultState(): GameState {
         parts: 0,
         meds: 2,
       } as Record<ResourceType, number>,
+      loadedAmmo: 0,
     },
     base: {
       structures: [],

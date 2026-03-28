@@ -42,6 +42,6 @@ export class GameOverScene extends Phaser.Scene {
 
     retryText.on('pointerover', () => retryText.setColor('#FFD700'));
     retryText.on('pointerout', () => retryText.setColor('#D4620B'));
-    retryText.on('pointerdown', () => this.scene.start('NightScene'));
+    retryText.on('pointerdown', () => this.scene.start('DayScene'));
   }
 }

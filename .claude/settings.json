@@ -1,5 +1,26 @@
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Bash(npm run *)",
+      "Bash(npx *)",
+      "Bash(ls *)",
+      "Bash(git *)",
+      "Bash(mkdir *)",
+      "Agent",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "TaskGet",
+      "SendMessage",
+      "TeamCreate"
+    ]
   }
 }

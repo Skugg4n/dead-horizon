@@ -46,7 +46,7 @@ export class MenuScene extends Phaser.Scene {
 
     startText.on('pointerover', () => startText.setColor('#FFD700'));
     startText.on('pointerout', () => startText.setColor('#D4620B'));
-    startText.on('pointerdown', () => this.scene.start('NightScene'));
+    startText.on('pointerdown', () => this.scene.start('DayScene'));
 
     // New Game button (only if save exists)
     if (SaveManager.hasSave()) {

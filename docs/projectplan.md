@@ -105,34 +105,34 @@ Mål: Dagfasen. Spelaren kan bygga och hantera resurser.
 
 ### 2A: Dag/Natt-cykel
 
-- [ ] 2A.1 DayScene med klickbar karta
-- [ ] 2A.2 Action Point-system (12 AP)
-- [ ] 2A.3 AP-bar i UI
-- [ ] 2A.4 "End Day"-knapp -> NightScene
-- [ ] 2A.5 Dag/Natt-övergångsanimation
+- [x] 2A.1 DayScene med klickbar karta
+- [x] 2A.2 Action Point-system (12 AP)
+- [x] 2A.3 AP-bar i UI
+- [x] 2A.4 "End Day"-knapp -> NightScene
+- [x] 2A.5 Dag/Natt-övergångsanimation
 
 ### 2B: Resurssystem
 
-- [ ] 2B.1 ResourceManager -- track Scrap, Food, Ammo, Parts, Meds
-- [ ] 2B.2 Resursbar i UI (alltid synlig)
-- [ ] 2B.3 Resurser som loot-drop från döda zombies
-- [ ] 2B.4 Resursförbrukning per dag (Food)
+- [x] 2B.1 ResourceManager -- track Scrap, Food, Ammo, Parts, Meds
+- [x] 2B.2 Resursbar i UI (alltid synlig)
+- [x] 2B.3 Resurser som loot-drop från döda zombies
+- [x] 2B.4 Resursförbrukning per dag (Food)
 
 ### 2C: Byggande
 
-- [ ] 2C.1 BuildMenu med lista av byggoptions
-- [ ] 2C.2 Placeringsläge -- visa ghost + klicka för att placera
-- [ ] 2C.3 Barrikader (saktar ner fiender)
-- [ ] 2C.4 Väggar (blockerar fiender, har HP)
-- [ ] 2C.5 Fällor (skadar fiender som passerar)
-- [ ] 2C.6 Strukturer tar skada under nattfas
-- [ ] 2C.7 Klicka på struktur -> uppgradera/sälja
+- [x] 2C.1 BuildMenu med lista av byggoptions
+- [x] 2C.2 Placeringsläge -- visa ghost + klicka för att placera
+- [x] 2C.3 Barrikader (saktar ner fiender)
+- [x] 2C.4 Väggar (blockerar fiender, har HP)
+- [x] 2C.5 Fällor (skadar fiender som passerar)
+- [x] 2C.6 Strukturer tar skada under nattfas
+- [x] 2C.7 Klicka på struktur -> uppgradera/sälja
 
 ### 2D: Ammo-som-resurs
 
-- [ ] 2D.1 Vapen kräver ammo-laddning innan natt (1 AP)
-- [ ] 2D.2 Vapen utan ammo kan inte användas (utom melee)
-- [ ] 2D.3 Ammo-status synlig i HUD
+- [x] 2D.1 Vapen kräver ammo-laddning innan natt (1 AP)
+- [x] 2D.2 Vapen utan ammo kan inte användas (utom melee)
+- [x] 2D.3 Ammo-status synlig i HUD
 
 **Leverans:** Full dag/natt-cykel med byggande och resurshantering.
 

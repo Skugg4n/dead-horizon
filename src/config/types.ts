@@ -56,6 +56,7 @@ export interface GameState {
   inventory: {
     weapons: WeaponInstance[];
     resources: Record<ResourceType, number>;
+    loadedAmmo: number;
   };
   base: {
     structures: StructureInstance[];

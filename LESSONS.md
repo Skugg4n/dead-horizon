@@ -13,3 +13,23 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Vite och icke-tomma mappar
 **Problem:** `npm create vite@latest . -- --template vanilla-ts` kraschar om mappen inte ar tom.
 **Losning:** Satt upp Vite manuellt med package.json, tsconfig.json och vite.config.ts.
+
+---
+
+## Scen-livscykel
+
+### Phaser-scener instansieras vid spelstart, inte vid scene.start()
+**Problem:** `private gameState = SaveManager.load()` i klasskroppen kor vid instansiering (spelstart), inte nar scenen startas. Sparade andringar fran tidigare scener ignoreras.
+**Losning:** Ladda alltid gameState i `create()`, aldrig som property initializer.
+
+### JSON-laddning i Phaser -- anvand ES import, inte this.load.json med src/-sokvag
+**Problem:** `this.load.json('key', 'src/data/file.json')` fungerar i dev (Vite serverar root) men misslyckas i prod-build (src/ finns inte i dist/).
+**Losning:** Anvand `import data from '../data/file.json'` istallet. Vite bundlar JSON automatiskt.
+
+### setScrollFactor(0) + interaktiva UI-element i scrollad kamera
+**Problem:** UI-element med setScrollFactor(0) renderas pa ratt stallning pa skarmen, men deras klickzoner foljer kamerans scroll-position. Resulterar i att knappar och menyer inte gar att klicka nar kameran har scrollat.
+**Losning:** Anvand tva kameror: en main camera som scrollar over kartan och en separat UI-kamera fixerad vid (0,0). UI-element laggs till med cameras.main.ignore() sa de bara syns pa UI-kameran. Varldsombjekt laggs till med uiCamera.ignore() sa de inte renderas dubbelt. Ingen setScrollFactor(0) behovs langre for UI.
+
+### Dubbla event-emits vid wave-completion
+**Problem:** WaveManager.onEnemyKilled() emittar bade wave-complete och all-waves-complete for sista waven. Om wave-complete-handlern ocksa startar nasta wave emittas all-waves-complete igen fran startWave().
+**Losning:** Kontrollera wave-nummer i wave-complete-handlern och starta inte nasta wave om det var sista.
