@@ -1,0 +1,27 @@
+{
+  "name": "dead-horizon",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "globals": "^17.4.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.2",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
+  }
+}

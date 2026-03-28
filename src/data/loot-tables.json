@@ -1,0 +1,40 @@
+{
+  "destinations": [
+    {
+      "id": "nearby_houses",
+      "name": "Nearby Houses",
+      "apCost": 3,
+      "encounterChance": 0.2,
+      "loot": [
+        { "resource": "scrap", "min": 5, "max": 15, "chance": 0.9 },
+        { "resource": "food", "min": 2, "max": 8, "chance": 0.7 },
+        { "resource": "ammo", "min": 1, "max": 3, "chance": 0.4 },
+        { "resource": "meds", "min": 0, "max": 2, "chance": 0.2 }
+      ]
+    },
+    {
+      "id": "abandoned_store",
+      "name": "Abandoned Store",
+      "apCost": 3,
+      "encounterChance": 0.3,
+      "loot": [
+        { "resource": "scrap", "min": 8, "max": 20, "chance": 0.8 },
+        { "resource": "food", "min": 5, "max": 12, "chance": 0.8 },
+        { "resource": "ammo", "min": 2, "max": 5, "chance": 0.3 },
+        { "resource": "meds", "min": 1, "max": 3, "chance": 0.3 }
+      ]
+    },
+    {
+      "id": "military_outpost",
+      "name": "Military Outpost",
+      "apCost": 5,
+      "encounterChance": 0.6,
+      "loot": [
+        { "resource": "scrap", "min": 10, "max": 25, "chance": 0.7 },
+        { "resource": "ammo", "min": 5, "max": 15, "chance": 0.8 },
+        { "resource": "parts", "min": 1, "max": 4, "chance": 0.5 },
+        { "resource": "meds", "min": 2, "max": 5, "chance": 0.4 }
+      ]
+    }
+  ]
+}

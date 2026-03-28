@@ -1,0 +1,28 @@
+{
+  "characters": [
+    {
+      "id": "scavenger",
+      "name": "The Scavenger",
+      "description": "Born to find things others miss.",
+      "skillBonuses": { "looting": 3, "combat_pistol": 0, "combat_rifle": 0, "combat_melee": 0, "building": 0 }
+    },
+    {
+      "id": "engineer",
+      "name": "The Engineer",
+      "description": "If it's broken, she can fix it. If it's not, she can make it better.",
+      "skillBonuses": { "building": 3, "combat_melee": 2, "looting": 0, "combat_pistol": 0, "combat_rifle": 0 }
+    },
+    {
+      "id": "soldier",
+      "name": "The Soldier",
+      "description": "Point and shoot. That's all he knows, and it's enough.",
+      "skillBonuses": { "combat_rifle": 3, "combat_pistol": 2, "looting": 0, "building": 0, "combat_melee": 0 }
+    },
+    {
+      "id": "medic",
+      "name": "The Medic",
+      "description": "Keeping people alive is harder than killing them.",
+      "skillBonuses": { "looting": 0, "combat_pistol": 0, "combat_rifle": 0, "combat_melee": 0, "building": 0 }
+    }
+  ]
+}

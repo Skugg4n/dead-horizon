@@ -1,0 +1,46 @@
+{
+  "skills": [
+    {
+      "id": "combat_melee",
+      "name": "Melee Combat",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "damage": 0.05, "attackSpeed": 0.03 }
+    },
+    {
+      "id": "combat_pistol",
+      "name": "Pistol Proficiency",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "accuracy": 0.05, "damage": 0.03, "reloadSpeed": 0.03 }
+    },
+    {
+      "id": "combat_rifle",
+      "name": "Rifle Proficiency",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "accuracy": 0.05, "damage": 0.03, "reloadSpeed": 0.03 }
+    },
+    {
+      "id": "combat_shotgun",
+      "name": "Shotgun Proficiency",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "accuracy": 0.05, "damage": 0.03, "reloadSpeed": 0.03 }
+    },
+    {
+      "id": "looting",
+      "name": "Looting",
+      "maxLevel": 10,
+      "xpPerLevel": [80, 200, 400, 650, 1000, 1400, 1900, 2500, 3200, 4200],
+      "effectPerLevel": { "lootQuality": 0.05, "apReduction": 0.02 }
+    },
+    {
+      "id": "building",
+      "name": "Building",
+      "maxLevel": 10,
+      "xpPerLevel": [80, 200, 400, 650, 1000, 1400, 1900, 2500, 3200, 4200],
+      "effectPerLevel": { "costReduction": 0.05, "structureHp": 0.05 }
+    }
+  ]
+}

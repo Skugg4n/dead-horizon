@@ -1,0 +1,41 @@
+{
+  "waves": [
+    {
+      "wave": 1,
+      "enemies": [
+        { "type": "walker", "count": 5, "spawnDelay": 2000 }
+      ]
+    },
+    {
+      "wave": 2,
+      "enemies": [
+        { "type": "walker", "count": 8, "spawnDelay": 1800 },
+        { "type": "runner", "count": 2, "spawnDelay": 3000 }
+      ]
+    },
+    {
+      "wave": 3,
+      "enemies": [
+        { "type": "walker", "count": 12, "spawnDelay": 1500 },
+        { "type": "runner", "count": 4, "spawnDelay": 2500 },
+        { "type": "brute", "count": 1, "spawnDelay": 5000 }
+      ]
+    },
+    {
+      "wave": 4,
+      "enemies": [
+        { "type": "walker", "count": 18, "spawnDelay": 1200 },
+        { "type": "runner", "count": 6, "spawnDelay": 2000 },
+        { "type": "brute", "count": 2, "spawnDelay": 4000 }
+      ]
+    },
+    {
+      "wave": 5,
+      "enemies": [
+        { "type": "walker", "count": 30, "spawnDelay": 800 },
+        { "type": "runner", "count": 10, "spawnDelay": 1500 },
+        { "type": "brute", "count": 5, "spawnDelay": 3000 }
+      ]
+    }
+  ]
+}

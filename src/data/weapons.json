@@ -1,0 +1,52 @@
+{
+  "weapons": [
+    {
+      "id": "rusty_knife",
+      "name": "Rusty Knife",
+      "class": "melee",
+      "damage": 15,
+      "range": 40,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 500,
+      "rarity": "common",
+      "maxDurability": 50
+    },
+    {
+      "id": "worn_pistol",
+      "name": "Worn Pistol",
+      "class": "pistol",
+      "damage": 10,
+      "range": 200,
+      "noiseLevel": 2,
+      "ammoPerNight": 2,
+      "fireRate": 400,
+      "rarity": "common",
+      "maxDurability": 40
+    },
+    {
+      "id": "hunting_rifle",
+      "name": "Hunting Rifle",
+      "class": "rifle",
+      "damage": 25,
+      "range": 350,
+      "noiseLevel": 4,
+      "ammoPerNight": 3,
+      "fireRate": 800,
+      "rarity": "uncommon",
+      "maxDurability": 35
+    },
+    {
+      "id": "sawed_off",
+      "name": "Sawed-Off Shotgun",
+      "class": "shotgun",
+      "damage": 30,
+      "range": 120,
+      "noiseLevel": 5,
+      "ammoPerNight": 4,
+      "fireRate": 900,
+      "rarity": "uncommon",
+      "maxDurability": 30
+    }
+  ]
+}

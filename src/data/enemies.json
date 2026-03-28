@@ -1,0 +1,31 @@
+{
+  "enemies": [
+    {
+      "id": "walker",
+      "name": "Walker",
+      "hp": 30,
+      "speed": 40,
+      "damage": 10,
+      "awarenessRadius": 200,
+      "spriteKey": "walker"
+    },
+    {
+      "id": "runner",
+      "name": "Runner",
+      "hp": 20,
+      "speed": 100,
+      "damage": 8,
+      "awarenessRadius": 250,
+      "spriteKey": "runner"
+    },
+    {
+      "id": "brute",
+      "name": "Brute",
+      "hp": 150,
+      "speed": 25,
+      "damage": 30,
+      "awarenessRadius": 150,
+      "spriteKey": "brute"
+    }
+  ]
+}

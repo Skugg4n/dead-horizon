@@ -1,0 +1,69 @@
+{
+  "structures": [
+    {
+      "id": "barricade",
+      "name": "Barricade",
+      "hp": 50,
+      "cost": { "scrap": 5 },
+      "apCost": 1,
+      "maxLevel": 3,
+      "effect": "slowsEnemies"
+    },
+    {
+      "id": "wall",
+      "name": "Wall",
+      "hp": 150,
+      "cost": { "scrap": 15 },
+      "apCost": 2,
+      "maxLevel": 3,
+      "effect": "blocksEnemies"
+    },
+    {
+      "id": "trap",
+      "name": "Spike Trap",
+      "hp": 1,
+      "cost": { "scrap": 8 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "damagesEnemies",
+      "trapDamage": 20
+    },
+    {
+      "id": "pillbox",
+      "name": "Pillbox",
+      "hp": 100,
+      "cost": { "scrap": 20, "parts": 2 },
+      "apCost": 2,
+      "maxLevel": 3,
+      "effect": "refugeeShootingPosition"
+    },
+    {
+      "id": "storage",
+      "name": "Storage",
+      "hp": 80,
+      "cost": { "scrap": 10 },
+      "apCost": 1,
+      "maxLevel": 3,
+      "effect": "increasesCapacity"
+    },
+    {
+      "id": "shelter",
+      "name": "Shelter",
+      "hp": 80,
+      "cost": { "scrap": 12 },
+      "apCost": 2,
+      "maxLevel": 3,
+      "effect": "housesRefugees"
+    },
+    {
+      "id": "farm",
+      "name": "Farm",
+      "hp": 40,
+      "cost": { "scrap": 8 },
+      "apCost": 2,
+      "maxLevel": 3,
+      "effect": "producesFood",
+      "foodPerDay": 2
+    }
+  ]
+}
