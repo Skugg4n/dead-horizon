@@ -26,11 +26,11 @@ Mål: Repo redo, alla verktyg konfigurerade, agenter uppsatta.
 
 ### Uppgifter
 
-- [ ] 0.1 Skapa GitHub-repo "dead-horizon"
+- [x] 0.1 Skapa GitHub-repo "dead-horizon"
 - [x] 0.2 Initiera Vite + TypeScript + Phaser
 - [x] 0.3 Konfigurera ESLint, Vitest
 - [x] 0.4 Skapa filstruktur enligt technical-spec.md
-- [ ] 0.5 Konfigurera CI/CD (GitHub Actions -> GitHub Pages)
+- [x] 0.5 Konfigurera CI/CD (GitHub Actions -> GitHub Pages)
 - [x] 0.6 Skapa placeholder index.html med Phaser boot
 - [x] 0.7 Konfigurera .claude/ med agent-instruktioner
 - [x] 0.8 Verifiera att dev server startar och visar en tom Phaser-scen
@@ -46,54 +46,54 @@ Mål: Spelbart minimum. En karta, en spelare, zombies i vågor, dö och starta o
 
 ### 1A: Grundläggande scener och navigation
 
-- [ ] 1A.1 BootScene -- ladda placeholder-assets
-- [ ] 1A.2 MenuScene -- "Start Game"-knapp
-- [ ] 1A.3 NightScene -- tom spelplan med karta
-- [ ] 1A.4 Scene-övergångar fungerar (Menu -> Night -> GameOver -> Menu)
+- [x] 1A.1 BootScene -- ladda placeholder-assets
+- [x] 1A.2 MenuScene -- "Start Game"-knapp
+- [x] 1A.3 NightScene -- tom spelplan med karta
+- [x] 1A.4 Scene-övergångar fungerar (Menu -> Night -> GameOver -> Menu)
 
 ### 1B: Spelarkontroll
 
-- [ ] 1B.1 Spelarsprite (placeholder-rektangel) på kartan
-- [ ] 1B.2 Piltangenter/WASD för rörelse
-- [ ] 1B.3 Kameran följer spelaren
-- [ ] 1B.4 Sprint (Shift) med stamina
+- [x] 1B.1 Spelarsprite (placeholder-rektangel) på kartan
+- [x] 1B.2 Piltangenter/WASD för rörelse
+- [x] 1B.3 Kameran följer spelaren
+- [x] 1B.4 Sprint (Shift) med stamina
 
 ### 1C: Karta
 
-- [ ] 1C.1 Tilemap (enkel grid med gräs + väg)
-- [ ] 1C.2 Bas-position i mitten (tält-placeholder)
-- [ ] 1C.3 Horisontell väg genom kartan
-- [ ] 1C.4 Spawn-zoner vid kartans kanter
+- [x] 1C.1 Tilemap (enkel grid med gräs + väg)
+- [x] 1C.2 Bas-position i mitten (tält-placeholder)
+- [x] 1C.3 Horisontell väg genom kartan
+- [x] 1C.4 Spawn-zoner vid kartans kanter
 
 ### 1D: Fiender och strid
 
-- [ ] 1D.1 Walker-zombie som rör sig mot basen
-- [ ] 1D.2 Zombie-spawning från spawn-zoner
-- [ ] 1D.3 Auto-shoot: spelaren skjuter närmaste fiende inom range
-- [ ] 1D.4 Projektiler och collision detection
-- [ ] 1D.5 Zombies tar skada och dör
-- [ ] 1D.6 Spelaren tar skada vid kontakt med zombies
-- [ ] 1D.7 Spelare-död -> GameOverScene
+- [x] 1D.1 Walker-zombie som rör sig mot basen
+- [x] 1D.2 Zombie-spawning från spawn-zoner
+- [x] 1D.3 Auto-shoot: spelaren skjuter närmaste fiende inom range
+- [x] 1D.4 Projektiler och collision detection
+- [x] 1D.5 Zombies tar skada och dör
+- [x] 1D.6 Spelaren tar skada vid kontakt med zombies
+- [x] 1D.7 Spelare-död -> GameOverScene
 
 ### 1E: Wave-system
 
-- [ ] 1E.1 WaveManager -- spawna zombies i waves
-- [ ] 1E.2 Wave 1-5 (enbart Walkers i MVP, ökande antal. Wave 5 designad att kräva flera runs)
-- [ ] 1E.3 Wave-övergång (alla zombies döda -> ny wave)
-- [ ] 1E.4 "Wave Complete" UI-text
-- [ ] 1E.5 Alla waves klara -> ResultScene
+- [x] 1E.1 WaveManager -- spawna zombies i waves
+- [x] 1E.2 Wave 1-5 (enbart Walkers i MVP, ökande antal. Wave 5 designad att kräva flera runs)
+- [x] 1E.3 Wave-övergång (alla zombies döda -> ny wave)
+- [x] 1E.4 "Wave Complete" UI-text
+- [x] 1E.5 Alla waves klara -> ResultScene
 
 ### 1F: Roguelite-loop
 
-- [ ] 1F.1 Vid död: behåll stats, starta om wave 1
-- [ ] 1F.2 SaveManager -- spara till localStorage
+- [x] 1F.1 Vid död: behåll stats, starta om wave 1
+- [x] 1F.2 SaveManager -- spara till localStorage
 - [ ] 1F.3 Laddskärm hämtar sparad data
 
 ### 1G: Grundläggande HUD
 
-- [ ] 1G.1 HP-bar
-- [ ] 1G.2 Current wave-indikator
-- [ ] 1G.3 Kill counter
+- [x] 1G.1 HP-bar
+- [x] 1G.2 Current wave-indikator
+- [x] 1G.3 Kill counter
 
 **Leverans:** Man kan röra sig, zombies attackerar i vågor, man kan skjuta dem, man kan dö och prova igen. Minimum Viable Fun.
 
