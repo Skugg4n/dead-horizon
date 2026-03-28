@@ -20,7 +20,28 @@ function createDefaultState(): GameState {
       maxHp: PLAYER_MAX_HP,
     },
     inventory: {
-      weapons: [],
+      weapons: [
+        {
+          id: 'rusty_knife_default',
+          weaponId: 'rusty_knife',
+          rarity: 'common' as const,
+          level: 1,
+          xp: 0,
+          durability: 50,
+          maxDurability: 50,
+          upgrades: [],
+        },
+        {
+          id: 'worn_pistol_default',
+          weaponId: 'worn_pistol',
+          rarity: 'common' as const,
+          level: 1,
+          xp: 0,
+          durability: 40,
+          maxDurability: 40,
+          upgrades: [],
+        },
+      ],
       resources: {
         scrap: 10,
         food: 5,

@@ -144,48 +144,48 @@ Mål: Djupare stridssystem och karaktärsprogression.
 
 ### 3A: Vapensystem
 
-- [ ] 3A.1 WeaponManager -- inventory, equip, switch
-- [ ] 3A.2 Implementera vapenklasser (Melee, Pistol, Rifle, Shotgun)
-- [ ] 3A.3 Vapenrariteter (Common -> Legendary) med olika stats
-- [ ] 3A.4 Vapen-XP och leveling (1-5)
-- [ ] 3A.5 Durability-system (sjunker per natt, reparera med Parts)
-- [ ] 3A.6 Siffertangenter för vapenval
-- [ ] 3A.7 WeaponPanel i DayScene
+- [x] 3A.1 WeaponManager -- inventory, equip, switch
+- [x] 3A.2 Implementera vapenklasser (Melee, Pistol, Rifle, Shotgun)
+- [x] 3A.3 Vapenrariteter (Common -> Legendary) med olika stats
+- [x] 3A.4 Vapen-XP och leveling (1-5)
+- [x] 3A.5 Durability-system (sjunker per natt, reparera med Parts)
+- [x] 3A.6 Siffertangenter för vapenval
+- [x] 3A.7 WeaponPanel i DayScene
 
 ### 3B: Ljud-mekanik
 
-- [ ] 3B.1 SoundMechanic -- varje vapen har Noise Level
-- [ ] 3B.2 Zombies reagerar på ljud (ändrar bana mot ljudkälla)
-- [ ] 3B.3 Awareness radius baserat på Noise Level
-- [ ] 3B.4 Visuell indikation av ljud (ringar/pulser)
+- [x] 3B.1 SoundMechanic -- varje vapen har Noise Level
+- [x] 3B.2 Zombies reagerar på ljud (ändrar bana mot ljudkälla)
+- [x] 3B.3 Awareness radius baserat på Noise Level
+- [x] 3B.4 Visuell indikation av ljud (ringar/pulser)
 
 ### 3C: Fiendevariation
 
-- [ ] 3C.1 Runner-zombie (snabb, runt barrikader)
-- [ ] 3C.2 Brute-zombie (stark, bryter igenom väggar)
-- [ ] 3C.3 Uppdatera waves.json med nya fiendetyper
-- [ ] 3C.4 Wave 4-5 med blandade fiender
+- [x] 3C.1 Runner-zombie (snabb, runt barrikader)
+- [x] 3C.2 Brute-zombie (stark, bryter igenom väggar)
+- [x] 3C.3 Uppdatera waves.json med nya fiendetyper
+- [x] 3C.4 Wave 4-5 med blandade fiender
 
 ### 3D: Skill-system
 
-- [ ] 3D.1 SkillManager -- track XP per skill
-- [ ] 3D.2 Combat skills (per vapenklass)
-- [ ] 3D.3 Looting skill
-- [ ] 3D.4 Building skill
-- [ ] 3D.5 Skill-effekter appliceras på relevanta system
-- [ ] 3D.6 Skill-panel i UI
+- [x] 3D.1 SkillManager -- track XP per skill
+- [x] 3D.2 Combat skills (per vapenklass)
+- [x] 3D.3 Looting skill
+- [x] 3D.4 Building skill
+- [x] 3D.5 Skill-effekter appliceras på relevanta system
+- [x] 3D.6 Skill-panel i UI
 
 ### 3E: Karaktärsval
 
-- [ ] 3E.1 Karaktärsval i MenuScene (4 karaktärer)
-- [ ] 3E.2 Startbonus appliceras vid ny run
-- [ ] 3E.3 Karaktärsporträtt och beskrivning
+- [x] 3E.1 Karaktärsval i MenuScene (4 karaktärer)
+- [x] 3E.2 Startbonus appliceras vid ny run
+- [x] 3E.3 Karaktärsporträtt och beskrivning
 
 ### 3F: Vapen-upgrades
 
-- [ ] 3F.1 Upgrade-system med Parts
-- [ ] 3F.2 Suppressor (minskar Noise Level)
-- [ ] 3F.3 Damage boost, extended mag, scope, reinforcement
+- [x] 3F.1 Upgrade-system med Parts
+- [x] 3F.2 Suppressor (minskar Noise Level)
+- [x] 3F.3 Damage boost, extended mag, scope, reinforcement
 
 **Leverans:** Fullt stridssystem med vapen, skills, ljud-mekanik och karaktärsval.
 

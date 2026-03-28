@@ -74,7 +74,7 @@ export class WaveManager {
       for (let i = 0; i < enemyDef.count; i++) {
         const timer = this.scene.time.delayedCall(
           enemyDef.spawnDelay * (i + 1),
-          () => this.spawnEnemy(enemyData),
+          () => this.spawnEnemy(enemyData as ZombieConfig),
         );
         this.spawnTimers.push(timer);
       }

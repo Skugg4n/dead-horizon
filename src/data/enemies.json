@@ -7,7 +7,11 @@
       "speed": 40,
       "damage": 10,
       "awarenessRadius": 200,
-      "spriteKey": "walker"
+      "spriteKey": "walker",
+      "behavior": "walker",
+      "tint": null,
+      "scale": 1.0,
+      "structureDamage": 0
     },
     {
       "id": "runner",
@@ -16,7 +20,11 @@
       "speed": 100,
       "damage": 8,
       "awarenessRadius": 250,
-      "spriteKey": "runner"
+      "spriteKey": "runner",
+      "behavior": "runner",
+      "tint": 16776960,
+      "scale": 1.0,
+      "structureDamage": 0
     },
     {
       "id": "brute",
@@ -25,7 +33,11 @@
       "speed": 25,
       "damage": 30,
       "awarenessRadius": 150,
-      "spriteKey": "brute"
+      "spriteKey": "brute",
+      "behavior": "brute",
+      "tint": 4473924,
+      "scale": 1.5,
+      "structureDamage": 5
     }
   ]
 }

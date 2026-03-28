@@ -1,0 +1,47 @@
+{
+  "upgrades": [
+    {
+      "id": "damage_boost",
+      "name": "Damage Boost",
+      "description": "+15% damage",
+      "partsCost": 3
+    },
+    {
+      "id": "suppressor",
+      "name": "Suppressor",
+      "description": "-1 noise level",
+      "partsCost": 4
+    },
+    {
+      "id": "extended_mag",
+      "name": "Extended Mag",
+      "description": "Reduced ammo consumption",
+      "partsCost": 3
+    },
+    {
+      "id": "scope",
+      "name": "Scope",
+      "description": "+15% range",
+      "partsCost": 3
+    },
+    {
+      "id": "reinforcement",
+      "name": "Reinforcement",
+      "description": "+25% max durability",
+      "partsCost": 2
+    }
+  ],
+  "rarityMultipliers": {
+    "common": 1.0,
+    "uncommon": 1.15,
+    "rare": 1.3,
+    "legendary": 1.5
+  },
+  "levelBonuses": {
+    "2": { "reloadSpeedBonus": 0.10 },
+    "3": { "damageBonus": 0.10 },
+    "4": { "reloadSpeedBonus": 0.10 },
+    "5": { "special": true }
+  },
+  "xpPerLevel": [0, 10, 25, 50, 100]
+}

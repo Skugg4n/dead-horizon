@@ -10,6 +10,7 @@ export class HUD {
   private staminaBar: Phaser.GameObjects.Graphics;
   private staminaBarBg: Phaser.GameObjects.Graphics;
   private ammoText: Phaser.GameObjects.Text;
+  private weaponText: Phaser.GameObjects.Text;
   private waveAnnouncementText: Phaser.GameObjects.Text;
   private container: Phaser.GameObjects.Container;
 
@@ -58,8 +59,16 @@ export class HUD {
     }).setOrigin(1, 0);
     this.container.add(this.ammoText);
 
+    // Weapon name
+    this.weaponText = scene.add.text(GAME_WIDTH - 16, 34, '', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#E8DCC8',
+    }).setOrigin(1, 0);
+    this.container.add(this.weaponText);
+
     // Kill counter
-    this.killText = scene.add.text(GAME_WIDTH - 16, 34, 'Kills: 0', {
+    this.killText = scene.add.text(GAME_WIDTH - 16, 50, 'Kills: 0', {
       fontFamily: 'monospace',
       fontSize: '14px',
       color: '#E8DCC8',
@@ -108,6 +117,16 @@ export class HUD {
       duration: 2000,
       ease: 'Power2',
     });
+  }
+
+  updateWeapon(name: string, durability: number, maxDurability: number): void {
+    const durStr = `${durability}/${maxDurability}`;
+    this.weaponText.setText(`${name} [${durStr}]`);
+    if (durability <= 0) {
+      this.weaponText.setColor('#F44336');
+    } else {
+      this.weaponText.setColor('#E8DCC8');
+    }
   }
 
   updateAmmo(ammo: number): void {

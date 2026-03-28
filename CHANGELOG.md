@@ -1,5 +1,34 @@
 # Dead Horizon -- Changelog
 
+## [0.3.0] - 2026-03-29
+
+### Added -- Fas 3: Vapen och leveling
+- WeaponManager (src/systems/WeaponManager.ts) -- vapeninventar, equip, switch med siffertangenter 1-5
+- Vapenklasser: melee, pistol, rifle, shotgun med unika stats fran weapons.json
+- Vapenrariteter (common/uncommon/rare/legendary) med stat-multiplikatorer
+- Vapen-XP och leveling (1-5): Lvl2 +10% reload, Lvl3 +10% damage, Lvl4 +10% reload
+- Durability-system -- minskar per natt, reparera med Parts (1 AP)
+- Vapenuppgraderingar med Parts: damage_boost, suppressor, extended_mag, scope, reinforcement
+- WeaponPanel (src/ui/WeaponPanel.ts) i DayScene med reparation och uppgraderingsalternativ
+- Startarvapen: rusty_knife (melee) + worn_pistol (ranged)
+- Shotgun avfyrar 3 pellets i spread
+- Vapennamn och durability i HUD under nattfas
+- SoundMechanic (src/systems/SoundMechanic.ts) -- vapen har noiseLevel, zombies reagerar pa ljud
+- Visuella ljudringar vid skott, storlek baserad pa noiseLevel, farg fran gul till rod
+- Zombies attraheras till ljudkalla i 5 sekunder, sedan tillbaka till spelare
+- Runner-zombie: gul tint, snabb (speed 100), forsoker undvika strukturer
+- Brute-zombie: mork tint, 1.5x storlek, skadar strukturer vid kollision (5 dmg/hit)
+- Vaggar ar nu fysiska objekt som blockerar zombies och spelare
+- Barrikader saktar ner zombies, fallor skadar vid overlap (engangbruk)
+- SkillManager (src/systems/SkillManager.ts) -- tracker XP per skill fran skills.json
+- Combat skills far XP per kill med matchande vapenklass (10 XP per kill)
+- Building skill far 25 XP per placerad struktur
+- Skill-effekter: combat okar damage/speed, building minskar kostnad/okar HP
+- SkillPanel (src/ui/SkillPanel.ts) i DayScene med XP-bars och nivaer
+- Karaktarsval i MenuScene: Scavenger, Engineer, Soldier, Medic
+- Karaktarsbonus appliceras som start-XP fran characters.json
+- Ny/fortsatt-spelflode: ny save visar karaktarsval, sparad save visar Continue/New Game
+
 ## [0.2.3] - 2026-03-28
 
 ### Fixed

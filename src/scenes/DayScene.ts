@@ -1,9 +1,13 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../systems/SaveManager';
 import { BuildingManager, type StructureData } from '../systems/BuildingManager';
+import { WeaponManager } from '../systems/WeaponManager';
 import { loadAmmo } from '../systems/AmmoLoader';
 import { ActionPointBar } from '../ui/ActionPointBar';
-import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY } from '../config/constants';
+import { WeaponPanel } from '../ui/WeaponPanel';
+import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD } from '../config/constants';
+import { SkillManager } from '../systems/SkillManager';
+import { SkillPanel } from '../ui/SkillPanel';
 import type { GameState, StructureInstance } from '../config/types';
 import structuresJson from '../data/structures.json';
 
@@ -24,6 +28,10 @@ const STRUCTURE_COLORS: Record<string, number> = {
 export class DayScene extends Phaser.Scene {
   private gameState!: GameState;
   private buildingManager!: BuildingManager;
+  private weaponManager!: WeaponManager;
+  private weaponPanel!: WeaponPanel;
+  private skillManager!: SkillManager;
+  private skillPanel!: SkillPanel;
   private apBar!: ActionPointBar;
   private currentAP!: number;
   private mapContainer!: Phaser.GameObjects.Container;
@@ -79,7 +87,29 @@ export class DayScene extends Phaser.Scene {
     this.createBuildButton();
     this.createLoadAmmoButton();
     this.createBuildMenu();
+    this.createWeaponsButton();
+    this.createSkillButton();
     this.createInfoText();
+
+    // Weapon system
+    this.weaponManager = new WeaponManager(this, this.gameState);
+    this.weaponPanel = new WeaponPanel(
+      this,
+      this.weaponManager,
+      this.gameState,
+      () => this.currentAP,
+      (cost: number) => {
+        this.currentAP -= cost;
+        this.apBar.update(this.currentAP);
+      },
+      () => this.updateResourceDisplay(),
+    );
+    this.addToUI(this.weaponPanel.getContainer());
+
+    // Skill system
+    this.skillManager = new SkillManager(this, this.gameState);
+    this.skillPanel = new SkillPanel(this, this.skillManager);
+    this.addToUI(this.skillPanel.getContainer());
 
     this.setupInput();
 
@@ -300,6 +330,32 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(btn);
   }
 
+  private createWeaponsButton(): void {
+    const btn = this.add.text(290, GAME_HEIGHT - 40, '[ WEAPONS ]', {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#C5A030',
+    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#C5A030'));
+    btn.on('pointerdown', () => this.weaponPanel.toggle());
+    this.addToUI(btn);
+  }
+
+  private createSkillButton(): void {
+    const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 40, '[ SKILLS ]', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#C5A030',
+    }).setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#C5A030'));
+    btn.on('pointerdown', () => this.skillPanel.toggle());
+    this.addToUI(btn);
+  }
+
   private createBuildMenu(): void {
     this.buildMenuContainer = this.add.container(16, 80);
     this.buildMenuContainer.setDepth(110);
@@ -478,6 +534,9 @@ export class DayScene extends Phaser.Scene {
       this.updateResourceDisplay();
       this.drawStructure(result.instance);
 
+      // Award building XP
+      this.skillManager.addXP('building', XP_PER_BUILD);
+
       const data = this.buildingManager.getStructureData(structureId);
       this.showInfo(`${data?.name ?? 'Structure'} placed!`);
       this.cancelPlacement();
@@ -585,7 +644,8 @@ export class DayScene extends Phaser.Scene {
   }
 
   private endDay(): void {
-    // Save state before transitioning
+    // Sync skill XP back to game state before saving
+    this.skillManager.syncToState(this.gameState);
     SaveManager.save(this.gameState);
 
     // Fade out to night
