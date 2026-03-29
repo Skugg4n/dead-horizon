@@ -53,3 +53,47 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### ResourceBar.setText kraschar efter scenovergang
 **Problem:** ResourceBar lyssnar pa resource-changed events. Nar scenen forstors (t.ex. vid overgang fran NightScene till DayScene) forstors Text-objektens WebGL-texturer, men event-lyssnaren lever kvar. Nasta resource-changed-emit orsakar "Cannot read properties of null (reading 'glTexture')".
 **Losning:** Lagg till `!text.active`-check i updateResource() innan setText() anropas.
+
+---
+
+## Rendering
+
+### Natt-overlay (RenderTexture) orsakar gra rektangel
+**Problem:** World-space RenderTexture (1280x960) tackte inte hela kartan, skapade en mork rektangel i ovre vanstra hornet. Bytte till screen-space men det var fortfarande buggigt.
+**Losning:** Tog bort hela natt-overlayen. Anvand morkare bakgrundsfarg (#0F1A0F) istallet. ALDRIG anvand RenderTexture for helskarms-overlays i Phaser.
+
+### FogOfWar gomde zombies
+**Problem:** FogOfWar.updateZombieVisibility() satte zombie.setVisible(false) for zombies i ej avslojad area. Med overlay borttagen blev zombies helt osynliga.
+**Losning:** Tog bort zombie visibility-uppdatering helt. Alla zombies alltid synliga.
+
+---
+
+## Save System
+
+### Gamla saves kraschar nya versioner
+**Problem:** GameState-formatet andras mellan versioner (nya falt: zone, achievements, stats, zoneProgress, loadedAmmo, nya SkillTypes). Gamla saves saknar dessa falt och orsakar TypeError.
+**Losning:** SaveManager.load() mergar sparad data med defaults fran createDefaultState(). Varje nytt falt maste finnas i defaults OCH i merge-logiken. Testa alltid Continue-knappen med en gammal save.
+
+---
+
+## Gameplay
+
+### Zombie target -- bas vs spelare
+**Problem:** Zombies gick alltid mot spelaren, bas var irrelevant.
+**Losning (v1.6.0):** Zombies far basePosition (kartans centrum) som default-mal. Gar mot basen. SoundMechanic (weapon-fired event) overrider temporart med spelarens position via onSoundHeard(). Tystare vapen = zombies ignorerar spelaren langre.
+
+### Byggmeny stangde efter varje placering
+**Problem:** cancelPlacement() anropades efter varje lyckat bygg.
+**Losning:** Ta bort cancelPlacement() efter lyckat bygg, bara uppdatera resursdisplay. Spelaren kan placera flera strukturer i rad.
+
+---
+
+## Crashes
+
+### Skjut-krasch (target redan dod)
+**Problem:** tryAutoShoot hittade en zombie, men mellan detect och shootAt dog zombien. shootAt forsoke komma at properties pa en inaktiv sprite.
+**Losning:** Lagg till `if (!target.active) return;` som forsta rad i shootAt().
+
+### Spitter-krasch (spelare redan dod)
+**Problem:** Spitter-projektil traffade spelare efter spelarens dod. takeDamage pa forstord sprite kraschade.
+**Losning:** Lagg till `!this.player.active` guard i alla overlap-callbacks som anropar player.takeDamage().
