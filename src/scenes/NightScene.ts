@@ -64,14 +64,8 @@ export class NightScene extends Phaser.Scene {
   private traps: Trap[] = [];
   private wallBodies!: Phaser.Physics.Arcade.StaticGroup;
   private fogOfWar!: FogOfWar;
-  private fogIndicatorGraphics!: Phaser.GameObjects.Graphics;
   private fpsText: Phaser.GameObjects.Text | null = null;
   // Visual effects
-  private lightingOverlay!: Phaser.GameObjects.RenderTexture;
-  private lightTexture!: Phaser.GameObjects.Graphics;
-  private pillboxLightTexture!: Phaser.GameObjects.Graphics;
-  private lastLightX: number = 0;
-  private lastLightY: number = 0;
   private damageOverlay!: Phaser.GameObjects.Graphics;
   private muzzleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -229,8 +223,8 @@ export class NightScene extends Phaser.Scene {
 
     // Update fog of war and zombie visibility
     this.fogOfWar.update();
-    // Update zombie visibility based on fog (indicators disabled -- lighting handles visibility)
-    this.fogOfWar.updateZombieVisibility(this.zombieGroup);
+    // Fog overlay removed -- all zombies always visible
+    // (fogOfWar.updateZombieVisibility removed to prevent hiding zombies)
 
     // Update lighting overlay to follow player
     this.updateLighting();
@@ -410,8 +404,6 @@ export class NightScene extends Phaser.Scene {
     );
 
     // Graphics for directional indicators at fog boundary
-    this.fogIndicatorGraphics = this.add.graphics();
-    this.fogIndicatorGraphics.setDepth(81);
   }
 
   private createPlayer(): void {
@@ -452,6 +444,9 @@ export class NightScene extends Phaser.Scene {
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
 
+    // Zombies walk toward base by default, only aggro player via sound
+    this.waveManager.setBasePosition(mapPixelWidth / 2, mapPixelHeight / 2);
+
     // Spawn zones at the four edges
     this.waveManager.setSpawnZones([
       { x: 0, y: mapPixelHeight / 2 },           // left
@@ -482,7 +477,7 @@ export class NightScene extends Phaser.Scene {
       this.zombieGroup,
       (_player, _zombie) => {
         const zombie = _zombie as Zombie;
-        if (!zombie.active || !zombie.canAttack()) return;
+        if (!zombie.active || !zombie.canAttack() || !this.player.active) return;
 
         this.player.takeDamage(zombie.damage);
         zombie.resetAttackCooldown();
@@ -525,7 +520,7 @@ export class NightScene extends Phaser.Scene {
       this.player,
       (_proj) => {
         const proj = _proj as Projectile;
-        if (!proj.active) return;
+        if (!proj.active || !this.player.active) return;
         this.player.takeDamage(proj.damage);
         proj.deactivate();
       },
@@ -1122,76 +1117,12 @@ export class NightScene extends Phaser.Scene {
   }
 
   private setupLighting(): void {
-    const lightCfg = visualConfig.lighting;
-
-    // Screen-space RenderTexture -- covers the camera view, not the entire map
-    this.lightingOverlay = this.add.renderTexture(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    this.lightingOverlay.setDepth(40);
-    this.lightingOverlay.setScrollFactor(0); // fixed to camera
-
-    // Pre-draw radial gradient light texture for player
-    const lightRadius = lightCfg.playerLightRadius;
-    this.lightTexture = new Phaser.GameObjects.Graphics(this);
-    const steps = lightCfg.lightSteps;
-    for (let i = steps; i > 0; i--) {
-      const r = lightRadius * (i / steps);
-      const alpha = 1 - Math.pow(i / steps, 2);
-      this.lightTexture.fillStyle(0xffffff, alpha);
-      this.lightTexture.fillCircle(lightRadius, lightRadius, r);
-    }
-
-    // Pre-draw radial gradient light texture for pillboxes (smaller)
-    const pillboxRadius = lightCfg.pillboxLightRadius;
-    this.pillboxLightTexture = new Phaser.GameObjects.Graphics(this);
-    for (let i = 5; i > 0; i--) {
-      const r = pillboxRadius * (i / 5);
-      const alpha = 1 - Math.pow(i / 5, 2);
-      this.pillboxLightTexture.fillStyle(0xffffff, alpha);
-      this.pillboxLightTexture.fillCircle(pillboxRadius, pillboxRadius, r);
-    }
-
-    // Force initial draw
-    this.lastLightX = -999;
-    this.lastLightY = -999;
+    // Night uses a darker background color instead of a complex overlay
+    this.cameras.main.setBackgroundColor('#0F1A0F');
   }
 
   private updateLighting(): void {
-    // Only redraw when player moves more than 4px
-    const dx = this.player.x - this.lastLightX;
-    const dy = this.player.y - this.lastLightY;
-    if (dx * dx + dy * dy < 16) return;
-    this.lastLightX = this.player.x;
-    this.lastLightY = this.player.y;
-
-    const lightCfg = visualConfig.lighting;
-    const cam = this.cameras.main;
-
-    // Fill entire screen with darkness
-    this.lightingOverlay.clear();
-    const overlayColor = parseInt(visualConfig.lighting.nightOverlayColor.replace('0x', ''), 16);
-    this.lightingOverlay.fill(overlayColor, lightCfg.nightOverlayAlpha);
-
-    // Convert player world position to screen position and erase light circle
-    const lightRadius = lightCfg.playerLightRadius;
-    const screenX = this.player.x - cam.scrollX;
-    const screenY = this.player.y - cam.scrollY;
-    this.lightingOverlay.erase(
-      this.lightTexture,
-      screenX - lightRadius,
-      screenY - lightRadius,
-    );
-
-    // Erase pillbox light areas (also convert to screen space)
-    const pillboxRadius = lightCfg.pillboxLightRadius;
-    for (const assignment of this.pillboxAssignments) {
-      const sx = assignment.structure.x + TILE_SIZE / 2 - cam.scrollX;
-      const sy = assignment.structure.y + TILE_SIZE / 2 - cam.scrollY;
-      this.lightingOverlay.erase(
-        this.pillboxLightTexture,
-        sx - pillboxRadius,
-        sy - pillboxRadius,
-      );
-    }
+    // Lighting overlay removed -- night atmosphere comes from darker background
   }
 
   private setupDamageOverlay(): void {

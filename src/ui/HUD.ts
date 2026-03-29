@@ -81,42 +81,37 @@ export class HUD {
     }).setOrigin(0, 0.5);
     this.container.add(this.weaponText);
 
-    // Ammo counter with bullet icon (center-right, 9px)
+    // Ammo counter with label
     const ammoX = GAME_WIDTH - 200;
-    if (scene.textures.exists('bullet')) {
-      const bulletIcon = scene.add.image(ammoX, GAME_HEIGHT - 18, 'bullet')
-        .setOrigin(0, 0.5)
-        .setDisplaySize(8, 8);
-      this.container.add(bulletIcon);
-    }
-    this.ammoText = scene.add.text(
-      scene.textures.exists('bullet') ? ammoX + 12 : ammoX,
-      GAME_HEIGHT - 18,
-      '0',
-      {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: '#FFD700',
-      }
-    ).setOrigin(0, 0.5);
+    const ammoLabel = scene.add.text(ammoX, GAME_HEIGHT - 18, 'AMMO:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#9A9A9A',
+    }).setOrigin(0, 0.5);
+    this.container.add(ammoLabel);
+
+    this.ammoText = scene.add.text(ammoX + 52, GAME_HEIGHT - 18, '0', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#FFD700',
+    }).setOrigin(0, 0.5);
     this.container.add(this.ammoText);
 
-    // Kill counter with skull icon (far right, 9px)
-    const killX = GAME_WIDTH - 16;
-    this.killText = scene.add.text(killX, GAME_HEIGHT - 18, '0', {
+    // Kill counter with label
+    const killLabelX = GAME_WIDTH - 100;
+    const killLabel = scene.add.text(killLabelX, GAME_HEIGHT - 18, 'KILLS:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#9A9A9A',
+    }).setOrigin(0, 0.5);
+    this.container.add(killLabel);
+
+    this.killText = scene.add.text(killLabelX + 56, GAME_HEIGHT - 18, '0', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#E8DCC8',
-    }).setOrigin(1, 0.5);
+    }).setOrigin(0, 0.5);
     this.container.add(this.killText);
-
-    // Skull icon before kill text
-    if (scene.textures.exists('icon_skull')) {
-      const skullIcon = scene.add.image(killX - 40, GAME_HEIGHT - 18, 'icon_skull')
-        .setOrigin(1, 0.5)
-        .setDisplaySize(8, 8);
-      this.container.add(skullIcon);
-    }
 
     // Wave announcement background (hidden by default)
     this.waveAnnouncementBg = scene.add.graphics();

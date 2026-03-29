@@ -1,5 +1,19 @@
 # Dead Horizon -- Changelog
 
+## [1.6.0] - 2026-03-29
+
+### Fixed
+- Continue-knapp kraschade pga saknade falt i gamla saves (SaveManager migrerar nu)
+- Spitter-projektil kunde krascha spelet nar spelaren redan var dod (lagt till null-guards)
+- Zombies var osynliga pga fog-of-war visibility check (borttaget -- alla zombies alltid synliga)
+- Natt-overlay: tog bort hela RenderTexture-baserade ljussattningen (orsakade gra rektangel)
+- Byggmenyn stangs inte langre efter varje placering (kan placera flera i rad)
+
+### Changed
+- Nattfasen har morkare bakgrund istallet for ljus-overlay (renare, inga buggar)
+- Zombie aggro: fiender gar nu mot BASEN som standard, lockas mot spelaren enbart via vapenljud
+- HUD: tydliga labels "AMMO:" och "KILLS:" istallet for kryptiska ikoner/siffror
+
 ## [1.5.0] - 2026-03-29
 
 ### Fixed

@@ -32,6 +32,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   behavior: ZombieBehavior;
   structureDamage: number;
   private target: Phaser.GameObjects.Sprite | null = null;
+  private basePosition: { x: number; y: number } | null = null;
   private attackCooldown: number = 0;
   private structureAttackCooldown: number = 0;
 
@@ -146,6 +147,10 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.target = target;
   }
 
+  setBasePosition(x: number, y: number): void {
+    this.basePosition = { x, y };
+  }
+
   getTarget(): Phaser.GameObjects.Sprite | null {
     return this.target;
   }
@@ -191,7 +196,10 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       ? Zombie.PATHFIND_INTERVAL_OFFSCREEN
       : Zombie.PATHFIND_INTERVAL_ONSCREEN;
 
-    // Determine movement target: sound source or player
+    // Determine movement target priority:
+    // 1. Sound source (weapon fire attracts zombies to player)
+    // 2. Base position (default -- zombies attack the base)
+    // 3. Player position (fallback if no base set)
     let targetX: number;
     let targetY: number;
 
@@ -208,6 +216,9 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
         this.soundTarget = null;
         this.soundTargetTimer = 0;
       }
+    } else if (this.basePosition) {
+      targetX = this.basePosition.x;
+      targetY = this.basePosition.y;
     } else {
       targetX = this.target.x;
       targetY = this.target.y;

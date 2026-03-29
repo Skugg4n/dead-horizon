@@ -30,6 +30,7 @@ export class WaveManager {
   private waveActive: boolean = false;
   private spawnZones: { x: number; y: number }[] = [];
   private target: Phaser.GameObjects.Sprite | null = null;
+  private basePosition: { x: number; y: number } | null = null;
   private wavesData: WaveDataSource;
   private hordeMultiplier: number = 1.0;
 
@@ -45,6 +46,10 @@ export class WaveManager {
 
   setTarget(target: Phaser.GameObjects.Sprite): void {
     this.target = target;
+  }
+
+  setBasePosition(x: number, y: number): void {
+    this.basePosition = { x, y };
   }
 
   setSpawnZones(zones: { x: number; y: number }[]): void {
@@ -130,9 +135,11 @@ export class WaveManager {
     if (existing) {
       existing.reset(zone.x + offsetX, zone.y + offsetY, config);
       if (this.target) existing.setTarget(this.target);
+      if (this.basePosition) existing.setBasePosition(this.basePosition.x, this.basePosition.y);
     } else {
       const zombie = new Zombie(this.scene, zone.x + offsetX, zone.y + offsetY, config);
       if (this.target) zombie.setTarget(this.target);
+      if (this.basePosition) zombie.setBasePosition(this.basePosition.x, this.basePosition.y);
       this.zombieGroup.add(zombie);
     }
 

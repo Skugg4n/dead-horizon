@@ -94,7 +94,36 @@ function load(): GameState {
   try {
     const json = localStorage.getItem(SAVE_KEY);
     if (json) {
-      return JSON.parse(json) as GameState;
+      const saved = JSON.parse(json) as Partial<GameState>;
+      // Merge with defaults to handle missing fields from older saves
+      const defaults = createDefaultState();
+      const state: GameState = {
+        ...defaults,
+        ...saved,
+        player: { ...defaults.player, ...(saved.player ?? {}) },
+        inventory: {
+          ...defaults.inventory,
+          ...(saved.inventory ?? {}),
+          resources: { ...defaults.inventory.resources, ...(saved.inventory?.resources ?? {}) },
+          weapons: saved.inventory?.weapons ?? defaults.inventory.weapons,
+          loadedAmmo: saved.inventory?.loadedAmmo ?? defaults.inventory.loadedAmmo,
+        },
+        base: { ...defaults.base, ...(saved.base ?? {}) },
+        progress: { ...defaults.progress, ...(saved.progress ?? {}) },
+        map: { ...defaults.map, ...(saved.map ?? {}) },
+        stats: { ...defaults.stats, ...(saved.stats ?? {}) },
+        zoneProgress: saved.zoneProgress ?? defaults.zoneProgress,
+        achievements: saved.achievements ?? defaults.achievements,
+        refugees: saved.refugees ?? defaults.refugees,
+      };
+      // Ensure all skill keys exist
+      for (const key of Object.keys(defaults.player.skills)) {
+        const sk = key as SkillType;
+        if (state.player.skills[sk] === undefined) {
+          state.player.skills[sk] = 0;
+        }
+      }
+      return state;
     }
   } catch (e) {
     console.error('Failed to load game state:', e);

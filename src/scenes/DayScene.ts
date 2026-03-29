@@ -940,7 +940,8 @@ export class DayScene extends Phaser.Scene {
       const data = this.buildingManager.getStructureData(structureId);
       this.showInfo(`${data?.name ?? 'Structure'} placed!`);
       AudioManager.play('ui_build');
-      this.cancelPlacement();
+      // Keep placement mode active so player can place more of the same structure
+      this.updateResourceDisplay();
     } else {
       // Determine reason for failure
       const data = this.buildingManager.getStructureData(structureId);
