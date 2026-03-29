@@ -1,5 +1,11 @@
 # Dead Horizon -- Changelog
 
+## [1.2.1] - 2026-03-29
+
+### Fixed
+- Döda zombies försvann aldrig från skärmen -- death-animation saknade timeout-fallback. Lagt till 1s safety timer.
+- Mörk rektangel uppe till vänster i NightScene -- FogOfWar ritade separat mörk overlay ovanpå ljus-overlayen. Inaktiverat fog-grafiken.
+
 ## [1.2.0] - 2026-03-28
 
 ### Added -- UI component system

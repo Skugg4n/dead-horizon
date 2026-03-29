@@ -178,24 +178,14 @@ export class FogOfWar {
     };
   }
 
-  /** Redraw the fog overlay -- only when dirty flag is set */
+  /** Redraw the fog overlay -- only when dirty flag is set.
+   *  NOTE: Visual fog rendering is disabled because NightScene's
+   *  lighting overlay already provides darkness. FogOfWar only
+   *  handles zombie visibility and directional indicators now. */
   private redraw(): void {
     this.graphics.clear();
-    this.graphics.fillStyle(0x000000, FOG_ALPHA);
-
-    for (let gy = 0; gy < this.gridHeight; gy++) {
-      for (let gx = 0; gx < this.gridWidth; gx++) {
-        if (!this.getCell(gy, gx)) {
-          this.graphics.fillRect(
-            gx * FOG_BLOCK_SIZE,
-            gy * FOG_BLOCK_SIZE,
-            FOG_BLOCK_SIZE,
-            FOG_BLOCK_SIZE
-          );
-        }
-      }
-    }
-
+    // Fog graphics disabled -- lighting overlay handles darkness.
+    // Zombie visibility is still controlled by isRevealed().
     this.dirty = false;
   }
 

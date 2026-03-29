@@ -359,9 +359,15 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     }
 
     if (this.deathAnimKey) {
-      // Sprite sheet death animation
+      // Sprite sheet death animation with safety timeout
       this.play(this.deathAnimKey);
       this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        this.setActive(false);
+        this.setVisible(false);
+      });
+      // Safety: force hide after 1 second if animation never completes
+      this.scene.time.delayedCall(1000, () => {
+        if (!this.active) return;
         this.setActive(false);
         this.setVisible(false);
       });
