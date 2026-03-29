@@ -23,6 +23,7 @@ import { EventDialog } from '../ui/EventDialog';
 import type { EventChoice } from '../ui/EventDialog';
 import structuresJson from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
+import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 
 // Parse structure colors from JSON (string hex to number)
 const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
@@ -49,7 +50,7 @@ export class DayScene extends Phaser.Scene {
   private apBar!: ActionPointBar;
   private currentAP!: number;
   private mapContainer!: Phaser.GameObjects.Container;
-  private structureSprites: Phaser.GameObjects.Graphics[] = [];
+  private structureSprites: Phaser.GameObjects.GameObject[] = [];
 
   // Placement mode state
   private placementMode: boolean = false;
@@ -71,6 +72,7 @@ export class DayScene extends Phaser.Scene {
   private resourceText!: Phaser.GameObjects.Text;
   private baseUpgradeText!: Phaser.GameObjects.Text;
   private baseTentGraphics!: Phaser.GameObjects.Graphics;
+  private baseSpriteImage: Phaser.GameObjects.Image | null = null;
 
   constructor() {
     super({ key: 'DayScene' });
@@ -241,11 +243,37 @@ export class DayScene extends Phaser.Scene {
 
     this.mapContainer = this.add.container(0, 0);
 
-    // Ground (lighter green for daytime)
-    const ground = this.add.graphics();
-    ground.fillStyle(0x3A6B2A);
-    ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
-    this.mapContainer.add(ground);
+    // Ground -- use terrain tiles if available, otherwise solid color
+    const hasGrassTiles = this.textures.exists('terrain_grass_1');
+    const hasRoadTile = this.textures.exists('terrain_road');
+    const roadRow = Math.floor(MAP_HEIGHT / 2);
+    const roadY = roadRow * TILE_SIZE;
+
+    if (hasGrassTiles) {
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const isRoad = ty === roadRow || ty === roadRow - 1;
+          if (isRoad && hasRoadTile) {
+            const tile = this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, 'terrain_road');
+            this.mapContainer.add(tile);
+          } else {
+            const variant = ((tx * 7 + ty * 13) % 3) + 1;
+            const tile = this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, `terrain_grass_${variant}`);
+            this.mapContainer.add(tile);
+          }
+        }
+      }
+    } else {
+      const ground = this.add.graphics();
+      ground.fillStyle(0x3A6B2A);
+      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+      this.mapContainer.add(ground);
+
+      const road = this.add.graphics();
+      road.fillStyle(0x6B5A43);
+      road.fillRect(0, roadY - TILE_SIZE, mapPixelWidth, TILE_SIZE * 2);
+      this.mapContainer.add(road);
+    }
 
     // Grid overlay to help with placement
     const grid = this.add.graphics();
@@ -258,20 +286,15 @@ export class DayScene extends Phaser.Scene {
     }
     this.mapContainer.add(grid);
 
-    // Horizontal road through the middle
-    const roadY = Math.floor(MAP_HEIGHT / 2) * TILE_SIZE;
-    const road = this.add.graphics();
-    road.fillStyle(0x6B5A43);
-    road.fillRect(0, roadY - TILE_SIZE, mapPixelWidth, TILE_SIZE * 2);
-    this.mapContainer.add(road);
-
-    // Road markings
-    const markings = this.add.graphics();
-    markings.fillStyle(0x8B7B5B);
-    for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 2) {
-      markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
+    // Road markings (only needed for fallback graphics)
+    if (!hasRoadTile) {
+      const markings = this.add.graphics();
+      markings.fillStyle(0x8B7B5B);
+      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 2) {
+        markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
+      }
+      this.mapContainer.add(markings);
     }
-    this.mapContainer.add(markings);
 
     // Base in center -- visual depends on base level
     const centerX = mapPixelWidth / 2;
@@ -301,13 +324,29 @@ export class DayScene extends Phaser.Scene {
   }
 
   private drawStructure(structure: StructureInstance): void {
-    const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
-    const g = this.add.graphics();
-    g.fillStyle(color);
-    g.fillRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
-    g.lineStyle(1, 0xE8DCC8, 0.6);
-    g.strokeRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
-    this.addToWorld(g);
+    const spriteKey = getStructureSpriteKey(this, structure.structureId);
+
+    if (spriteKey) {
+      // Use loaded sprite
+      const img = this.add.image(
+        structure.x + TILE_SIZE / 2,
+        structure.y + TILE_SIZE / 2,
+        spriteKey,
+      );
+      img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+      this.addToWorld(img);
+      this.structureSprites.push(img);
+    } else {
+      // Programmatic fallback
+      const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
+      const g = this.add.graphics();
+      g.fillStyle(color);
+      g.fillRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+      g.lineStyle(1, 0xE8DCC8, 0.6);
+      g.strokeRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+      this.addToWorld(g);
+      this.structureSprites.push(g);
+    }
 
     // Level indicator
     if (structure.level > 1) {
@@ -320,8 +359,6 @@ export class DayScene extends Phaser.Scene {
       lvlText.setDepth(5);
       this.addToWorld(lvlText);
     }
-
-    this.structureSprites.push(g);
   }
 
   private setupCameras(): void {
@@ -882,6 +919,21 @@ export class DayScene extends Phaser.Scene {
   private drawBaseTent(graphics: Phaser.GameObjects.Graphics, centerX: number, centerY: number): void {
     const levelData = this.getBaseLevelData();
     const size = levelData.visual.size;
+
+    // Try sprite-based rendering
+    const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
+    if (baseSpriteKey) {
+      graphics.clear();
+      if (this.baseSpriteImage) {
+        this.baseSpriteImage.destroy();
+      }
+      this.baseSpriteImage = this.add.image(centerX, centerY, baseSpriteKey);
+      this.baseSpriteImage.setDisplaySize(size, size);
+      this.mapContainer.add(this.baseSpriteImage);
+      return;
+    }
+
+    // Programmatic fallback
     const halfSize = size / 2;
     const fillColor = parseInt(levelData.visual.color.replace('0x', ''), 16);
     const strokeColor = parseInt(levelData.visual.strokeColor.replace('0x', ''), 16);

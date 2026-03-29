@@ -25,7 +25,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     D: Phaser.Input.Keyboard.Key;
   } | undefined;
   private shiftKey: Phaser.Input.Keyboard.Key | undefined;
-  // Walk bobbing animation state
+  // Animation state
+  private hasWalkAnim: boolean = false;
+  private hasAttackAnim: boolean = false;
+  private hasDeathAnim: boolean = false;
   private bobTimer: number = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -41,6 +44,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.setCollideWorldBounds(true);
     this.setDepth(10);
+
+    // Check which animations are available
+    this.hasWalkAnim = scene.anims.exists('player-walk');
+    this.hasAttackAnim = scene.anims.exists('player-attack');
+    this.hasDeathAnim = scene.anims.exists('player-death');
 
     // Input setup
     if (scene.input.keyboard) {
@@ -83,15 +91,29 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.setVelocity(vx * speed, vy * speed);
 
-    // Walk bobbing animation
+    // Walk animation (sprite sheet) or bobbing fallback
     const isMoving = vx !== 0 || vy !== 0;
-    if (isMoving) {
-      this.bobTimer += dt * (isSprinting ? 14 : 10);
-      const bobOffset = Math.sin(this.bobTimer) * 1.5;
-      this.setOrigin(0.5, 0.5 - bobOffset / 32);
+    if (this.hasWalkAnim) {
+      if (isMoving) {
+        if (!this.anims.isPlaying || this.anims.currentAnim?.key !== 'player-walk') {
+          this.play('player-walk');
+        }
+      } else {
+        if (this.anims.isPlaying && this.anims.currentAnim?.key === 'player-walk') {
+          this.stop();
+          this.setTexture('player');
+        }
+      }
     } else {
-      this.bobTimer = 0;
-      this.setOrigin(0.5, 0.5);
+      // Programmatic bobbing fallback
+      if (isMoving) {
+        this.bobTimer += dt * (isSprinting ? 14 : 10);
+        const bobOffset = Math.sin(this.bobTimer) * 1.5;
+        this.setOrigin(0.5, 0.5 - bobOffset / 32);
+      } else {
+        this.bobTimer = 0;
+        this.setOrigin(0.5, 0.5);
+      }
     }
 
     // Stamina
@@ -100,6 +122,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     } else {
       this.stamina = clamp(this.stamina + STAMINA_REGEN_RATE * dt, 0, this.maxStamina);
     }
+  }
+
+  /** Play attack animation if available. Called by shooting logic. */
+  playAttackAnim(): void {
+    if (!this.hasAttackAnim) return;
+    this.play('player-attack');
+    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      if (!this.active) return;
+      // Resume walk or idle
+      if (this.body && (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)) {
+        if (this.hasWalkAnim) this.play('player-walk');
+      } else {
+        this.setTexture('player');
+      }
+    });
   }
 
   takeDamage(amount: number): void {
@@ -116,7 +153,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (this.hp <= 0) {
       this.hp = 0;
-      this.scene.events.emit('player-died');
+      if (this.hasDeathAnim) {
+        this.play('player-death');
+        this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+          this.scene.events.emit('player-died');
+        });
+      } else {
+        this.scene.events.emit('player-died');
+      }
     }
   }
 }

@@ -64,6 +64,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   private pulseTimer: number = 0;
   private baseTint: number | null = null;
 
+  // Animation keys resolved per zombie type
+  private walkAnimKey: string | null = null;
+  private deathAnimKey: string | null = null;
+  private attackAnimKey: string | null = null;
+
   constructor(scene: Phaser.Scene, x: number, y: number, config: ZombieConfig) {
     super(scene, x, y, config.spriteKey);
 
@@ -94,6 +99,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     this.setDepth(5);
+    this.resolveAnimKeys(config);
     this.applyVisuals(config);
   }
 
@@ -103,6 +109,36 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     }
     if (config.scale !== 1.0) {
       this.setScale(config.scale);
+    }
+  }
+
+  /** Resolve which animation keys are available for this zombie type */
+  private resolveAnimKeys(config: ZombieConfig): void {
+    // Map behavior to animation prefix (boss uses walker anims)
+    const prefix = config.behavior === 'boss' ? 'walker' : config.behavior;
+    const walk = `${prefix}-walk`;
+    const death = `${prefix}-death`;
+
+    this.walkAnimKey = this.scene.anims.exists(walk) ? walk : null;
+    this.deathAnimKey = this.scene.anims.exists(death) ? death : null;
+
+    // Special attack anims
+    if (config.behavior === 'spitter') {
+      this.attackAnimKey = this.scene.anims.exists('spitter-attack') ? 'spitter-attack' : null;
+    } else if (config.behavior === 'screamer') {
+      this.attackAnimKey = this.scene.anims.exists('screamer-scream') ? 'screamer-scream' : null;
+    } else if (config.behavior === 'walker' || config.behavior === 'boss') {
+      this.attackAnimKey = this.scene.anims.exists('walker-attack') ? 'walker-attack' : null;
+    } else {
+      this.attackAnimKey = null;
+    }
+  }
+
+  /** Start walk animation if available */
+  private playWalkAnim(): void {
+    if (!this.walkAnimKey) return;
+    if (!this.anims.isPlaying || this.anims.currentAnim?.key !== this.walkAnimKey) {
+      this.play(this.walkAnimKey);
     }
   }
 
@@ -187,6 +223,8 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       Math.cos(angle) * this.moveSpeed,
       Math.sin(angle) * this.moveSpeed
     );
+
+    this.playWalkAnim();
   }
 
   private updateSpitter(delta: number): void {
@@ -274,8 +312,14 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.structureAttackCooldown = enemiesData.structureAttackCooldown;
   }
 
-  /** Quick red pulse when attacking */
+  /** Quick red pulse when attacking; plays attack anim if available */
   playAttackPulse(): void {
+    if (this.attackAnimKey) {
+      this.play(this.attackAnimKey);
+      this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        if (this.active) this.playWalkAnim();
+      });
+    }
     this.setTint(0xFF0000);
     this.scene.time.delayedCall(120, () => {
       if (this.active) {
@@ -313,20 +357,30 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     if (this.body) {
       this.body.enable = false;
     }
-    // Death animation: shrink + fade + slight rotation
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: 0,
-      scaleY: 0,
-      alpha: 0,
-      angle: Phaser.Math.Between(-30, 30),
-      duration: 300,
-      ease: 'Power2',
-      onComplete: () => {
+
+    if (this.deathAnimKey) {
+      // Sprite sheet death animation
+      this.play(this.deathAnimKey);
+      this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
         this.setActive(false);
         this.setVisible(false);
-      },
-    });
+      });
+    } else {
+      // Tween fallback: shrink + fade + slight rotation
+      this.scene.tweens.add({
+        targets: this,
+        scaleX: 0,
+        scaleY: 0,
+        alpha: 0,
+        angle: Phaser.Math.Between(-30, 30),
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => {
+          this.setActive(false);
+          this.setVisible(false);
+        },
+      });
+    }
   }
 
   reset(x: number, y: number, config: ZombieConfig): void {
@@ -377,5 +431,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     if (this.body) {
       this.body.enable = true;
     }
+
+    this.resolveAnimKeys(config);
   }
 }

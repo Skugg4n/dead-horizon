@@ -22,6 +22,11 @@ export class Wall extends Phaser.GameObjects.Graphics {
   }
 
   private draw(): void {
+    if (this.scene.textures.exists('struct_wall')) {
+      const img = this.scene.add.image(this.x + TILE_SIZE / 2, this.y + TILE_SIZE / 2, 'struct_wall');
+      img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+      return;
+    }
     this.clear();
     this.fillStyle(COLOR);
     this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);

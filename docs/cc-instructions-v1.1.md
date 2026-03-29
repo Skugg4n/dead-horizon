@@ -10,17 +10,20 @@
 
 ---
 
-Hej Lead. Spelet ar pa v1.0.0 och jag har gjort en kodgranskning med Cowork. Det finns tre saker att gora nu, i denna ordning:
+Hej Lead. Spelet ar pa v1.0.1 (bugfixar redan klara -- bra jobbat). Jag har gjort en kodgranskning och UI-audit med Cowork. Det finns tre saker att gora nu, i denna ordning:
 
-### 1. Bugfixar (v1.0.1)
+### 1. UI-redesign (v1.1.0) -- HOGSTA PRIORITET
 
-Las docs/v1-fixlist.md -- den innehaller 8 atgarder med kodsnuttar. Prioritetsordning:
+Las docs/ui-redesign.md -- den innehaller komplett spec med layout, positioner och kodexempel.
 
-1. **Minneslackor** -- NightScene och DayScene saknar shutdown-hantering. Event listeners stadas aldrig vid scenovergang. Fixa detta forst.
-2. **Flytta duplicerade konstanter** -- MAP_WIDTH, MAP_HEIGHT finns nu i constants.ts (redan fixat). Uppdatera NightScene.ts och DayScene.ts att importera darifran istallet for lokala definitioner. Gor samma sak med STRUCTURE_COLORS.
-3. **Tween-lackor** -- lagg till `this.active`-check i delayedCall-callbacks i Player.ts och Zombie.ts, och `this.tweens.killAll()` i shutdown.
+Nuvarande UI ar obrukbar: knappar overlappar, text staplas pa varandra, inga visuella ramar. Sammanfattning av vad som ska goras:
 
-Delegera till @builder. Nar klart, lat @tester verifiera att alla 283 tester fortfarande passerar och att scenovergangar fungerar utan dubbla events.
+1. **Skapa UIButton.ts och UIPanel.ts** -- delade komponenter med bakgrunder, ramar, hover-effekter
+2. **DayScene**: tva-rads action bar (8 knappar pa TVA rader, inte en), top bar med AP/DAY/base-info, resource bar langst ner med separatorer
+3. **NightScene**: forenkla HUD -- top bar (HP, stamina, wave), bottom bar (weapon, ammo, kills). TA BORT resursbaren fran nattscenen
+4. **Alla paneler** (Build, Weapons, Skills, Refugees, LootRun, Crafting) -- konvertera till UIPanel med header, stangknapp, konsekvent storlek
+
+Delegera till @builder. Folj steg 1-6 i docs/ui-redesign.md. Lat @tester verifiera att inget overlappar och alla knappar ar klickbara.
 
 ### 2. Grafik-sprint (v1.1.0)
 
@@ -38,7 +41,7 @@ Nar Prio 1 ar klart, fortsatt med Prio 2 (strukturer) och Prio 3 (terrain).
 
 ### 3. Prestanda (v1.1.1)
 
-Nar grafiken ar inne, ta itu med prestanda-problemen i NightScene.update():
+Om v1-fixlist.md punkt 5 inte redan ar fixad (kolla CHANGELOG), ta itu med prestanda-problemen i NightScene.update():
 - Ljus-overlay ritas om varje frame -- lagg till distans-cache
 - Pillbox-skytte ar O(n*m) -- anvand physics.closest()
 - Zombie pathfinding throttle for on-screen zombies (150ms)
@@ -47,7 +50,7 @@ Se docs/v1-fixlist.md punkt 5 for detaljer.
 
 ### Regler (paminnelse)
 
-- Bumpa version: 1.0.1 for fixar, 1.1.0 for grafik
+- Bumpa version: 1.1.0 for UI+grafik, 1.1.1 for prestanda
 - Logga allt i CHANGELOG.md
 - Kryssa av i docs/sprite-roadmap.md nar assets skapas
 - Alla sprites foljer fargpaletten i docs/art-direction.md EXAKT
@@ -56,9 +59,10 @@ Se docs/v1-fixlist.md punkt 5 for detaljer.
 ### Nya filer att kanna till
 
 - `.claude/agents/artist.md` -- Artist agent-definition
-- `docs/v1-fixlist.md` -- Kodgranskningens atgardslista
+- `docs/v1-fixlist.md` -- Kodgranskningens atgardslista (bugfixar redan klara i 1.0.1)
 - `docs/v1-review-report.md` -- Full granskningsrapport
+- `docs/ui-redesign.md` -- KOMPLETT UI-spec med layout, positioner, kodexempel
 - `docs/sprite-roadmap.md` -- Komplett asset-plan med prioritet
 - `assets/sprites/` -- Befintliga prototyp-sprites (player, walker, runner, brute + walk-sheets)
 
-Klar? Borja med punkt 1 (bugfixar).
+Bugfixar (v1.0.1) ar redan klara. Borja med punkt 1 (UI-redesign).

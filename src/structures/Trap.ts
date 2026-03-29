@@ -25,6 +25,11 @@ export class Trap extends Phaser.GameObjects.Graphics {
   }
 
   private draw(): void {
+    if (this.scene.textures.exists('struct_trap')) {
+      const img = this.scene.add.image(this.x + TILE_SIZE / 2, this.y + TILE_SIZE / 2, 'struct_trap');
+      img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+      return;
+    }
     this.clear();
     this.fillStyle(0x2D1A1A);
     this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);

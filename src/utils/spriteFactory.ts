@@ -7,8 +7,8 @@ import { TILE_SIZE } from '../config/constants';
 const SIZE = TILE_SIZE; // 32
 
 /**
- * Generate all game textures programmatically.
- * Call once during BootScene preload.
+ * Generate programmatic fallback textures for any assets that were not loaded.
+ * Call in BootScene create() after asset loading completes.
  */
 export function generateAllTextures(scene: Phaser.Scene): void {
   generatePlayerTexture(scene);
@@ -16,9 +16,12 @@ export function generateAllTextures(scene: Phaser.Scene): void {
   generateRunnerTexture(scene);
   generateBruteTexture(scene);
   generateBulletTexture(scene);
+  generateSpitterTexture(scene);
+  generateScreamerTexture(scene);
 }
 
 function generatePlayerTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('player')) return;
   const g = scene.make.graphics({ x: 0, y: 0 });
 
   // Body (military green)
@@ -46,6 +49,7 @@ function generatePlayerTexture(scene: Phaser.Scene): void {
 }
 
 function generateWalkerTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('walker')) return;
   const g = scene.make.graphics({ x: 0, y: 0 });
 
   // Irregular dark red body
@@ -71,6 +75,7 @@ function generateWalkerTexture(scene: Phaser.Scene): void {
 }
 
 function generateRunnerTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('runner')) return;
   const g = scene.make.graphics({ x: 0, y: 0 });
 
   // Lean/thin yellow-green body, bent forward
@@ -96,6 +101,7 @@ function generateRunnerTexture(scene: Phaser.Scene): void {
 }
 
 function generateBruteTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('brute')) return;
   const g = scene.make.graphics({ x: 0, y: 0 });
 
   // Large dark grey body
@@ -125,6 +131,7 @@ function generateBruteTexture(scene: Phaser.Scene): void {
 }
 
 function generateBulletTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('bullet')) return;
   const g = scene.make.graphics({ x: 0, y: 0 });
   // Brighter bullet with glow
   g.fillStyle(0xFFDD44);
@@ -132,6 +139,52 @@ function generateBulletTexture(scene: Phaser.Scene): void {
   g.fillStyle(0xFFFFFF, 0.6);
   g.fillCircle(4, 4, 2);
   g.generateTexture('bullet', 8, 8);
+  g.destroy();
+}
+
+function generateSpitterTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('spitter')) return;
+  const g = scene.make.graphics({ x: 0, y: 0 });
+
+  // Hunched green-tinted body
+  g.fillStyle(0x4A6B20);
+  g.fillRect(8, 8, 16, 20);
+
+  // Bloated cheeks/throat
+  g.fillStyle(0x5A8B30);
+  g.fillCircle(16, 6, 5);
+  g.fillCircle(10, 14, 4);
+  g.fillCircle(22, 14, 4);
+
+  // Dripping slime details
+  g.lineStyle(1, 0x7BFF30);
+  g.lineBetween(12, 26, 14, 30);
+  g.lineBetween(18, 26, 20, 30);
+
+  g.generateTexture('spitter', SIZE, SIZE);
+  g.destroy();
+}
+
+function generateScreamerTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists('screamer')) return;
+  const g = scene.make.graphics({ x: 0, y: 0 });
+
+  // Pale emaciated body
+  g.fillStyle(0x8B8B7A);
+  g.fillRect(9, 8, 14, 20);
+
+  // Wide open mouth head
+  g.fillStyle(0x9B9B8A);
+  g.fillCircle(16, 7, 5);
+  g.fillStyle(0x1A1A1A);
+  g.fillRect(13, 5, 6, 5);
+
+  // Sound wave lines
+  g.lineStyle(1, 0xCCCCBB, 0.5);
+  g.strokeCircle(16, 7, 10);
+  g.strokeCircle(16, 7, 14);
+
+  g.generateTexture('screamer', SIZE, SIZE);
   g.destroy();
 }
 
@@ -147,6 +200,23 @@ export function getRefugeeColor(skillBonus: string): number {
     'Medic': 0x4CAF50,         // Green
   };
   return colorMap[skillBonus] ?? 0xE8DCC8;
+}
+
+/**
+ * Get the sprite key for a structure, or null if no sprite loaded.
+ */
+export function getStructureSpriteKey(scene: Phaser.Scene, structureId: string): string | null {
+  const key = `struct_${structureId}`;
+  return scene.textures.exists(key) ? key : null;
+}
+
+/**
+ * Get the sprite key for a base level, or null if no sprite loaded.
+ */
+export function getBaseSpriteKey(scene: Phaser.Scene, level: number): string | null {
+  const keys = ['base_tent', 'base_camp', 'base_outpost', 'base_settlement'];
+  const key = keys[level] ?? 'base_tent';
+  return scene.textures.exists(key) ? key : null;
 }
 
 /**

@@ -22,6 +22,14 @@ export class Barricade extends Phaser.GameObjects.Graphics {
   }
 
   private draw(): void {
+    if (this.scene.textures.exists('struct_barricade')) {
+      // Use loaded sprite -- add an image at the same position
+      const img = this.scene.add.image(TILE_SIZE / 2, TILE_SIZE / 2, 'struct_barricade');
+      img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+      // Parent the image to this Graphics container position
+      img.setPosition(this.x + TILE_SIZE / 2, this.y + TILE_SIZE / 2);
+      return;
+    }
     this.clear();
     this.fillStyle(COLOR);
     this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);

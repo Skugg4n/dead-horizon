@@ -1,5 +1,28 @@
 # Dead Horizon -- Changelog
 
+## [1.1.0] - 2026-03-28
+
+### Added -- Sprite integration (all 47 assets)
+- BootScene loads all pixel art assets: characters (6 types), sprite sheets (12 animations), structures (7), base levels (4), terrain (7), refugees (6), UI icons (5), projectiles (2), loot drop
+- Phaser animations created for player walk/attack/death, walker walk/attack/death, runner walk/death, brute walk/death, spitter attack, screamer scream
+- Player uses walk animation when moving, attack animation on shoot, death animation on death
+- Zombies use walk/death/attack animations per type (walker, runner, brute, spitter, screamer)
+- Structure rendering uses loaded sprite images when available (DayScene + NightScene + Barricade/Wall/Trap classes)
+- Base rendering uses level-specific sprite (tent/camp/outpost/settlement) when available
+- Terrain tile rendering -- grass (3 variants), road tiles replace solid color fills in both DayScene and NightScene
+- Spitter projectiles use dedicated spitter_projectile.png sprite instead of tinted bullet
+- spriteFactory.ts has texture-exists guards -- loaded assets take priority, programmatic textures only generate as fallback
+- Added spitter and screamer fallback textures to spriteFactory
+- getStructureSpriteKey() and getBaseSpriteKey() helpers for sprite-or-fallback rendering
+
+### Changed
+- generateAllTextures() moved from preload() to create() so it runs after asset loading
+- Player bobbing replaced by sprite sheet walk animation (with bobbing fallback)
+- Zombie death uses sprite sheet animation instead of tween (with tween fallback)
+- DayScene structureSprites type widened to Phaser.GameObjects.GameObject[] for mixed sprite/graphics
+- Barricade, Wall, Trap structures use sprite images when loaded (with Graphics fallback)
+- NightScene and DayScene map rendering uses terrain tiles with deterministic variant selection
+
 ## [1.0.1] - 2026-03-29
 
 ### Fixed

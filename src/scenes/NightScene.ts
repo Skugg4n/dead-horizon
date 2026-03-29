@@ -26,6 +26,7 @@ import zombieLootData from '../data/zombie-loot.json';
 import structuresData from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import enemiesData from '../data/enemies.json';
+import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 
 // Parse structure colors from JSON (string hex to number)
 const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
@@ -251,22 +252,43 @@ export class NightScene extends Phaser.Scene {
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
 
-    // Ground (dark green grass)
-    const ground = this.add.graphics();
-    ground.fillStyle(0x2D4A22);
-    ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+    // Ground -- use terrain tiles if available, otherwise solid color
+    const hasGrassTiles = this.textures.exists('terrain_grass_1');
+    const hasRoadTile = this.textures.exists('terrain_road');
+    const roadRow = Math.floor(MAP_HEIGHT / 2);
+    const roadY = roadRow * TILE_SIZE;
 
-    // Horizontal road through the middle
-    const roadY = Math.floor(MAP_HEIGHT / 2) * TILE_SIZE;
-    const road = this.add.graphics();
-    road.fillStyle(0x5C4033);
-    road.fillRect(0, roadY - TILE_SIZE, mapPixelWidth, TILE_SIZE * 2);
+    if (hasGrassTiles) {
+      // Tile the ground with grass variants
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const isRoad = ty === roadRow || ty === roadRow - 1;
+          if (isRoad && hasRoadTile) {
+            this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, 'terrain_road');
+          } else {
+            // Deterministic grass variant based on position
+            const variant = ((tx * 7 + ty * 13) % 3) + 1;
+            this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, `terrain_grass_${variant}`);
+          }
+        }
+      }
+    } else {
+      const ground = this.add.graphics();
+      ground.fillStyle(0x2D4A22);
+      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
 
-    // Road markings
-    const markings = this.add.graphics();
-    markings.fillStyle(0x6B6B6B);
-    for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 2) {
-      markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
+      const road = this.add.graphics();
+      road.fillStyle(0x5C4033);
+      road.fillRect(0, roadY - TILE_SIZE, mapPixelWidth, TILE_SIZE * 2);
+    }
+
+    // Road markings (shown even with tile sprites for visual consistency)
+    if (!hasRoadTile) {
+      const markings = this.add.graphics();
+      markings.fillStyle(0x6B6B6B);
+      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 2) {
+        markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
+      }
     }
 
     // Base in center -- visual depends on base level
@@ -280,17 +302,23 @@ export class NightScene extends Phaser.Scene {
     const baseFillColor = parseInt(baseLevelData.visual.color.replace('0x', ''), 16);
     const baseStrokeColor = parseInt(baseLevelData.visual.strokeColor.replace('0x', ''), 16);
 
-    const tent = this.add.graphics();
-    tent.fillStyle(baseFillColor);
-    tent.fillRect(centerX - halfSize, centerY - halfSize, baseSize, baseSize);
-    tent.lineStyle(baseLevelData.visual.strokeWidth, baseStrokeColor);
-    tent.strokeRect(centerX - halfSize, centerY - halfSize, baseSize, baseSize);
+    const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
+    if (baseSpriteKey) {
+      const baseImg = this.add.image(centerX, centerY, baseSpriteKey);
+      baseImg.setDisplaySize(baseSize, baseSize);
+    } else {
+      const tent = this.add.graphics();
+      tent.fillStyle(baseFillColor);
+      tent.fillRect(centerX - halfSize, centerY - halfSize, baseSize, baseSize);
+      tent.lineStyle(baseLevelData.visual.strokeWidth, baseStrokeColor);
+      tent.strokeRect(centerX - halfSize, centerY - halfSize, baseSize, baseSize);
 
-    // Inner wall detail for Camp and above
-    if (this.gameState.base.level >= 1) {
-      const inset = 4;
-      tent.lineStyle(1, baseStrokeColor, 0.4);
-      tent.strokeRect(centerX - halfSize + inset, centerY - halfSize + inset, baseSize - inset * 2, baseSize - inset * 2);
+      // Inner wall detail for Camp and above
+      if (this.gameState.base.level >= 1) {
+        const inset = 4;
+        tent.lineStyle(1, baseStrokeColor, 0.4);
+        tent.strokeRect(centerX - halfSize + inset, centerY - halfSize + inset, baseSize - inset * 2, baseSize - inset * 2);
+      }
     }
 
     // Label
@@ -340,13 +368,23 @@ export class NightScene extends Phaser.Scene {
           break;
         }
         default: {
-          // Render non-interactive structures visually using shared color map
-          const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
-          const g = this.add.graphics();
-          g.fillStyle(color);
-          g.fillRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
-          g.lineStyle(1, 0xE8DCC8, 0.6);
-          g.strokeRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+          // Render non-interactive structures: sprite if available, else color fallback
+          const spriteKey = getStructureSpriteKey(this, structure.structureId);
+          if (spriteKey) {
+            const img = this.add.image(
+              structure.x + TILE_SIZE / 2,
+              structure.y + TILE_SIZE / 2,
+              spriteKey,
+            );
+            img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+          } else {
+            const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
+            const g = this.add.graphics();
+            g.fillStyle(color);
+            g.fillRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+            g.lineStyle(1, 0xE8DCC8, 0.6);
+            g.strokeRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+          }
           break;
         }
       }
@@ -604,15 +642,18 @@ export class NightScene extends Phaser.Scene {
     this.events.on('spitter-shoot', (zombie: Zombie, target: Phaser.GameObjects.Sprite) => {
       if (!zombie.active) return;
       const angle = angleBetween(zombie.x, zombie.y, target.x, target.y);
+      const useSpitterSprite = this.textures.exists('spitter_projectile');
       const existing = this.spitterProjectileGroup.getFirstDead(false) as Projectile | null;
       if (existing) {
+        if (useSpitterSprite) existing.setTexture('spitter_projectile');
         existing.fire(zombie.x, zombie.y, angle, zombie.damage);
-        existing.setTint(0x44FF44);
+        if (!useSpitterSprite) existing.setTint(0x44FF44);
       } else {
         const proj = new Projectile(this, zombie.x, zombie.y);
+        if (useSpitterSprite) proj.setTexture('spitter_projectile');
         this.spitterProjectileGroup.add(proj);
         proj.fire(zombie.x, zombie.y, angle, zombie.damage);
-        proj.setTint(0x44FF44);
+        if (!useSpitterSprite) proj.setTint(0x44FF44);
       }
     });
 
@@ -733,6 +774,9 @@ export class NightScene extends Phaser.Scene {
   private shootAt(target: Zombie): void {
     const weapon = this.weaponManager.getEquipped();
     if (!weapon) return;
+
+    // Play player attack animation
+    this.player.playAttackAnim();
 
     const stats = this.weaponManager.getWeaponStats(weapon);
     const isMelee = stats.weaponClass === 'melee';

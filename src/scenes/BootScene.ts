@@ -8,11 +8,81 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Generate all programmatic textures
-    generateAllTextures(this);
+    // Load pixel art sprites (static)
+    this.load.image('player', 'assets/sprites/player.png');
+    this.load.image('walker', 'assets/sprites/walker.png');
+    this.load.image('runner', 'assets/sprites/runner.png');
+    this.load.image('brute', 'assets/sprites/brute.png');
+    this.load.image('spitter', 'assets/sprites/spitter.png');
+    this.load.image('screamer', 'assets/sprites/screamer.png');
+    this.load.image('bullet', 'assets/sprites/bullet.png');
+    this.load.image('spitter_projectile', 'assets/sprites/spitter_projectile.png');
+
+    // Structure sprites
+    this.load.image('struct_barricade', 'assets/sprites/struct_barricade.png');
+    this.load.image('struct_wall', 'assets/sprites/struct_wall.png');
+    this.load.image('struct_trap', 'assets/sprites/struct_trap.png');
+    this.load.image('struct_pillbox', 'assets/sprites/struct_pillbox.png');
+    this.load.image('struct_storage', 'assets/sprites/struct_storage.png');
+    this.load.image('struct_shelter', 'assets/sprites/struct_shelter.png');
+    this.load.image('struct_farm', 'assets/sprites/struct_farm.png');
+
+    // Base level sprites
+    this.load.image('base_tent', 'assets/sprites/base_tent.png');
+    this.load.image('base_camp', 'assets/sprites/base_camp.png');
+    this.load.image('base_outpost', 'assets/sprites/base_outpost.png');
+    this.load.image('base_settlement', 'assets/sprites/base_settlement.png');
+
+    // Sprite sheets (animations) -- 32x32 frames unless noted
+    this.load.spritesheet('player_walk', 'assets/sprites/player_walk.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('player_attack', 'assets/sprites/player_attack.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('player_death', 'assets/sprites/player_death.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('walker_walk', 'assets/sprites/walker_walk.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('walker_attack', 'assets/sprites/walker_attack.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('walker_death', 'assets/sprites/walker_death.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('runner_walk', 'assets/sprites/runner_walk.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('runner_death', 'assets/sprites/runner_death.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('brute_walk', 'assets/sprites/brute_walk.png', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('brute_death', 'assets/sprites/brute_death.png', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('spitter_attack', 'assets/sprites/spitter_attack.png', { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('screamer_scream', 'assets/sprites/screamer_scream.png', { frameWidth: 32, frameHeight: 32 });
+
+    // Refugee sprites
+    for (let i = 1; i <= 5; i++) {
+      this.load.image(`refugee_${i}`, `assets/sprites/refugee_${i}.png`);
+    }
+    this.load.image('refugee_injured', 'assets/sprites/refugee_injured.png');
+
+    // UI and effect sprites
+    this.load.image('loot_drop', 'assets/sprites/loot_drop.png');
+    this.load.image('icon_scrap', 'assets/sprites/icon_scrap.png');
+    this.load.image('icon_food', 'assets/sprites/icon_food.png');
+    this.load.image('icon_ammo', 'assets/sprites/icon_ammo.png');
+    this.load.image('icon_parts', 'assets/sprites/icon_parts.png');
+    this.load.image('icon_meds', 'assets/sprites/icon_meds.png');
+
+    // Terrain tiles
+    for (let i = 1; i <= 3; i++) {
+      this.load.image(`terrain_grass_${i}`, `assets/sprites/terrain_grass_${i}.png`);
+    }
+    this.load.image('terrain_dirt', 'assets/sprites/terrain_dirt.png');
+    this.load.image('terrain_road', 'assets/sprites/terrain_road.png');
+    this.load.image('terrain_road_overgrown', 'assets/sprites/terrain_road_overgrown.png');
+    this.load.image('terrain_concrete', 'assets/sprites/terrain_concrete.png');
+
+    // Silently ignore missing files -- spriteFactory fallbacks will cover them
+    this.load.on('loaderror', (file: Phaser.Loader.File) => {
+      console.warn(`[BootScene] Asset not found, using fallback: ${file.key}`);
+    });
   }
 
   create(): void {
+    // Generate programmatic fallback textures for assets that failed to load
+    generateAllTextures(this);
+
+    // Create animations from loaded sprite sheets
+    this.createAnimations();
+
     // Display boot message
     this.add.text(
       this.cameras.main.centerX,
@@ -40,5 +110,43 @@ export class BootScene extends Phaser.Scene {
     this.time.delayedCall(1500, () => {
       this.scene.start('MenuScene');
     });
+  }
+
+  /** Create Phaser animations from loaded sprite sheets. Only creates if the sheet loaded. */
+  private createAnimations(): void {
+    // Helper: only create anim if the spritesheet texture exists and has frames
+    const tryAnim = (key: string, sheet: string, endFrame: number, frameRate: number, repeat: number): void => {
+      if (!this.textures.exists(sheet)) return;
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers(sheet, { start: 0, end: endFrame }),
+        frameRate,
+        repeat,
+      });
+    };
+
+    // Player animations
+    tryAnim('player-walk', 'player_walk', 3, 8, -1);
+    tryAnim('player-attack', 'player_attack', 2, 10, 0);
+    tryAnim('player-death', 'player_death', 3, 6, 0);
+
+    // Walker animations
+    tryAnim('walker-walk', 'walker_walk', 3, 6, -1);
+    tryAnim('walker-attack', 'walker_attack', 2, 8, 0);
+    tryAnim('walker-death', 'walker_death', 3, 6, 0);
+
+    // Runner animations
+    tryAnim('runner-walk', 'runner_walk', 3, 10, -1);
+    tryAnim('runner-death', 'runner_death', 3, 6, 0);
+
+    // Brute animations
+    tryAnim('brute-walk', 'brute_walk', 3, 5, -1);
+    tryAnim('brute-death', 'brute_death', 3, 6, 0);
+
+    // Spitter animations
+    tryAnim('spitter-attack', 'spitter_attack', 2, 8, 0);
+
+    // Screamer animations
+    tryAnim('screamer-scream', 'screamer_scream', 2, 6, 0);
   }
 }
