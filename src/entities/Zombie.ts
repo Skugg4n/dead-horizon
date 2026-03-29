@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import enemiesData from '../data/enemies.json';
 
 export type ZombieBehavior = 'walker' | 'runner' | 'brute' | 'spitter' | 'screamer' | 'boss';
 
@@ -37,11 +38,12 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   // Sound attraction
   private soundTarget: { x: number; y: number } | null = null;
   private soundTargetTimer: number = 0;
-  private static readonly SOUND_TARGET_DURATION = 5000;
+  private static readonly SOUND_TARGET_DURATION = enemiesData.soundTargetDuration;
 
-  // Pathfinding throttle -- only recalculate velocity every 500ms for off-screen zombies
+  // Pathfinding throttle -- recalculate velocity on interval (150ms on-screen, 500ms off-screen)
   private pathfindTimer: number = 0;
-  private static readonly PATHFIND_INTERVAL = 500;
+  private static readonly PATHFIND_INTERVAL_OFFSCREEN = 500;
+  private static readonly PATHFIND_INTERVAL_ONSCREEN = 150;
   offScreen: boolean = false;
 
   // Spitter behavior
@@ -146,12 +148,12 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // Throttle pathfinding for off-screen zombies
-    if (this.offScreen) {
-      this.pathfindTimer -= delta;
-      if (this.pathfindTimer > 0) return;
-      this.pathfindTimer = Zombie.PATHFIND_INTERVAL;
-    }
+    // 5C: Throttle pathfinding for all zombies (150ms on-screen, 500ms off-screen)
+    this.pathfindTimer -= delta;
+    if (this.pathfindTimer > 0) return;
+    this.pathfindTimer = this.offScreen
+      ? Zombie.PATHFIND_INTERVAL_OFFSCREEN
+      : Zombie.PATHFIND_INTERVAL_ONSCREEN;
 
     // Determine movement target: sound source or player
     let targetX: number;
@@ -265,11 +267,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   }
 
   resetAttackCooldown(): void {
-    this.attackCooldown = 1000; // 1 second between attacks
+    this.attackCooldown = enemiesData.attackCooldown;
   }
 
   resetStructureAttackCooldown(): void {
-    this.structureAttackCooldown = 1000; // 1 second between structure attacks
+    this.structureAttackCooldown = enemiesData.structureAttackCooldown;
   }
 
   /** Quick red pulse when attacking */

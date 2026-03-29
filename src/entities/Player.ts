@@ -8,6 +8,7 @@ import {
   STAMINA_REGEN_RATE,
 } from '../config/constants';
 import { clamp } from '../utils/math';
+import visualConfig from '../data/visual-config.json';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   hp: number;
@@ -106,8 +107,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.events.emit('player-damaged', this.hp, this.maxHp);
 
     // Flash red
-    this.setTint(0xff0000);
-    this.scene.time.delayedCall(100, () => {
+    const flashColor = parseInt(visualConfig.playerDamageFlash.color.replace('0x', ''), 16);
+    this.setTint(flashColor);
+    this.scene.time.delayedCall(visualConfig.playerDamageFlash.duration, () => {
+      if (!this.active) return;
       this.clearTint();
     });
 

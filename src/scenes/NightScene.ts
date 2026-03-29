@@ -15,7 +15,8 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { SkillManager } from '../systems/SkillManager';
 import { ZoneManager } from '../systems/ZoneManager';
 import { AchievementManager } from '../systems/AchievementManager';
-import { TILE_SIZE, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN } from '../config/constants';
+import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
 import { distanceBetween, angleBetween } from '../utils/math';
@@ -26,8 +27,10 @@ import structuresData from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import enemiesData from '../data/enemies.json';
 
-const MAP_WIDTH = 40;  // tiles
-const MAP_HEIGHT = 30; // tiles
+// Parse structure colors from JSON (string hex to number)
+const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
+  Object.entries(visualConfig.structureColors).map(([k, v]) => [k, parseInt(v.replace('0x', ''), 16)])
+);
 
 interface LootDrop {
   resource: ResourceType;
@@ -64,7 +67,11 @@ export class NightScene extends Phaser.Scene {
   private fogIndicatorGraphics!: Phaser.GameObjects.Graphics;
   private fpsText: Phaser.GameObjects.Text | null = null;
   // Visual effects
-  private lightingOverlay!: Phaser.GameObjects.Graphics;
+  private lightingOverlay!: Phaser.GameObjects.RenderTexture;
+  private lightTexture!: Phaser.GameObjects.Graphics;
+  private pillboxLightTexture!: Phaser.GameObjects.Graphics;
+  private lastLightX: number = 0;
+  private lastLightY: number = 0;
   private damageOverlay!: Phaser.GameObjects.Graphics;
   private muzzleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -144,6 +151,22 @@ export class NightScene extends Phaser.Scene {
     // Start wave 1 after a brief delay
     this.time.delayedCall(1500, () => {
       this.waveManager.startWave(this.gameState.progress.currentWave);
+    });
+
+    // Clean up all event listeners on scene shutdown to prevent memory leaks
+    this.events.once('shutdown', () => {
+      this.events.off('zombie-killed');
+      this.events.off('wave-started');
+      this.events.off('wave-complete');
+      this.events.off('all-waves-complete');
+      this.events.off('player-damaged');
+      this.events.off('player-died');
+      this.events.off('spitter-shoot');
+      this.events.off('screamer-scream');
+      this.events.off('boss-death-spawn');
+
+      this.tweens.killAll();
+      this.input.keyboard?.removeAllListeners();
     });
   }
 
@@ -317,13 +340,7 @@ export class NightScene extends Phaser.Scene {
           break;
         }
         default: {
-          // Render non-interactive structures visually
-          const STRUCTURE_COLORS: Record<string, number> = {
-            pillbox: 0x4A6741,
-            storage: 0x7B6B3A,
-            shelter: 0x5A4A3A,
-            farm: 0x3A6B3A,
-          };
+          // Render non-interactive structures visually using shared color map
           const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
           const g = this.add.graphics();
           g.fillStyle(color);
@@ -445,7 +462,8 @@ export class NightScene extends Phaser.Scene {
 
         // Brutes damage walls on collision
         if (zombie.canAttackStructure()) {
-          const wallRef = wallBody.getData('wallRef') as Wall | undefined;
+          const wallData = wallBody.getData('wallRef');
+          const wallRef = wallData instanceof Wall ? wallData : undefined;
           if (wallRef) {
             const destroyed = wallRef.takeDamage(zombie.structureDamage);
             zombie.resetStructureAttackCooldown();
@@ -628,18 +646,23 @@ export class NightScene extends Phaser.Scene {
     // Boss spawns minions on death
     this.events.on('boss-death-spawn', (boss: Zombie) => {
       if (!boss.spawnOnDeath) return;
-      const spawnConfig = enemiesData.enemies.find(e => e.id === boss.spawnOnDeath);
-      if (!spawnConfig) return;
+      const rawConfig = enemiesData.enemies.find(e => e.id === boss.spawnOnDeath);
+      if (!rawConfig) {
+        console.warn(`Missing enemy config for spawn-on-death: ${boss.spawnOnDeath}`);
+        return;
+      }
+      // Safe cast: rawConfig validated via .find() + null check above
+      const spawnConfig = rawConfig as ZombieConfig;
       for (let i = 0; i < boss.spawnCount; i++) {
         const offsetX = (Math.random() - 0.5) * 60;
         const offsetY = (Math.random() - 0.5) * 60;
         const existing = this.zombieGroup.getFirstDead(false) as Zombie | null;
         const target = boss.getTarget();
         if (existing) {
-          existing.reset(boss.x + offsetX, boss.y + offsetY, spawnConfig as ZombieConfig);
+          existing.reset(boss.x + offsetX, boss.y + offsetY, spawnConfig);
           if (target) existing.setTarget(target);
         } else {
-          const zombie = new Zombie(this, boss.x + offsetX, boss.y + offsetY, spawnConfig as ZombieConfig);
+          const zombie = new Zombie(this, boss.x + offsetX, boss.y + offsetY, spawnConfig);
           if (target) zombie.setTarget(target);
           this.zombieGroup.add(zombie);
         }
@@ -784,8 +807,12 @@ export class NightScene extends Phaser.Scene {
     }
   }
 
-  // Check zombie overlap with barricades and traps each frame
+  // 5D: Check zombie overlap with barricades and traps each frame
   private checkZombieStructureInteractions(): void {
+    // Clean up inactive structures once per frame (not per-zombie)
+    this.barricades = this.barricades.filter(b => b && b.active);
+    this.traps = this.traps.filter(t => t && t.active);
+
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
       if (!zombie.active) return;
@@ -793,10 +820,7 @@ export class NightScene extends Phaser.Scene {
       // Barricade interaction: slow zombies, brutes damage barricades
       for (let i = this.barricades.length - 1; i >= 0; i--) {
         const barricade = this.barricades[i];
-        if (!barricade || !barricade.active) {
-          this.barricades.splice(i, 1);
-          continue;
-        }
+        if (!barricade) continue;
 
         const bx = barricade.structureInstance.x;
         const by = barricade.structureInstance.y;
@@ -824,16 +848,10 @@ export class NightScene extends Phaser.Scene {
         }
       }
 
-      // Pillbox interaction: zombies damage refugees in pillboxes
-      this.checkPillboxDamage();
-
       // Trap interaction: damage zombies walking over traps
       for (let i = this.traps.length - 1; i >= 0; i--) {
         const trap = this.traps[i];
-        if (!trap || !trap.active) {
-          this.traps.splice(i, 1);
-          continue;
-        }
+        if (!trap) continue;
 
         const tx = trap.structureInstance.x;
         const ty = trap.structureInstance.y;
@@ -857,6 +875,9 @@ export class NightScene extends Phaser.Scene {
         }
       }
     });
+
+    // Pillbox interaction: check once per frame (was incorrectly inside per-zombie loop)
+    this.checkPillboxDamage();
   }
 
   // Assign healthy refugees to pillbox structures for night defense
@@ -893,22 +914,18 @@ export class NightScene extends Phaser.Scene {
         ? REFUGEE_PILLBOX_RANGE + 50
         : REFUGEE_PILLBOX_RANGE;
 
-      let nearestZombie: Zombie | null = null;
-      let nearestDist = range;
+      // 5B: Use physics.closest() instead of nested loop
+      const activeZombies = this.zombieGroup.getChildren().filter(c => c.active);
+      if (activeZombies.length === 0) continue;
+      const nearest = this.physics.closest({ x: px, y: py } as Phaser.Types.Math.Vector2Like, activeZombies) as Zombie | null;
+      if (!nearest) continue;
 
-      this.zombieGroup.getChildren().forEach(child => {
-        const zombie = child as Zombie;
-        if (!zombie.active) return;
-        const dist = distanceBetween(px, py, zombie.x, zombie.y);
-        if (dist < nearestDist) {
-          nearestDist = dist;
-          nearestZombie = zombie;
-        }
-      });
+      const nearestDist = distanceBetween(px, py, nearest.x, nearest.y);
+      const nearestZombie: Zombie | null = nearestDist <= range ? nearest : null;
 
       if (nearestZombie) {
-        const zx = (nearestZombie as Zombie).x;
-        const zy = (nearestZombie as Zombie).y;
+        const zx = nearestZombie.x;
+        const zy = nearestZombie.y;
         const angle = angleBetween(px, py, zx, zy);
         const existing = this.projectileGroup.getFirstDead(false) as Projectile | null;
         if (existing) {
@@ -1047,41 +1064,74 @@ export class NightScene extends Phaser.Scene {
   }
 
   private setupLighting(): void {
-    this.lightingOverlay = this.add.graphics();
-    this.lightingOverlay.setDepth(75);
+    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    const lightCfg = visualConfig.lighting;
+
+    // RenderTexture covers entire map -- filled with dark color, then light circles erased
+    this.lightingOverlay = this.add.renderTexture(0, 0, mapPixelWidth, mapPixelHeight);
+    this.lightingOverlay.setDepth(40);
+    this.lightingOverlay.setScrollFactor(1);
+
+    // Pre-draw radial gradient light texture for player (off-screen, reused each frame)
+    const lightRadius = lightCfg.playerLightRadius;
+    this.lightTexture = new Phaser.GameObjects.Graphics(this);
+    const steps = lightCfg.lightSteps;
+    for (let i = steps; i > 0; i--) {
+      const r = lightRadius * (i / steps);
+      const alpha = 1 - Math.pow(i / steps, 2);
+      this.lightTexture.fillStyle(0xffffff, alpha);
+      this.lightTexture.fillCircle(lightRadius, lightRadius, r);
+    }
+
+    // Pre-draw radial gradient light texture for pillboxes (smaller)
+    const pillboxRadius = lightCfg.pillboxLightRadius;
+    this.pillboxLightTexture = new Phaser.GameObjects.Graphics(this);
+    for (let i = 5; i > 0; i--) {
+      const r = pillboxRadius * (i / 5);
+      const alpha = 1 - Math.pow(i / 5, 2);
+      this.pillboxLightTexture.fillStyle(0xffffff, alpha);
+      this.pillboxLightTexture.fillCircle(pillboxRadius, pillboxRadius, r);
+    }
+
+    // Force initial draw
+    this.lastLightX = -999;
+    this.lastLightY = -999;
   }
 
   private updateLighting(): void {
-    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
-    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    // 5A: Only redraw when player moves more than 4px (squared distance threshold)
+    const dx = this.player.x - this.lastLightX;
+    const dy = this.player.y - this.lastLightY;
+    if (dx * dx + dy * dy < 16) return;
+    this.lastLightX = this.player.x;
+    this.lastLightY = this.player.y;
 
+    const lightCfg = visualConfig.lighting;
+
+    // Fill with darkness, then erase light circles to reveal entities underneath
     this.lightingOverlay.clear();
-    this.lightingOverlay.fillStyle(0x0A0A1E, 0.65);
-    this.lightingOverlay.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+    const overlayColor = parseInt(visualConfig.lighting.nightOverlayColor.replace('0x', ''), 16);
+    this.lightingOverlay.fill(overlayColor, lightCfg.nightOverlayAlpha);
 
-    // Gradient light around player
-    const px = this.player.x;
-    const py = this.player.y;
-    const lightRadius = 120;
-    const steps = 8;
-    for (let i = steps; i > 0; i--) {
-      const r = lightRadius * (i / steps);
-      const darkness = 0.65 * (1 - Math.pow(1 - i / steps, 2));
-      this.lightingOverlay.fillStyle(0x0A0A1E, darkness);
-      this.lightingOverlay.fillCircle(px, py, r);
-    }
+    // Erase player light area (reveals player + nearby entities)
+    const lightRadius = lightCfg.playerLightRadius;
+    this.lightingOverlay.erase(
+      this.lightTexture,
+      this.player.x - lightRadius,
+      this.player.y - lightRadius,
+    );
 
-    // Pillbox lights
+    // Erase pillbox light areas
+    const pillboxRadius = lightCfg.pillboxLightRadius;
     for (const assignment of this.pillboxAssignments) {
       const sx = assignment.structure.x + TILE_SIZE / 2;
       const sy = assignment.structure.y + TILE_SIZE / 2;
-      const pillboxRadius = 60;
-      for (let i = 5; i > 0; i--) {
-        const r = pillboxRadius * (i / 5);
-        const darkness = 0.65 * (1 - Math.pow(1 - i / 5, 2));
-        this.lightingOverlay.fillStyle(0x0A0A1E, darkness);
-        this.lightingOverlay.fillCircle(sx, sy, r);
-      }
+      this.lightingOverlay.erase(
+        this.pillboxLightTexture,
+        sx - pillboxRadius,
+        sy - pillboxRadius,
+      );
     }
   }
 
@@ -1093,14 +1143,15 @@ export class NightScene extends Phaser.Scene {
   }
 
   private flashDamageOverlay(): void {
+    const flashColor = parseInt(visualConfig.damageFlash.color.replace('0x', ''), 16);
     this.damageOverlay.clear();
-    this.damageOverlay.fillStyle(0xFF0000, 0.2);
+    this.damageOverlay.fillStyle(flashColor, visualConfig.damageFlash.overlayAlpha);
     this.damageOverlay.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
     this.damageOverlay.setAlpha(1);
     this.tweens.add({
       targets: this.damageOverlay,
       alpha: 0,
-      duration: 150,
+      duration: visualConfig.damageFlash.duration,
       ease: 'Power2',
     });
   }
@@ -1109,7 +1160,7 @@ export class NightScene extends Phaser.Scene {
     const tutorialText = this.add.text(
       this.cameras.main.width / 2,
       this.cameras.main.height - 60,
-      'WASD to move | Enemies auto-targeted | Shift to sprint | Survive the night!',
+      visualConfig.tutorial.text,
       {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
@@ -1122,8 +1173,8 @@ export class NightScene extends Phaser.Scene {
     this.tweens.add({
       targets: tutorialText,
       alpha: 0,
-      delay: 6000,
-      duration: 2000,
+      delay: visualConfig.tutorial.displayDuration,
+      duration: visualConfig.tutorial.fadeDuration,
       ease: 'Power2',
       onComplete: () => tutorialText.destroy(),
     });

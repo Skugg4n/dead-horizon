@@ -1,4 +1,6 @@
 {
+  "projectileSpeed": 400,
+  "projectileLifespan": 2000,
   "weapons": [
     {
       "id": "rusty_knife",

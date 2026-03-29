@@ -197,3 +197,21 @@ Under utvecklingen anvander vi enkla placeholder-sprites:
 - Solid färger för terrain
 
 Detta låter oss bygga all mekanik utan att vänta på konst. Riktiga sprites kan bytas in senare tack vare Phasers sprite-system.
+
+---
+
+## 7. Verktyg for asset-generering (Fas 5+)
+
+Nar vi gar fran placeholders till riktiga sprites finns dessa verktyg att utforska:
+
+### 7.1 Claude Code Skills (installeras i .claude/skills/)
+- **Game Art & Visual Design** (mcpmarket.com/tools/skills/game-art-visual-design) -- art style-guide, asset pipeline, visuell konsistens
+- **Pixel Art Professional** (mcpmarket.com/tools/skills/pixel-art-professional) -- sprite-skapande och optimering
+- **Pixel Art Generator** (mcpmarket.com/tools/skills/pixel-art-generator) -- AI-driven sprite creation
+
+### 7.2 MCP-servrar for asset-generering
+- **game-asset-mcp** (github.com/MubarakHAlketbi/game-asset-mcp) -- genererar 2D/3D game assets via Hugging Face AI-modeller
+- **mcp-game-asset-gen** (github.com/Flux159/mcp-game-asset-gen) -- asset generation for Three.js och spelmotor
+
+### 7.3 Installationsplan
+Installera dessa verktyg i Claude Code-projektet innan Fas 5 (Polish) paborjas. Builder-agenten kan da anvanda dem direkt for att generera sprites enligt denna art direction.

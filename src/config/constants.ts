@@ -5,6 +5,9 @@ export const GAME_HEIGHT = 600;
 
 export const TILE_SIZE = 32;
 
+export const MAP_WIDTH = 40;  // tiles
+export const MAP_HEIGHT = 30; // tiles
+
 export const AP_PER_DAY = 12;
 
 export const PLAYER_SPEED = 150;
@@ -71,4 +74,4 @@ export const ENCOUNTER_THRESHOLDS: Record<string, number> = {
   military_outpost: 100,
 };
 
-export const GAME_VERSION = '1.0.0';
+export const GAME_VERSION = '1.0.1';

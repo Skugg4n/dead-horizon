@@ -1,0 +1,33 @@
+{
+  "lighting": {
+    "playerLightRadius": 120,
+    "pillboxLightRadius": 60,
+    "pillboxLightSteps": 5,
+    "lightSteps": 8,
+    "nightOverlayAlpha": 0.65,
+    "nightOverlayColor": "0x0A0A1E"
+  },
+  "structureColors": {
+    "barricade": "0x8B6914",
+    "wall": "0x6B6B6B",
+    "trap": "0xCC3333",
+    "pillbox": "0x4A6741",
+    "storage": "0x7B6B3A",
+    "shelter": "0x5A4A3A",
+    "farm": "0x3A6B3A"
+  },
+  "damageFlash": {
+    "color": "0xFF0000",
+    "overlayAlpha": 0.2,
+    "duration": 150
+  },
+  "playerDamageFlash": {
+    "color": "0xff0000",
+    "duration": 100
+  },
+  "tutorial": {
+    "text": "WASD to move | Enemies auto-targeted | Shift to sprint | Survive the night!",
+    "displayDuration": 6000,
+    "fadeDuration": 2000
+  }
+}

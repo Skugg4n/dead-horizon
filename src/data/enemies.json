@@ -1,4 +1,8 @@
 {
+  "soundTargetDuration": 5000,
+  "attackCooldown": 1000,
+  "structureAttackCooldown": 1000,
+  "pathfindInterval": 500,
   "enemies": [
     {
       "id": "walker",

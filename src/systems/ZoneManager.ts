@@ -25,8 +25,11 @@ export class ZoneManager {
   }
 
   getCurrentZone(): ZoneData {
-    const zone = zoneDataMap.get(this.gameState.zone);
-    if (!zone) throw new Error(`Unknown zone: ${this.gameState.zone}`);
+    // Default to 'forest' for old saves missing zone field
+    const zoneId = this.gameState.zone ?? 'forest' as ZoneId;
+    if (!this.gameState.zone) this.gameState.zone = zoneId;
+    const zone = zoneDataMap.get(zoneId);
+    if (!zone) throw new Error(`Unknown zone: ${zoneId}`);
     return zone;
   }
 

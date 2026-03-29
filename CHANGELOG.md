@@ -1,5 +1,30 @@
 # Dead Horizon -- Changelog
 
+## [1.0.1] - 2026-03-29
+
+### Fixed
+- Minneslackor: shutdown-hantering i NightScene och DayScene -- event listeners stadas vid scenovergang
+- Spelaren doldes av nattoverlay -- ljussystem ritar nu korrekt transparent cirkel runt spelaren
+- delayedCall-callbacks i Player.ts och Zombie.ts kollar nu this.active innan de agerar
+- Duplicerade konstanter (MAP_WIDTH, MAP_HEIGHT, STRUCTURE_COLORS) flyttade till constants.ts och visual-config.json
+- Hardkodade varden externaliserade till JSON (enemies.json, weapons.json, visual-config.json)
+- Osaker typ-casting i DayScene (structures JSON) ersatt med interface-typad import
+- Boss spawn-validering i NightScene -- kontrollerar att spawnConfig finns innan cast
+- Wall type guard i NightScene -- ersatter osaker as-cast
+- ZoneManager kraschar vid "Unknown zone: undefined" for gamla saves -- default till 'forest'
+- SKILLS-knapp dolde END DAY-knappen (samma position) -- layout fixad
+
+### Changed
+- NightScene ljus-cache: overlay ritas bara om nar spelaren ror sig mer an 4px
+- Pillbox-skytte anvander physics.closest() istallet for nastad loop
+- Zombie pathfinding-throttle: 150ms for on-screen, 500ms for off-screen (previously bara off-screen)
+- Zombie-struktur-kollisioner anvander physics.overlap() istallet for manuell AABB
+- WeaponManager anvander Map-cache for vapendata-lookups istallet for .find()
+- DayScene build menu uppdaterar bara alpha/tint vid resursforfandring (refreshBuildMenuAffordability), full rebuild bara vid basuppgradering
+- Section 7 (Verktyg for asset-generering) tillagd i docs/art-direction.md
+- Projektilvarden (speed, lifespan) lases fran weapons.json
+- Attack-cooldowns lases fran enemies.json
+
 ## [1.0.0] - 2026-03-29
 
 ### Added -- Fas 5: Polish och balans

@@ -48,7 +48,21 @@ Vi kan lägga till Agent Teams senare om vi behöver parallellt arbete (t.ex. by
 4. Skriva ren, typad TypeScript
 5. Inte ta egna designbeslut -- fråga Lead om oklarheter
 
-### 2.3 Tester (Evaluator)
+### 2.3 Artist
+
+**Syfte:** Skapar alla visuella assets -- sprites, animationer, terrain tiles, UI-element. Anvander Python/Pillow for att rita pixel art.
+
+**Nar den anvands:** Lead delegerar grafiska uppgifter hit. Artist jobbar fran docs/art-direction.md och docs/sprite-roadmap.md.
+
+**Ansvarsomraden:**
+1. Skapa pixel art sprites (32x32, 48x48 for Brute)
+2. Skapa sprite sheets for animationer (walk, attack, death)
+3. Skapa terrain tiles och struktursprites
+4. Uppdatera BootScene.ts for att ladda nya assets
+5. Fasa ut programmatiska texturer i spriteFactory.ts
+6. Folja fargpaletten i art-direction.md exakt
+
+### 2.4 Tester (Evaluator)
 
 **Syfte:** Testar det Builder byggt. Hittar buggar. Verifierar att features matchar game-design.md.
 
@@ -73,6 +87,7 @@ dead-horizon/
 │   └── agents/
 │       ├── lead.md         # Lead agent definition
 │       ├── builder.md      # Builder agent definition
+│       ├── artist.md       # Artist agent definition
 │       └── tester.md       # Tester agent definition
 ```
 
@@ -349,7 +364,7 @@ Kör dem parallellt och synka efteråt.
 
 Vi kan lägga till fler agenter vid behov:
 - **balancer** -- analyserar speldata och föreslår balansjusteringar
-- **artist** -- genererar placeholder-sprites eller art direction
+- **artist** -- IMPLEMENTERAD (se .claude/agents/artist.md)
 - **reviewer** -- code review innan merge
 
 ### 7.3 Hooks

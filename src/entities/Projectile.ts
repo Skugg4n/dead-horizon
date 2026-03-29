@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
+import weaponsData from '../data/weapons.json';
 
-const PROJECTILE_SPEED = 400;
-const PROJECTILE_LIFESPAN = 2000; // ms
+const PROJECTILE_SPEED = weaponsData.projectileSpeed;
+const PROJECTILE_LIFESPAN = weaponsData.projectileLifespan;
 
 export class Projectile extends Phaser.Physics.Arcade.Sprite {
   damage: number = 0;

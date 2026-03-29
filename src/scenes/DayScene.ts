@@ -9,7 +9,8 @@ import { WeaponPanel } from '../ui/WeaponPanel';
 import { RefugeePanel } from '../ui/RefugeePanel';
 import { LootRunPanel } from '../ui/LootRunPanel';
 import { LootManager } from '../systems/LootManager';
-import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS } from '../config/constants';
+import visualConfig from '../data/visual-config.json';
 import { SkillManager } from '../systems/SkillManager';
 import { SkillPanel } from '../ui/SkillPanel';
 import { ZoneManager } from '../systems/ZoneManager';
@@ -23,19 +24,10 @@ import type { EventChoice } from '../ui/EventDialog';
 import structuresJson from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 
-const MAP_WIDTH = 40;  // tiles
-const MAP_HEIGHT = 30; // tiles
-
-// Structure colors for rendering placed structures
-const STRUCTURE_COLORS: Record<string, number> = {
-  barricade: 0x8B6914,
-  wall: 0x6B6B6B,
-  trap: 0xCC3333,
-  pillbox: 0x4A6741,
-  storage: 0x7B6B3A,
-  shelter: 0x5A4A3A,
-  farm: 0x3A6B3A,
-};
+// Parse structure colors from JSON (string hex to number)
+const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
+  Object.entries(visualConfig.structureColors).map(([k, v]) => [k, parseInt(v.replace('0x', ''), 16)])
+);
 
 export class DayScene extends Phaser.Scene {
   private gameState!: GameState;
@@ -73,6 +65,7 @@ export class DayScene extends Phaser.Scene {
   // UI elements
   private buildMenuContainer!: Phaser.GameObjects.Container;
   private buildMenuVisible: boolean = false;
+  private buildMenuEntries: { structureId: string; text: Phaser.GameObjects.Text }[] = [];
   private structurePopup: Phaser.GameObjects.Container | null = null;
   private infoText!: Phaser.GameObjects.Text;
   private resourceText!: Phaser.GameObjects.Text;
@@ -88,7 +81,9 @@ export class DayScene extends Phaser.Scene {
     this.currentAP = AP_PER_DAY;
 
     // Load structure data and create BuildingManager
-    const structureList = structuresJson.structures as unknown as StructureData[];
+    interface StructuresFile { structures: StructureData[]; }
+    const typedStructures = structuresJson as StructuresFile;
+    const structureList = typedStructures.structures;
     this.buildingManager = new BuildingManager(this, this.gameState, structureList);
 
     this.placementMode = false;
@@ -214,6 +209,18 @@ export class DayScene extends Phaser.Scene {
     this.setupInput();
 
     this.events.emit('day-started', this.gameState.progress.currentWave);
+
+    // Clean up all event listeners on scene shutdown to prevent memory leaks
+    this.events.once('shutdown', () => {
+      this.events.off('award-looting-xp');
+      this.events.off('refugee-rescued');
+      this.events.off('loot-run-complete');
+      this.events.off('update');
+
+      this.tweens.killAll();
+      this.input.keyboard?.removeAllListeners();
+      this.input.off('pointerdown');
+    });
   }
 
   update(): void {
@@ -445,11 +452,11 @@ export class DayScene extends Phaser.Scene {
   }
 
   private createSkillButton(): void {
-    const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 40, '[ SKILLS ]', {
+    const btn = this.add.text(GAME_WIDTH - 150, GAME_HEIGHT - 40, '[ SKILLS ]', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '12px',
+      fontSize: '10px',
       color: '#C5A030',
-    }).setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
+    }).setOrigin(1, 1).setDepth(100).setInteractive({ useHandCursor: true });
 
     btn.on('pointerover', () => btn.setColor('#FFD700'));
     btn.on('pointerout', () => btn.setColor('#C5A030'));
@@ -484,9 +491,9 @@ export class DayScene extends Phaser.Scene {
   }
 
   private createCraftButton(): void {
-    const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 58, '[ CRAFT ]', {
+    const btn = this.add.text(GAME_WIDTH - 150, GAME_HEIGHT - 58, '[ CRAFT ]', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '12px',
+      fontSize: '10px',
       color: '#D4A030',
     }).setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
 
@@ -541,6 +548,7 @@ export class DayScene extends Phaser.Scene {
     this.buildMenuContainer = this.add.container(16, 80);
     this.buildMenuContainer.setDepth(110);
     this.buildMenuContainer.setVisible(false);
+    this.buildMenuEntries = [];
 
     const baseLevelData = this.getBaseLevelData();
     const unlockedIds = baseLevelData.unlockedStructures as string[];
@@ -573,13 +581,20 @@ export class DayScene extends Phaser.Scene {
         color: color,
       });
 
-      if (available) {
-        entry.setInteractive({ useHandCursor: true });
-        entry.on('pointerover', () => entry.setColor('#FFD700'));
-        entry.on('pointerout', () => entry.setColor('#E8DCC8'));
-        entry.on('pointerdown', () => this.startPlacement(s.id));
-      }
+      // Always set interactive -- affordability refresh will update visual state
+      entry.setInteractive({ useHandCursor: true });
+      entry.on('pointerover', () => {
+        if (entry.alpha === 1.0) entry.setColor('#FFD700');
+      });
+      entry.on('pointerout', () => {
+        if (entry.alpha === 1.0) entry.setColor('#E8DCC8');
+      });
+      entry.on('pointerdown', () => {
+        if (entry.alpha === 1.0) this.startPlacement(s.id);
+      });
+      entry.setAlpha(available ? 1.0 : 0.4);
 
+      this.buildMenuEntries.push({ structureId: s.id, text: entry });
       this.buildMenuContainer.add(entry);
       entryIndex++;
     });
@@ -606,8 +621,19 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(this.buildMenuContainer);
   }
 
-  private refreshBuildMenu(): void {
-    // Destroy and recreate to update affordability
+  /** Light refresh: only update alpha on existing entries based on affordability */
+  private refreshBuildMenuAffordability(): void {
+    for (const entry of this.buildMenuEntries) {
+      const canAfford = this.buildingManager.canAfford(entry.structureId);
+      const hasAP = this.buildingManager.hasEnoughAP(entry.structureId, this.currentAP);
+      const available = canAfford && hasAP;
+      entry.text.setAlpha(available ? 1.0 : 0.4);
+      entry.text.setColor(available ? '#E8DCC8' : '#6B6B6B');
+    }
+  }
+
+  /** Full rebuild -- only needed when base level changes (new structures unlocked) */
+  private rebuildBuildMenu(): void {
     this.buildMenuContainer.destroy();
     this.createBuildMenu();
     if (this.buildMenuVisible) {
@@ -639,7 +665,7 @@ export class DayScene extends Phaser.Scene {
   private toggleBuildMenu(): void {
     this.buildMenuVisible = !this.buildMenuVisible;
     if (this.buildMenuVisible) {
-      this.refreshBuildMenu();
+      this.refreshBuildMenuAffordability();
     }
     this.buildMenuContainer.setVisible(this.buildMenuVisible);
 
@@ -920,7 +946,7 @@ export class DayScene extends Phaser.Scene {
     this.drawBaseTent(this.baseTentGraphics, mapPixelWidth / 2, mapPixelHeight / 2);
 
     // Refresh build menu to show newly unlocked structures
-    this.refreshBuildMenu();
+    this.rebuildBuildMenu();
   }
 
   private processDayStart(): void {

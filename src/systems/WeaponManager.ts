@@ -17,6 +17,18 @@ const upgradeDataList = upgradesJson.upgrades as WeaponUpgradeData[];
 const rarityMultipliers = upgradesJson.rarityMultipliers as Record<Rarity, number>;
 const xpPerLevel = upgradesJson.xpPerLevel as number[];
 
+// Cached Map for O(1) weapon lookups by id
+const weaponMap = new Map<string, WeaponData>();
+for (const w of weaponDataList) {
+  weaponMap.set(w.id, w);
+}
+
+// Cached Map for O(1) upgrade lookups by id
+const upgradeMap = new Map<string, WeaponUpgradeData>();
+for (const u of upgradeDataList) {
+  upgradeMap.set(u.id, u);
+}
+
 // Level bonuses: cumulative reload speed and damage bonuses per level
 // Lvl2 +10% reload, Lvl3 +10% damage, Lvl4 +10% reload, Lvl5 special
 function getLevelDamageMultiplier(level: number): number {
@@ -79,11 +91,11 @@ export class WeaponManager {
   }
 
   static getWeaponData(weaponId: string): WeaponData | undefined {
-    return weaponDataList.find(w => w.id === weaponId);
+    return weaponMap.get(weaponId);
   }
 
   static getUpgradeData(upgradeId: WeaponUpgradeType): WeaponUpgradeData | undefined {
-    return upgradeDataList.find(u => u.id === upgradeId);
+    return upgradeMap.get(upgradeId);
   }
 
   static getAllUpgradeData(): WeaponUpgradeData[] {
