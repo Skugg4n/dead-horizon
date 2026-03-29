@@ -21,6 +21,8 @@ let masterGain: GainNode | null = null;
 const bufferCache = new Map<SoundId, AudioBuffer>();
 const lastPlayed = new Map<SoundId, number>();
 let muted = false;
+let sfxMuted = false;
+let ambientMuted = false;
 let masterVolume = 0.4;
 
 // Ambient state
@@ -404,7 +406,7 @@ function getBuffer(id: SoundId): AudioBuffer {
 // --- Public API ---
 
 function play(id: SoundId): void {
-  if (muted) return;
+  if (muted || sfxMuted) return;
 
   const def = SOUND_DEFS[id];
   const now = performance.now();
@@ -434,7 +436,7 @@ function playWeaponSound(weaponClass: string): void {
 
 function startAmbient(type: 'night' | 'day'): void {
   stopAmbient();
-  if (muted) return;
+  if (muted || ambientMuted) return;
 
   const ctx = getContext();
   if (!masterGain) return;
@@ -477,13 +479,28 @@ function stopAmbient(): void {
 
 function setMuted(value: boolean): void {
   muted = value;
-  if (muted) {
-    stopAmbient();
-  }
+  if (muted) stopAmbient();
 }
 
 function isMuted(): boolean {
   return muted;
+}
+
+function setSfxMuted(value: boolean): void {
+  sfxMuted = value;
+}
+
+function isSfxMuted(): boolean {
+  return sfxMuted;
+}
+
+function setAmbientMuted(value: boolean): void {
+  ambientMuted = value;
+  if (ambientMuted) stopAmbient();
+}
+
+function isAmbientMuted(): boolean {
+  return ambientMuted;
 }
 
 function setVolume(vol: number): void {
@@ -515,6 +532,10 @@ export const AudioManager = {
   stopAmbient,
   setMuted,
   isMuted,
+  setSfxMuted,
+  isSfxMuted,
+  setAmbientMuted,
+  isAmbientMuted,
   setVolume,
   getVolume,
   initOnInteraction,

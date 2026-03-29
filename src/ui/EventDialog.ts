@@ -5,8 +5,8 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 
-const DIALOG_WIDTH = 360;
-const DIALOG_HEIGHT = 260;
+const DIALOG_WIDTH = 420;
+const DIALOG_HEIGHT = 300;
 const DIALOG_X = Math.floor((GAME_WIDTH - DIALOG_WIDTH) / 2);
 const DIALOG_Y = Math.floor((GAME_HEIGHT - DIALOG_HEIGHT) / 2);
 
@@ -57,18 +57,18 @@ export class EventDialog {
     this.onChoice = onChoice;
     this.container.removeAll(true);
 
-    // Dialog background with UIPanel styling
+    // Dialog background with rounded corners
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x1A1A1A, 0.95);
-    bg.fillRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT);
-    bg.lineStyle(1, 0x333333, 1);
-    bg.strokeRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT);
+    bg.fillRoundedRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT, 8);
+    bg.lineStyle(2, 0xD4920B, 0.8);
+    bg.strokeRoundedRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT, 8);
     this.container.add(bg);
 
-    // Header bar
+    // Header bar (clipped to top rounded corners)
     const headerBg = this.scene.add.graphics();
-    headerBg.fillStyle(0x333333, 1);
-    headerBg.fillRect(0, 0, DIALOG_WIDTH, 24);
+    headerBg.fillStyle(0x2A2A2A, 1);
+    headerBg.fillRoundedRect(0, 0, DIALOG_WIDTH, 28, { tl: 8, tr: 8, bl: 0, br: 0 });
     this.container.add(headerBg);
 
     // Title
@@ -90,14 +90,16 @@ export class EventDialog {
     this.container.add(desc);
 
     // Choice buttons
-    const startY = 110;
-    const spacing = 32;
+    const startY = 120;
+    const spacing = 40;
     event.choices.forEach((choice, index) => {
       const y = startY + index * spacing;
       const btn = this.scene.add.text(DIALOG_WIDTH / 2, y, `[ ${choice.text} ]`, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '10px',
+        fontSize: '9px',
         color: '#D4920B',
+        wordWrap: { width: DIALOG_WIDTH - 40 },
+        align: 'center',
       }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => btn.setColor('#FFD700'));

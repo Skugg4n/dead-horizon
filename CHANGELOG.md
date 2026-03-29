@@ -1,5 +1,27 @@
 # Dead Horizon -- Changelog
 
+## [1.5.0] - 2026-03-29
+
+### Fixed
+- Ljussattning: gra rektangel tackto inte hela kartan. Bytt till screen-space RenderTexture
+- Roda fog-pilar: tog bort distraktande zombie-indikatorer (ljussattning hanterar synlighet)
+- EventDialog: gra box overfyllde panelen. Bredare panel, rundade horn, text-wrapping
+- Karaktarsval: text overlappade mellan kort
+
+### Changed
+- Karaktarsval: bytt fran 4 trange kort till carousel-design med en stor karaktarspanel
+- Skill-namn visas som lasbart text (Melee, Rifle) istallet for ratt ID (combat_melee)
+- Tangentbord-navigation i karaktarsval (pilar + Enter)
+- Skill-bonusar visas som grafiska pips istallet for text
+
+### Added
+- Steg-for-steg onboarding for nattfasen (5 steg: Move, Shoot, Sprint, Switch, Survive)
+- Steg-for-steg onboarding for dagfasen (5 steg: Day Phase, Build, Load Ammo, Loot, End Day)
+- Onboarding forklarar ammo-laddning (LOAD AMMO kostar 1 AP, inget ammo = bara melee)
+- Settings-panel i huvudmenyn med separata toggles for SFX och Ambient/Music
+- Volymkontroll med +/- knappar
+- AudioManager stodjer separata sfxMuted/ambientMuted flaggor
+
 ## [1.4.0] - 2026-03-29
 
 ### Added -- Procedural Audio System (Fas 5E)

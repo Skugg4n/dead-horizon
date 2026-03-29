@@ -194,38 +194,13 @@ export class FogOfWar {
    * Called each frame from NightScene.
    * Also draws directional indicators for nearby hidden zombies.
    */
-  updateZombieVisibility(zombieGroup: Phaser.Physics.Arcade.Group, indicatorGraphics: Phaser.GameObjects.Graphics): void {
-    indicatorGraphics.clear();
-
+  updateZombieVisibility(zombieGroup: Phaser.Physics.Arcade.Group): void {
     zombieGroup.getChildren().forEach(child => {
       const zombie = child as Phaser.Physics.Arcade.Sprite;
       if (!zombie.active) return;
 
       const visible = this.isRevealed(zombie.x, zombie.y);
       zombie.setVisible(visible);
-
-      // Draw directional indicator for hidden zombies near fog edge
-      if (!visible && this.isNearFogEdge(zombie.x, zombie.y, 3)) {
-        const dir = this.getFogEdgeDirection(zombie.x, zombie.y);
-        if (dir) {
-          // Draw arrow at fog edge pointing toward hidden zombie
-          const arrowSize = 8;
-          const ax = dir.edgeX;
-          const ay = dir.edgeY;
-
-          indicatorGraphics.fillStyle(0xFF4444, 0.7);
-          // Triangle pointing in the direction of the zombie
-          const angle = Math.atan2(dir.y, dir.x);
-          const tipX = ax + Math.cos(angle) * arrowSize;
-          const tipY = ay + Math.sin(angle) * arrowSize;
-          const leftX = ax + Math.cos(angle + 2.5) * arrowSize * 0.6;
-          const leftY = ay + Math.sin(angle + 2.5) * arrowSize * 0.6;
-          const rightX = ax + Math.cos(angle - 2.5) * arrowSize * 0.6;
-          const rightY = ay + Math.sin(angle - 2.5) * arrowSize * 0.6;
-
-          indicatorGraphics.fillTriangle(tipX, tipY, leftX, leftY, rightX, rightY);
-        }
-      }
     });
   }
 

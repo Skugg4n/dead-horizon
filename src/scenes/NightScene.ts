@@ -14,7 +14,7 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { SkillManager } from '../systems/SkillManager';
 import { ZoneManager } from '../systems/ZoneManager';
 import { AchievementManager } from '../systems/AchievementManager';
-import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN } from '../config/constants';
 import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
@@ -229,7 +229,8 @@ export class NightScene extends Phaser.Scene {
 
     // Update fog of war and zombie visibility
     this.fogOfWar.update();
-    this.fogOfWar.updateZombieVisibility(this.zombieGroup, this.fogIndicatorGraphics);
+    // Update zombie visibility based on fog (indicators disabled -- lighting handles visibility)
+    this.fogOfWar.updateZombieVisibility(this.zombieGroup);
 
     // Update lighting overlay to follow player
     this.updateLighting();
@@ -1121,16 +1122,14 @@ export class NightScene extends Phaser.Scene {
   }
 
   private setupLighting(): void {
-    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
-    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
     const lightCfg = visualConfig.lighting;
 
-    // RenderTexture covers entire map -- filled with dark color, then light circles erased
-    this.lightingOverlay = this.add.renderTexture(0, 0, mapPixelWidth, mapPixelHeight);
+    // Screen-space RenderTexture -- covers the camera view, not the entire map
+    this.lightingOverlay = this.add.renderTexture(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.lightingOverlay.setDepth(40);
-    this.lightingOverlay.setScrollFactor(1);
+    this.lightingOverlay.setScrollFactor(0); // fixed to camera
 
-    // Pre-draw radial gradient light texture for player (off-screen, reused each frame)
+    // Pre-draw radial gradient light texture for player
     const lightRadius = lightCfg.playerLightRadius;
     this.lightTexture = new Phaser.GameObjects.Graphics(this);
     const steps = lightCfg.lightSteps;
@@ -1157,7 +1156,7 @@ export class NightScene extends Phaser.Scene {
   }
 
   private updateLighting(): void {
-    // 5A: Only redraw when player moves more than 4px (squared distance threshold)
+    // Only redraw when player moves more than 4px
     const dx = this.player.x - this.lastLightX;
     const dy = this.player.y - this.lastLightY;
     if (dx * dx + dy * dy < 16) return;
@@ -1165,25 +1164,28 @@ export class NightScene extends Phaser.Scene {
     this.lastLightY = this.player.y;
 
     const lightCfg = visualConfig.lighting;
+    const cam = this.cameras.main;
 
-    // Fill with darkness, then erase light circles to reveal entities underneath
+    // Fill entire screen with darkness
     this.lightingOverlay.clear();
     const overlayColor = parseInt(visualConfig.lighting.nightOverlayColor.replace('0x', ''), 16);
     this.lightingOverlay.fill(overlayColor, lightCfg.nightOverlayAlpha);
 
-    // Erase player light area (reveals player + nearby entities)
+    // Convert player world position to screen position and erase light circle
     const lightRadius = lightCfg.playerLightRadius;
+    const screenX = this.player.x - cam.scrollX;
+    const screenY = this.player.y - cam.scrollY;
     this.lightingOverlay.erase(
       this.lightTexture,
-      this.player.x - lightRadius,
-      this.player.y - lightRadius,
+      screenX - lightRadius,
+      screenY - lightRadius,
     );
 
-    // Erase pillbox light areas
+    // Erase pillbox light areas (also convert to screen space)
     const pillboxRadius = lightCfg.pillboxLightRadius;
     for (const assignment of this.pillboxAssignments) {
-      const sx = assignment.structure.x + TILE_SIZE / 2;
-      const sy = assignment.structure.y + TILE_SIZE / 2;
+      const sx = assignment.structure.x + TILE_SIZE / 2 - cam.scrollX;
+      const sy = assignment.structure.y + TILE_SIZE / 2 - cam.scrollY;
       this.lightingOverlay.erase(
         this.pillboxLightTexture,
         sx - pillboxRadius,
@@ -1214,26 +1216,110 @@ export class NightScene extends Phaser.Scene {
   }
 
   private showTutorialOverlay(): void {
-    const tutorialText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height - 60,
-      visualConfig.tutorial.text,
-      {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: '#E8DCC8',
-        backgroundColor: '#1A1A2E',
-        padding: { x: 8, y: 6 },
-      },
-    ).setOrigin(0.5).setScrollFactor(0).setDepth(110).setAlpha(1);
+    const steps = [
+      { title: 'MOVE', text: 'Use WASD or arrow keys\nto move your character.' },
+      { title: 'SHOOT', text: 'You auto-shoot the\nclosest enemy in range.' },
+      { title: 'SPRINT', text: 'Hold SHIFT to sprint.\nWatch your stamina bar.' },
+      { title: 'SWITCH', text: 'Press 1-5 to switch\nweapons during combat.' },
+      { title: 'SURVIVE', text: 'Survive 5 waves.\nYou keep everything\nwhen you die.' },
+    ];
+    let currentStep = 0;
 
+    const container = this.add.container(0, 0).setDepth(200).setScrollFactor(0);
+
+    // Semi-transparent backdrop
+    const backdrop = this.add.graphics();
+    backdrop.fillStyle(0x000000, 0.5);
+    backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    container.add(backdrop);
+
+    // Panel
+    const panelW = 320;
+    const panelH = 180;
+    const px = (GAME_WIDTH - panelW) / 2;
+    const py = (GAME_HEIGHT - panelH) / 2 - 20;
+
+    const panel = this.add.graphics();
+    panel.fillStyle(0x1A1A2E, 0.95);
+    panel.fillRoundedRect(px, py, panelW, panelH, 8);
+    panel.lineStyle(2, 0xD4620B);
+    panel.strokeRoundedRect(px, py, panelW, panelH, 8);
+    container.add(panel);
+
+    // Step counter
+    const stepCounter = this.add.text(GAME_WIDTH / 2, py + 16, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5);
+    container.add(stepCounter);
+
+    // Title
+    const titleText = this.add.text(GAME_WIDTH / 2, py + 40, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '14px',
+      color: '#D4620B',
+    }).setOrigin(0.5);
+    container.add(titleText);
+
+    // Body
+    const bodyText = this.add.text(GAME_WIDTH / 2, py + 75, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#E8DCC8',
+      align: 'center',
+      lineSpacing: 6,
+    }).setOrigin(0.5, 0);
+    container.add(bodyText);
+
+    // Continue prompt
+    const continueText = this.add.text(GAME_WIDTH / 2, py + panelH - 18, 'Click or press any key', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5);
+    container.add(continueText);
+
+    // Blink the continue text
     this.tweens.add({
-      targets: tutorialText,
-      alpha: 0,
-      delay: visualConfig.tutorial.displayDuration,
-      duration: visualConfig.tutorial.fadeDuration,
-      ease: 'Power2',
-      onComplete: () => tutorialText.destroy(),
+      targets: continueText,
+      alpha: 0.3,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    const showStep = () => {
+      const step = steps[currentStep];
+      if (!step) return;
+      stepCounter.setText(`${currentStep + 1} / ${steps.length}`);
+      titleText.setText(step.title);
+      bodyText.setText(step.text);
+    };
+
+    const advance = () => {
+      currentStep++;
+      if (currentStep >= steps.length) {
+        container.destroy();
+        return;
+      }
+      AudioManager.play('ui_click');
+      showStep();
+    };
+
+    showStep();
+
+    // Advance on click or keypress
+    backdrop.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains
+    );
+    backdrop.on('pointerdown', advance);
+    const keyHandler = this.input.keyboard?.on('keydown', advance);
+
+    // Clean up when container is destroyed
+    container.once('destroy', () => {
+      if (keyHandler) this.input.keyboard?.off('keydown', advance);
     });
   }
 }

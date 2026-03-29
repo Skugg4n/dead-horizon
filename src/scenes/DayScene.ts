@@ -216,6 +216,11 @@ export class DayScene extends Phaser.Scene {
 
     this.setupInput();
 
+    // Show day-phase tutorial on first ever game
+    if (this.gameState.progress.totalRuns === 0 && this.gameState.progress.currentWave <= 1) {
+      this.showDayTutorial();
+    }
+
     this.events.emit('day-started', this.gameState.progress.currentWave);
 
     // Clean up all event listeners on scene shutdown to prevent memory leaks
@@ -1318,6 +1323,104 @@ export class DayScene extends Phaser.Scene {
         hordeMultiplier: this.eventManager.getHordeMultiplier(),
         fogPenalty: this.eventManager.getFogPenalty(),
       });
+    });
+  }
+
+  private showDayTutorial(): void {
+    const steps = [
+      { title: 'DAY PHASE', text: 'You have 12 Action Points\nto prepare for the night.' },
+      { title: 'BUILD', text: 'Use the BUILD menu to place\nbarricades, walls and traps\naround your base.' },
+      { title: 'LOAD AMMO', text: 'Open WEAPONS and load ammo\ninto your guns. Costs 1 AP.\nNo ammo = melee only!' },
+      { title: 'LOOT RUNS', text: 'Send expeditions to find\nscrap, food, ammo and meds.\nCosts 3-5 AP.' },
+      { title: 'END DAY', text: 'When ready, press END DAY.\nNight begins immediately.\nGood luck.' },
+    ];
+    let currentStep = 0;
+
+    const container = this.add.container(0, 0).setDepth(300).setScrollFactor(0);
+
+    const backdrop = this.add.graphics();
+    backdrop.fillStyle(0x000000, 0.5);
+    backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    container.add(backdrop);
+
+    const panelW = 320;
+    const panelH = 180;
+    const px = (GAME_WIDTH - panelW) / 2;
+    const py = (GAME_HEIGHT - panelH) / 2 - 20;
+
+    const panel = this.add.graphics();
+    panel.fillStyle(0x1A1A2E, 0.95);
+    panel.fillRoundedRect(px, py, panelW, panelH, 8);
+    panel.lineStyle(2, 0x4CAF50);
+    panel.strokeRoundedRect(px, py, panelW, panelH, 8);
+    container.add(panel);
+
+    const stepCounter = this.add.text(GAME_WIDTH / 2, py + 16, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5);
+    container.add(stepCounter);
+
+    const titleText = this.add.text(GAME_WIDTH / 2, py + 40, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '14px',
+      color: '#4CAF50',
+    }).setOrigin(0.5);
+    container.add(titleText);
+
+    const bodyText = this.add.text(GAME_WIDTH / 2, py + 72, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#E8DCC8',
+      align: 'center',
+      lineSpacing: 6,
+    }).setOrigin(0.5, 0);
+    container.add(bodyText);
+
+    const continueText = this.add.text(GAME_WIDTH / 2, py + panelH - 18, 'Click or press any key', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5);
+    container.add(continueText);
+
+    this.tweens.add({
+      targets: continueText,
+      alpha: 0.3,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    const showStep = () => {
+      const step = steps[currentStep];
+      if (!step) return;
+      stepCounter.setText(`${currentStep + 1} / ${steps.length}`);
+      titleText.setText(step.title);
+      bodyText.setText(step.text);
+    };
+
+    const advance = () => {
+      currentStep++;
+      if (currentStep >= steps.length) {
+        container.destroy();
+        return;
+      }
+      AudioManager.play('ui_click');
+      showStep();
+    };
+
+    showStep();
+
+    backdrop.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains
+    );
+    backdrop.on('pointerdown', advance);
+    const keyHandler = this.input.keyboard?.on('keydown', advance);
+    container.once('destroy', () => {
+      if (keyHandler) this.input.keyboard?.off('keydown', advance);
     });
   }
 }
