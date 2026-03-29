@@ -1,5 +1,17 @@
 # Dead Horizon -- Changelog
 
+## [1.7.0] - 2026-03-29 15:24
+
+### Added
+- Procedurellt genererad terrang i NightScene via TerrainGenerator (src/systems/TerrainGenerator.ts)
+  - Trad (stam + krona), stenar, buskar, stubbar, vattensamlingar och stigar ritas med Phaser Graphics
+  - Zonvariation: forest (fler trad/buskar/vatten), city (betongbitar/asfalt), military (sand/kratrar)
+  - Deterministiskt seed baserat pa totalRuns*31 + currentWave -- unik terrang varje natt
+  - Trad och stora stenar har Arcade Physics StaticBody -- zombies och spelare kolliderar med dem
+  - Vattensamlingar saktar ner zombies till halvfart via overlap-callback
+  - Tradkronor renderas pa depth 8 (over spelare/zombies) for djupkansla
+  - TerrainResult-typ exporteras fran config/types.ts
+
 ## [1.6.0] - 2026-03-29
 
 ### Fixed
