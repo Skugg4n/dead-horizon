@@ -89,23 +89,54 @@ Enabled and ready:
 - Add an HP bar above the base structure in NightScene
 - Files: `src/scenes/NightScene.ts`, `src/ui/HUD.ts`
 
-### F4: More procedural sounds
-- Zombie groan when spawning (random pitch variation)
-- Structure taking damage sound
-- Structure destroyed sound (already have structure_break, verify it plays)
-- Wave complete fanfare (already exists, verify it plays)
-- Menu hover/click sounds (partially done)
-- Ambient variation (different ambients per zone?)
-- Files: `src/systems/AudioManager.ts`
+### F4: More procedural sounds (comprehensive list)
+Existing sounds that need VERIFICATION (may not actually play):
+- Structure destroyed (structure_break exists in AudioManager but may not be triggered)
+- Wave complete fanfare (wave_clear exists but verify)
+- Loot pickup (loot_pickup exists but verify)
+
+NEW sounds to generate in AudioManager:
+- Footstep sound when player walks (soft, varied pitch, tied to movement)
+- Melee hit "thud" on contact (not just the swing whoosh)
+- Zombie attack sound when zombie hits player (guttural slap)
+- Zombie spawn groan (play when zombie first appears, random pitch)
+- Structure taking damage (creaking/cracking, different from break)
+- Ammo loading click (metallic, plays in DayScene when loading weapons)
+- Panel/door open sound (subtle UI sound for opening menus)
+- Refugee arrival chime (positive, subtle)
+- Day-to-night transition whoosh (dramatic)
+- Night-to-day transition (relief, lighter)
+
+AMBIENT improvements:
+- Night ambient: darker tone, occasional distant zombie moaning
+- Day ambient: more bird variation, wind changes subtly over time
+- Different ambient per zone (forest vs city vs military)
+- Ambient should react to wave intensity (more chaos = louder ambient)
+
+VARIATION in existing sounds:
+- Randomize pitch slightly (+/- 10%) on every play for: all weapon sounds, zombie death, zombie groan
+- Randomize which variant plays (generate 2-3 variants per sound type)
+
+Files: `src/systems/AudioManager.ts`, `src/scenes/NightScene.ts`, `src/scenes/DayScene.ts`
+
+### F5: Zombie aggro balance
+- Currently ALL zombies walk toward base (v1.6.0 change)
+- Should be ~70% toward base, ~30% wander randomly near edges
+- Player weapon noise overrides and attracts nearby zombies
+- Base upgrades should also generate noise (more built = more zombies attracted to base)
+- Creates tactical choice: build big base (attracts more) vs stay small (fewer zombies but less defense)
+- Files: `src/entities/Zombie.ts`, `src/systems/WaveManager.ts`, `src/scenes/NightScene.ts`
 
 ---
 
 ## UI IMPROVEMENTS (Priority: Medium)
 
-### U1: Simplify loot run panel
-- Current: open panel -> click SELECT on destination -> choose weapons -> confirm -> see result -> OK
-- Wanted: one-click per destination row (click row = start run immediately with current loadout)
-- Make entire destination name/row interactive, remove separate SELECT button
+### U1: Simplify loot run panel (major UX issue)
+- Current flow: open panel -> click SELECT -> choose weapons -> confirm -> see result -> OK (too many clicks!)
+- Wanted: click destination row = start run immediately with current loadout
+- Remove separate SELECT button, make entire row clickable
+- Skip weapon selection step entirely (use whatever is equipped)
+- Result dialog should auto-close after 2-3 seconds or single click
 - Files: `src/ui/LootRunPanel.ts`
 
 ### U2: Redesign refugee panel
@@ -119,9 +150,16 @@ Enabled and ready:
 - Files: `src/ui/LootRunPanel.ts`, `src/systems/LootManager.ts`
 
 ### U4: Event dialog polish
-- Grey box extends beyond panel (fixed in v1.5.0 but verify)
+- Grey box STILL extends beyond panel in DayScene (partially fixed v1.5.0 but user reports it persists)
 - Rounded corners, proper text wrapping for long choice text
+- Font size may need reducing for long choice texts
 - Files: `src/ui/EventDialog.ts`
+
+### U5: Day scene general UX
+- Too many clicks overall in management phase
+- Panels should feel snappy: open fast, close fast
+- Consider keyboard shortcuts for common actions (B = build, L = loot, R = refugees, E = end day)
+- Files: `src/scenes/DayScene.ts`
 
 ---
 
@@ -186,43 +224,51 @@ Enabled and ready:
 
 ## AGENT TEAMS PROMPT
 
-Start a new session and paste this:
+Start a new session (`cd ~/Projects/dead-horizon && claude`) and paste this:
 
 ```
-Read HANDOFF.md for full project context. This is Dead Horizon, a Phaser 3 + TypeScript
-web game at v1.6.0.
+Las HANDOFF.md for full project context. This is Dead Horizon, a Phaser 3 + TypeScript
+web game at v1.6.0. Allt ar redan byggt -- vi fixar buggar och polishar.
 
-Create an agent team with 4 teammates:
+Skapa ett agent team med 4 teammates:
 
-1. Bugfixer -- Fix the 3 critical bugs listed in HANDOFF.md section "BUGS TO FIX":
-   B1 (shooting crash), B2 (Continue crash), B3 (pillbox damage).
-   For each bug: read the relevant code, find the root cause, fix it, add a guard/test.
-   Files: NightScene.ts, SaveManager.ts, DayScene.ts
+1. Bugfixer -- Fixa de 3 kritiska buggarna i HANDOFF.md "BUGS TO FIX":
+   B1 (shooting crash -- finn root cause, inte bara guard),
+   B2 (Continue krasch -- testa med gammal save-data),
+   B3 (pillbox gor ingen skada -- las setupPillboxRefugees och fixa).
+   Filer: NightScene.ts, SaveManager.ts, DayScene.ts
 
-2. Gameplay -- Build the 3 gameplay features in HANDOFF.md "FEATURES TO BUILD":
-   F1 (cooler zombie deaths with body persistence),
-   F2 (permanent blood splatters on ground),
-   F3 (base health bar visible in NightScene).
-   Files: Zombie.ts, NightScene.ts, HUD.ts
+2. Gameplay -- Bygg features F1-F5 i HANDOFF.md "FEATURES TO BUILD":
+   F1 (coolare zombie-dod, kroppen ligger kvar),
+   F2 (permanenta blodspar pa marken),
+   F3 (bas-healthbar i NightScene),
+   F4 (alla nya ljud -- las hela listan!),
+   F5 (zombie aggro balans: 70% bas, 30% vandrar).
+   Filer: Zombie.ts, NightScene.ts, HUD.ts, AudioManager.ts, WaveManager.ts
 
-3. UI-Polish -- Implement the 3 UI improvements in HANDOFF.md "UI IMPROVEMENTS":
-   U1 (one-click loot runs), U2 (refugee panel with portraits),
-   U3 (verify refugee companions on loot runs work).
-   Files: LootRunPanel.ts, RefugeePanel.ts, LootManager.ts
+3. UI-Polish -- Fixa UI-problemen U1-U5 i HANDOFF.md "UI IMPROVEMENTS":
+   U1 (ett-klick loot runs -- ta bort vapenval, klicka rad = kor),
+   U2 (refugee-panel med portratt och renare layout),
+   U3 (refugee companions pa loot runs fungerar inte),
+   U4 (event dialog gra box lacker fortfarande),
+   U5 (tangentbordsgenvargar for dagfasen: B=build, L=loot, R=refugees, E=end day).
+   Filer: LootRunPanel.ts, RefugeePanel.ts, EventDialog.ts, DayScene.ts
 
-4. Audio -- Add more procedural sounds in AudioManager.ts:
-   zombie spawn groan, structure damage hit, door/panel open,
-   refugee arrival chime, day-to-night transition whoosh.
-   Add variation to existing sounds (randomize pitch/speed slightly).
-   Files: AudioManager.ts, NightScene.ts, DayScene.ts
+4. Tester -- Nar de andra ar klara:
+   Kor npm run typecheck && npm run lint && npm run test.
+   Starta dev server (npm run dev) och testa i browser med Playwright.
+   Verifiera: Continue fungerar, shooting kraschar inte, pillbox skadar,
+   loot runs ar ett-klick, ljud spelas. Rapportera buggar tillbaka.
 
-Rules for ALL teammates:
-- TypeScript strict mode, no any types
-- All game data in JSON files (src/data/), never hardcoded
-- Run: npm run typecheck && npm run lint after changes
-- Communicate in Swedish with the user (Ola)
-- Update CHANGELOG.md with all changes
-- Bump version to 1.7.0
+Regler for ALLA teammates:
+- TypeScript strict mode, inga any-typer
+- All speldata i JSON (src/data/), aldrig hardkodad
+- Kor npm run typecheck && npm run lint efter andringar
+- Kommunicera pa svenska med anvandaren (Ola)
+- Uppdatera CHANGELOG.md med alla andringar
+- Bumpa version till 1.7.0
+- Las LESSONS.md innan debugging
+- Lagg till nya losningar i LESSONS.md
 ```
 
 ---
