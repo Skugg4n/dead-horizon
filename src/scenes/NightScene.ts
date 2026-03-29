@@ -95,6 +95,9 @@ export class NightScene extends Phaser.Scene {
   private terrainResult!: TerrainResult;
   // Set of zombie IDs currently inside a water zone (for speed debuff)
   private zombiesInWater: Set<Zombie> = new Set();
+  // Visual atmosphere: base warm glow + edge vignette
+  private baseGlowGraphics!: Phaser.GameObjects.Graphics;
+  private vignetteGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -299,60 +302,188 @@ export class NightScene extends Phaser.Scene {
   }
 
   private createMap(): void {
-    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelWidth  = MAP_WIDTH  * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    const centerX = mapPixelWidth  / 2;
+    const centerY = mapPixelHeight / 2;
 
-    // Ground -- use terrain tiles if available, otherwise solid color
-    const hasGrassTiles = this.textures.exists('terrain_grass_1');
-    const hasRoadTile = this.textures.exists('terrain_road');
+    // Store base center for HP bar, zombie aggro, and lighting
+    this.baseCenterX = centerX;
+    this.baseCenterY = centerY;
+
+    // Determine road row (horizontal path through map center)
     const roadRow = Math.floor(MAP_HEIGHT / 2);
-    const roadY = roadRow * TILE_SIZE;
+    const roadY   = roadRow * TILE_SIZE;
+
+    // ------------------------------------------------------------------
+    // GROUND LAYER
+    // ------------------------------------------------------------------
+    const hasGrassTiles = this.textures.exists('terrain_grass_1');
+    const hasRoadTile   = this.textures.exists('terrain_road');
 
     if (hasGrassTiles) {
-      // Tile the ground with grass variants
+      // --- Sprite-based tiles ---
       for (let ty = 0; ty < MAP_HEIGHT; ty++) {
         for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const isRoad = ty === roadRow || ty === roadRow - 1;
+          const isRoad = (ty === roadRow || ty === roadRow - 1);
+          const tileX  = tx * TILE_SIZE + TILE_SIZE / 2;
+          const tileY  = ty * TILE_SIZE + TILE_SIZE / 2;
           if (isRoad && hasRoadTile) {
-            this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, 'terrain_road');
+            this.add.image(tileX, tileY, 'terrain_road');
           } else {
-            // Deterministic grass variant based on position
             const variant = ((tx * 7 + ty * 13) % 3) + 1;
-            this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, `terrain_grass_${variant}`);
+            this.add.image(tileX, tileY, `terrain_grass_${variant}`);
           }
         }
       }
     } else {
+      // --- Graphics-based rich ground ---
+      // We draw the full ground as a single Graphics call for performance,
+      // then layer detail patches on top.
+
+      // Grass colour palette (dark, slightly varied greens for night)
+      const grassColors = [0x253D1A, 0x2D4A22, 0x22381A, 0x304E25, 0x1E3216];
+
+      // Each tile gets a deterministic color variation for a non-flat look.
+      // We batch into one Graphics object to minimise draw calls.
       const ground = this.add.graphics();
-      ground.fillStyle(0x2D4A22);
-      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+      ground.setDepth(0);
 
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const tileX = tx * TILE_SIZE;
+          const tileY = ty * TILE_SIZE;
+
+          // Deterministic but varied colour per tile
+          const hash     = (tx * 1619 + ty * 3571) | 0;
+          const colorIdx = ((hash >>> 0) % grassColors.length);
+          let tileColor  = grassColors[colorIdx] ?? 0x2D4A22;
+
+          // Tiles near edges: darken slightly for depth/vignette feel
+          const isEdge = tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2;
+          if (isEdge) {
+            // Reduce each channel by ~15%
+            const r = ((tileColor >> 16) & 0xFF) * 0.85;
+            const g = ((tileColor >>  8) & 0xFF) * 0.85;
+            const b = ( tileColor        & 0xFF) * 0.85;
+            tileColor = (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
+          }
+
+          ground.fillStyle(tileColor);
+          ground.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // ROAD (natural dirt path -- 2 tiles wide, slightly winding)
+      // ------------------------------------------------------------------
       const road = this.add.graphics();
-      road.fillStyle(0x5C4033);
-      road.fillRect(0, roadY - TILE_SIZE, mapPixelWidth, TILE_SIZE * 2);
-    }
+      road.setDepth(0);
 
-    // Road markings (shown even with tile sprites for visual consistency)
-    if (!hasRoadTile) {
-      const markings = this.add.graphics();
-      markings.fillStyle(0x6B6B6B);
-      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 2) {
-        markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
+      for (let tx = 0; tx < MAP_WIDTH; tx++) {
+        // Slight meander: offset by 0 or 1 tile based on x position
+        const wander = ((tx * 7919) & 0x3) < 2 ? 0 : 1;
+        const baseRow = roadRow + wander - 1; // row shifts +-1 along the road
+        for (let rowOffset = 0; rowOffset < 2; rowOffset++) {
+          const ty = baseRow + rowOffset;
+          if (ty < 0 || ty >= MAP_HEIGHT) continue;
+          const hash2   = (tx * 2017 + ty * 4049) | 0;
+          // Dirt colour slightly varied
+          const dirtBase   = 0x4A3218;
+          const dirtVary   = (hash2 & 0xF) * 0x010000; // very small shift
+          const dirtColor  = dirtBase + (dirtVary > 0x0F0000 ? 0 : dirtVary);
+          road.fillStyle(dirtColor);
+          road.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // CLEARED AREA AROUND BASE (dirt patch, 200x200 px)
+      // ------------------------------------------------------------------
+      const baseArea = this.add.graphics();
+      baseArea.setDepth(0);
+
+      const baseClearRadius = 100; // pixels
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
+          const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
+          const dx    = tileX - centerX;
+          const dy    = tileY - centerY;
+          const dist  = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < baseClearRadius) {
+            // Full dirt tile
+            const hash3     = (tx * 1301 + ty * 2909) | 0;
+            const dirtShade = 0x3E2A12 + ((hash3 & 0x7) * 0x010000);
+            baseArea.fillStyle(dirtShade > 0x5A3A1E ? 0x5A3A1E : dirtShade);
+            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          } else if (dist < baseClearRadius + 32) {
+            // Blending ring: dirt/grass mix -- draw a partial dirt overlay
+            const blend = 1 - (dist - baseClearRadius) / 32;
+            baseArea.fillStyle(0x3E2A12, blend * 0.7);
+            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          }
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // SCATTERED GROUND DETAIL PATCHES (leaves, small stones, grass tufts)
+      // Small semi-transparent overlays at depth 1.
+      // ------------------------------------------------------------------
+      const patches = this.add.graphics();
+      patches.setDepth(1);
+
+      // Use a simple deterministic scatter -- not SeededRandom, just math
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const hash4 = ((tx * 3571 + ty * 6173) * 2654435769) >>> 0;
+          // ~15% chance of a patch per tile
+          if ((hash4 % 100) < 15) {
+            const tileX  = tx * TILE_SIZE;
+            const tileY  = ty * TILE_SIZE;
+            const patchX = tileX + (hash4 % TILE_SIZE);
+            const patchY = tileY + ((hash4 >> 5) % TILE_SIZE);
+            // Patch type: 0=grass tuft, 1=leaf, 2=tiny pebble
+            const pType = (hash4 >> 10) % 3;
+            if (pType === 0) {
+              // Small bright grass tuft
+              patches.fillStyle(0x4A7A2A, 0.55);
+              patches.fillEllipse(patchX, patchY, 6, 4);
+            } else if (pType === 1) {
+              // Dead leaf -- brownish
+              patches.fillStyle(0x6B4A1A, 0.45);
+              patches.fillEllipse(patchX, patchY, 5, 3);
+            } else {
+              // Tiny pebble
+              patches.fillStyle(0x777060, 0.5);
+              patches.fillCircle(patchX, patchY, 1.5);
+            }
+          }
+        }
       }
     }
 
-    // Base in center -- visual depends on base level
-    const centerX = mapPixelWidth / 2;
-    const centerY = mapPixelHeight / 2;
-    // Store for F3 base health bar and zombie aggro
-    this.baseCenterX = centerX;
-    this.baseCenterY = centerY;
+    // Road markings -- only for the Graphics path (no tile sprites)
+    if (!hasRoadTile) {
+      const markings = this.add.graphics();
+      markings.setDepth(1);
+      markings.fillStyle(0x5A4028, 0.5);
+      // Subtle edge lines along road
+      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 3) {
+        markings.fillRect(x + 6, roadY - 2, TILE_SIZE - 10, 3);
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // BASE STRUCTURE
+    // ------------------------------------------------------------------
     const baseLevelIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
     const baseLevelData = baseLevelsJson.baseLevels[baseLevelIdx];
     if (!baseLevelData) throw new Error('No base levels defined');
-    const baseSize = baseLevelData.visual.size;
-    const halfSize = baseSize / 2;
-    const baseFillColor = parseInt(baseLevelData.visual.color.replace('0x', ''), 16);
+    const baseSize    = baseLevelData.visual.size;
+    const halfSize    = baseSize / 2;
+    const baseFillColor   = parseInt(baseLevelData.visual.color.replace('0x', ''), 16);
     const baseStrokeColor = parseInt(baseLevelData.visual.strokeColor.replace('0x', ''), 16);
 
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
@@ -366,15 +497,19 @@ export class NightScene extends Phaser.Scene {
       tent.lineStyle(baseLevelData.visual.strokeWidth, baseStrokeColor);
       tent.strokeRect(centerX - halfSize, centerY - halfSize, baseSize, baseSize);
 
-      // Inner wall detail for Camp and above
       if (this.gameState.base.level >= 1) {
         const inset = 4;
         tent.lineStyle(1, baseStrokeColor, 0.4);
-        tent.strokeRect(centerX - halfSize + inset, centerY - halfSize + inset, baseSize - inset * 2, baseSize - inset * 2);
+        tent.strokeRect(
+          centerX - halfSize + inset,
+          centerY - halfSize + inset,
+          baseSize - inset * 2,
+          baseSize - inset * 2
+        );
       }
     }
 
-    // Label
+    // Base label
     this.add.text(centerX, centerY - halfSize - 8, 'BASE', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
@@ -1259,12 +1394,89 @@ export class NightScene extends Phaser.Scene {
   }
 
   private setupLighting(): void {
-    // Night uses a darker background color instead of a complex overlay
+    // Darker night background colour
     this.cameras.main.setBackgroundColor('#0F1A0F');
+
+    const mapW = MAP_WIDTH  * TILE_SIZE;
+    const mapH = MAP_HEIGHT * TILE_SIZE;
+
+    // ------------------------------------------------------------------
+    // BASE WARM GLOW
+    // Radial warm-orange gradient around the base centre.
+    // Drawn as concentric filled ellipses with decreasing alpha.
+    // Depth 4 -- above ground detail but below entities and canopies.
+    // ------------------------------------------------------------------
+    this.baseGlowGraphics = this.add.graphics();
+    this.baseGlowGraphics.setDepth(4);
+
+    const glowSteps  = 8;
+    const glowRadius = 220;
+    for (let i = glowSteps; i >= 1; i--) {
+      // Outermost step lowest alpha, innermost highest
+      const t     = i / glowSteps;
+      const alpha = t * t * 0.10; // max 0.10 at center, quadratic falloff
+      const r     = glowRadius * (i / glowSteps);
+      // Warm orange-yellow tint
+      this.baseGlowGraphics.fillStyle(0xFFAA44, alpha);
+      this.baseGlowGraphics.fillEllipse(
+        this.baseCenterX, this.baseCenterY,
+        r * 2, r * 1.4  // slightly flattened ellipse looks more natural
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // EDGE VIGNETTE
+    // Dark semi-transparent rectangles along all four edges to frame the
+    // map and give a sense of darkness beyond the clearing.
+    // Depth 9 -- above tree canopies but below HUD (depth 100+).
+    // ------------------------------------------------------------------
+    this.vignetteGraphics = this.add.graphics();
+    this.vignetteGraphics.setDepth(9);
+
+    const vEdge   = 80;  // how far in from the edge the dark band extends
+    const vAlpha  = 0.55;
+    const vColor  = 0x050A05;
+
+    // Build a vignette as 4 gradient strips (each in 4 sub-steps)
+    const vSteps = 5;
+    // Top strip
+    for (let s = 0; s < vSteps; s++) {
+      const a = vAlpha * (1 - s / vSteps);
+      const y = (s / vSteps) * vEdge;
+      const h = vEdge / vSteps;
+      this.vignetteGraphics.fillStyle(vColor, a);
+      this.vignetteGraphics.fillRect(0, y, mapW, h);
+    }
+    // Bottom strip
+    for (let s = 0; s < vSteps; s++) {
+      const a = vAlpha * (1 - s / vSteps);
+      const y = mapH - vEdge + (s / vSteps) * vEdge;
+      const h = vEdge / vSteps;
+      this.vignetteGraphics.fillStyle(vColor, a);
+      this.vignetteGraphics.fillRect(0, y, mapW, h);
+    }
+    // Left strip
+    for (let s = 0; s < vSteps; s++) {
+      const a = vAlpha * (1 - s / vSteps);
+      const x = (s / vSteps) * vEdge;
+      const w = vEdge / vSteps;
+      this.vignetteGraphics.fillStyle(vColor, a);
+      this.vignetteGraphics.fillRect(x, 0, w, mapH);
+    }
+    // Right strip
+    for (let s = 0; s < vSteps; s++) {
+      const a = vAlpha * (1 - s / vSteps);
+      const x = mapW - vEdge + (s / vSteps) * vEdge;
+      const w = vEdge / vSteps;
+      this.vignetteGraphics.fillStyle(vColor, a);
+      this.vignetteGraphics.fillRect(x, 0, w, mapH);
+    }
   }
 
   private updateLighting(): void {
-    // Lighting overlay removed -- night atmosphere comes from darker background
+    // Base glow and vignette are static world-space graphics -- no update needed.
+    // If a spotlight effect following the player is desired in a future version,
+    // it would be implemented here.
   }
 
   private setupDamageOverlay(): void {
