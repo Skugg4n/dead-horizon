@@ -914,12 +914,107 @@ export class DayScene extends Phaser.Scene {
         if (cursors.up.isDown) this.cameras.main.scrollY -= panSpeed;
         if (cursors.down.isDown) this.cameras.main.scrollY += panSpeed;
       });
+
+      // Keyboard shortcuts for day phase panels.
+      // Each shortcut either closes the currently open panel (if that panel is open)
+      // or opens the target panel (if no panel or a different one is open).
+      this.input.keyboard.on('keydown-B', () => {
+        // B = Build menu
+        this.toggleBuildMenu();
+      });
+
+      this.input.keyboard.on('keydown-L', () => {
+        // L = Loot run panel
+        this.lootRunPanel.toggle();
+      });
+
+      this.input.keyboard.on('keydown-R', () => {
+        // R = Refugee panel
+        this.refugeePanel.toggle();
+      });
+
+      this.input.keyboard.on('keydown-E', () => {
+        // E = End day (with confirmation dialog)
+        this.showEndDayConfirmation();
+      });
     }
 
     // Right click to cancel placement
     if (this.input.mouse) {
       this.input.mouse.disableContextMenu();
     }
+  }
+
+  // Show a simple confirmation before ending the day via keyboard shortcut.
+  // Prevents accidental E key presses from immediately starting the night.
+  private showEndDayConfirmation(): void {
+    const panelW = 300;
+    const panelH = 110;
+    const px = Math.floor((GAME_WIDTH - panelW) / 2);
+    const py = Math.floor((GAME_HEIGHT - panelH) / 2);
+
+    // Build a small confirmation overlay -- all objects are world-space
+    // but added to the UI camera so they stay fixed.
+    const backdrop = this.add.graphics().setDepth(250);
+    backdrop.fillStyle(0x000000, 0.55);
+    backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.addToUI(backdrop);
+
+    const panel = this.add.graphics().setDepth(251);
+    panel.fillStyle(0x1A1A1A, 0.97);
+    panel.fillRoundedRect(px, py, panelW, panelH, 8);
+    panel.lineStyle(2, 0xD4620B, 0.9);
+    panel.strokeRoundedRect(px, py, panelW, panelH, 8);
+    this.addToUI(panel);
+
+    const prompt = this.add.text(GAME_WIDTH / 2, py + 20, 'End day and start night?', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#E8DCC8',
+      align: 'center',
+      wordWrap: { width: panelW - 24 },
+    }).setOrigin(0.5, 0).setDepth(252);
+    this.addToUI(prompt);
+
+    const dismiss = (): void => {
+      backdrop.destroy();
+      panel.destroy();
+      prompt.destroy();
+      yesBtn.destroy();
+      noBtn.destroy();
+      this.input.keyboard?.off('keydown', keyHandler);
+    };
+
+    const yesBtn = this.add.text(GAME_WIDTH / 2 - 50, py + 72, '[ YES ]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#4CAF50',
+    }).setOrigin(1, 0).setDepth(252).setInteractive({ useHandCursor: true });
+    yesBtn.on('pointerover', () => yesBtn.setColor('#FFD700'));
+    yesBtn.on('pointerout', () => yesBtn.setColor('#4CAF50'));
+    yesBtn.on('pointerdown', () => { dismiss(); this.endDay(); });
+    this.addToUI(yesBtn);
+
+    const noBtn = this.add.text(GAME_WIDTH / 2 + 50, py + 72, '[ NO ]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#F44336',
+    }).setOrigin(0, 0).setDepth(252).setInteractive({ useHandCursor: true });
+    noBtn.on('pointerover', () => noBtn.setColor('#FFD700'));
+    noBtn.on('pointerout', () => noBtn.setColor('#F44336'));
+    noBtn.on('pointerdown', () => dismiss());
+    this.addToUI(noBtn);
+
+    // Keyboard dismiss: Escape = cancel, Enter/Y = confirm
+    const keyHandler = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        dismiss();
+      } else if (event.key === 'Enter' || event.key === 'y' || event.key === 'Y') {
+        dismiss();
+        this.endDay();
+      }
+    };
+    this.input.keyboard?.on('keydown', keyHandler);
   }
 
   private placeStructure(structureId: string, x: number, y: number): void {
