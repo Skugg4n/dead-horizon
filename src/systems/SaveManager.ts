@@ -1,5 +1,5 @@
 import type { GameState, CharacterType, SkillType, ResourceType, ZoneId } from '../config/types';
-import { GAME_VERSION, PLAYER_MAX_HP } from '../config/constants';
+import { GAME_VERSION, PLAYER_MAX_HP, BASE_MAX_HP } from '../config/constants';
 
 const SAVE_KEY = 'dead-horizon-save';
 
@@ -58,6 +58,8 @@ function createDefaultState(): GameState {
     base: {
       structures: [],
       level: 0,
+      hp: BASE_MAX_HP,
+      maxHp: BASE_MAX_HP,
     },
     refugees: [],
     progress: {
@@ -117,13 +119,15 @@ function load(): GameState {
         base: {
           ...defaults.base,
           ...(saved.base ?? {}),
-          // Ensure every structure has hp and maxHp -- old saves may lack these fields,
-          // causing NaN arithmetic in BuildingManager.takeDamage() and NightScene.
+          // Ensure every structure has hp and maxHp -- old saves may lack these fields
           structures: (saved.base?.structures ?? defaults.base.structures).map(s => ({
             ...s,
             hp: s.hp ?? s.maxHp ?? 100,
             maxHp: s.maxHp ?? s.hp ?? 100,
           })),
+          // Migration: ensure base HP exists for saves before v1.7.0
+          hp: (saved.base as { hp?: number } | undefined)?.hp ?? BASE_MAX_HP,
+          maxHp: (saved.base as { maxHp?: number } | undefined)?.maxHp ?? BASE_MAX_HP,
         },
         progress: { ...defaults.progress, ...(saved.progress ?? {}) },
         map: { ...defaults.map, ...(saved.map ?? {}) },

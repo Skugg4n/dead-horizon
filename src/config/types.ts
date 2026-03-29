@@ -135,6 +135,8 @@ export interface GameState {
   base: {
     structures: StructureInstance[];
     level: number;
+    hp: number;
+    maxHp: number;
   };
   refugees: RefugeeInstance[];
   progress: {

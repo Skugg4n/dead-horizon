@@ -61,6 +61,15 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   spawnOnDeath: string | null = null;
   spawnCount: number = 0;
 
+  // F5: Aggro behavior -- determined at spawn time
+  // 'base_seeker': moves toward base (70% of zombies)
+  // 'wanderer': roams randomly near map edges (30% of zombies)
+  aggroType: 'base_seeker' | 'wanderer' = 'base_seeker';
+  // Wanderer's current destination point
+  private wanderTarget: { x: number; y: number } | null = null;
+  private mapWidth: number = 1280;
+  private mapHeight: number = 960;
+
   // Pulsing tint for boss/screamer
   private pulseTimer: number = 0;
   private baseTint: number | null = null;
@@ -151,6 +160,12 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.basePosition = { x, y };
   }
 
+  /** Set map dimensions for wanderer roaming calculations */
+  setMapSize(width: number, height: number): void {
+    this.mapWidth = width;
+    this.mapHeight = height;
+  }
+
   getTarget(): Phaser.GameObjects.Sprite | null {
     return this.target;
   }
@@ -197,13 +212,15 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       : Zombie.PATHFIND_INTERVAL_ONSCREEN;
 
     // Determine movement target priority:
-    // 1. Sound source (weapon fire attracts zombies to player)
-    // 2. Base position (default -- zombies attack the base)
+    // 1. Sound source (weapon fire overrides ALL zombie behaviors, including wanderers)
+    // 2a. Wanderer: roam randomly near map edges (30% of zombies)
+    // 2b. Base seeker: move toward base (70% of zombies, default)
     // 3. Player position (fallback if no base set)
     let targetX: number;
     let targetY: number;
 
     if (this.soundTarget && this.soundTargetTimer > 0) {
+      // Sound overrides everything -- zombies investigate weapon fire
       this.soundTargetTimer -= delta;
       targetX = this.soundTarget.x;
       targetY = this.soundTarget.y;
@@ -216,6 +233,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
         this.soundTarget = null;
         this.soundTargetTimer = 0;
       }
+    } else if (this.aggroType === 'wanderer') {
+      // Wanderer: pick a random destination near edges, move there, repeat
+      const dest = this.getWanderDestination();
+      targetX = dest.x;
+      targetY = dest.y;
     } else if (this.basePosition) {
       targetX = this.basePosition.x;
       targetY = this.basePosition.y;
@@ -357,44 +379,159 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.setAlpha(0.6 + 0.4 * t);
   }
 
+  /**
+   * Wanderer logic: pick a random destination near map edges.
+   * When within 20px of current destination, pick a new one.
+   * Keeps wanderers in the outer 20% of the map for edge-hugging feel.
+   */
+  private getWanderDestination(): { x: number; y: number } {
+    if (!this.wanderTarget) {
+      this.wanderTarget = this.pickWanderPoint();
+    }
+
+    const dist = Phaser.Math.Distance.Between(
+      this.x, this.y,
+      this.wanderTarget.x, this.wanderTarget.y
+    );
+    // Pick a new destination when close enough
+    if (dist < 20) {
+      this.wanderTarget = this.pickWanderPoint();
+    }
+
+    return this.wanderTarget;
+  }
+
+  /** Pick a random point in the outer 25% band of the map */
+  private pickWanderPoint(): { x: number; y: number } {
+    const margin = 80; // keep away from absolute edge
+    const bandW = this.mapWidth * 0.25;
+    const bandH = this.mapHeight * 0.25;
+
+    // Choose one of four edge bands randomly
+    const side = Math.floor(Math.random() * 4);
+    let wx: number;
+    let wy: number;
+    switch (side) {
+      case 0: // left band
+        wx = margin + Math.random() * bandW;
+        wy = margin + Math.random() * (this.mapHeight - margin * 2);
+        break;
+      case 1: // right band
+        wx = this.mapWidth - margin - Math.random() * bandW;
+        wy = margin + Math.random() * (this.mapHeight - margin * 2);
+        break;
+      case 2: // top band
+        wx = margin + Math.random() * (this.mapWidth - margin * 2);
+        wy = margin + Math.random() * bandH;
+        break;
+      default: // bottom band
+        wx = margin + Math.random() * (this.mapWidth - margin * 2);
+        wy = this.mapHeight - margin - Math.random() * bandH;
+        break;
+    }
+    return { x: wx, y: wy };
+  }
+
   private die(): void {
     // Boss: emit spawn event before dying
     if (this.behavior === 'boss' && this.spawnOnDeath) {
       this.scene.events.emit('boss-death-spawn', this);
     }
 
+    // Emit killed event -- NightScene handles blood splatters and loot
     this.scene.events.emit('zombie-killed', this);
-    // Disable physics immediately
+
+    // Disable physics immediately so zombie stops blocking/moving
     if (this.body) {
       this.body.enable = false;
     }
 
+    // F1: Death animation sequence
+    // Phase 1: flash white + slight scale-down (impact feel)
+    // Phase 2: tilt and become a "corpse" that fades over 10-15 seconds
+    const deathAngle = Phaser.Math.Between(-45, 45);
+    const originalScaleX = this.scaleX;
+    const originalScaleY = this.scaleY;
+
     if (this.deathAnimKey) {
-      // Sprite sheet death animation with safety timeout
+      // Play sprite-sheet death animation, then leave as faded corpse
       this.play(this.deathAnimKey);
       this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-        this.setActive(false);
-        this.setVisible(false);
+        if (!this.scene) return;
+        // Leave as darkened corpse on the ground
+        this.setAngle(deathAngle);
+        this.setTint(0x441111);
+        this.setDepth(1); // below all living entities
+        const corpseDelay = 10000 + Math.random() * 5000;
+        this.scene.tweens.add({
+          targets: this,
+          alpha: 0,
+          duration: 2000,
+          delay: corpseDelay,
+          ease: 'Power2',
+          onComplete: () => {
+            this.setActive(false);
+            this.setVisible(false);
+          },
+        });
       });
-      // Safety: force hide after 1 second if animation never completes
+      // Safety: force corpse after 1s if animation never completes
       this.scene.time.delayedCall(1000, () => {
-        if (!this.active) return;
-        this.setActive(false);
-        this.setVisible(false);
+        if (!this.active || !this.scene) return;
+        this.setAngle(deathAngle);
+        this.setTint(0x441111);
+        this.setDepth(1);
+        const corpseDelay = 10000 + Math.random() * 5000;
+        this.scene.tweens.add({
+          targets: this,
+          alpha: 0,
+          duration: 2000,
+          delay: corpseDelay,
+          ease: 'Power2',
+          onComplete: () => {
+            this.setActive(false);
+            this.setVisible(false);
+          },
+        });
       });
     } else {
-      // Tween fallback: shrink + fade + slight rotation
+      // Tween-based death: flash white, shrink slightly, then fall over as a corpse
       this.scene.tweens.add({
         targets: this,
-        scaleX: 0,
-        scaleY: 0,
-        alpha: 0,
-        angle: Phaser.Math.Between(-30, 30),
-        duration: 300,
-        ease: 'Power2',
+        scaleX: originalScaleX * 0.85,
+        scaleY: originalScaleY * 0.85,
+        duration: 80,
+        ease: 'Power3',
         onComplete: () => {
-          this.setActive(false);
-          this.setVisible(false);
+          if (!this.scene) return;
+          // Tilt to a fallen position -- visual impact feel
+          this.scene.tweens.add({
+            targets: this,
+            angle: deathAngle,
+            scaleX: originalScaleX * 0.9,
+            scaleY: originalScaleY * 0.9,
+            duration: 150,
+            ease: 'Power2',
+            onComplete: () => {
+              if (!this.scene) return;
+              // Darken -- now it's a corpse
+              this.setTint(0x441111);
+              this.setDepth(1); // beneath living entities
+              // Fade out after a random 10-15 seconds
+              const corpseDelay = 10000 + Math.random() * 5000;
+              this.scene.tweens.add({
+                targets: this,
+                alpha: 0,
+                duration: 2000,
+                delay: corpseDelay,
+                ease: 'Power2',
+                onComplete: () => {
+                  this.setActive(false);
+                  this.setVisible(false);
+                },
+              });
+            },
+          });
         },
       });
     }
@@ -424,6 +561,9 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.spitterTimer = 0;
     this.screamTimer = 0;
     this.pulseTimer = 0;
+    // Reset wanderer state -- aggroType re-assigned by WaveManager after reset
+    this.wanderTarget = null;
+    this.aggroType = 'base_seeker';
 
     // Spitter config
     this.spitterRange = config.range ?? 250;

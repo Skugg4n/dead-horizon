@@ -103,5 +103,26 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 **Losning:** Lagg till `!this.player.active` guard i alla overlap-callbacks som anropar player.takeDamage().
 
 ### Pillbox skjuter inte -- this.physics.closest() finns inte i Phaser 3
-**Problem:** Koden anvande `this.physics.closest(point, gameObjects)` for att hitta narmaste zombie. Denna metod existerar INTE i Phaser 3 Arcade Physics API och returnerar undefined/null, vilket gjorde att pillboxen aldrig hittade nagon zombie att skjuta pa.
-**Losning:** Ersatt med en manuell for...of-loop over zombieGroup.getChildren() med distanceBetween()-jamforelse. Kontrollera alltid mot Phaser 3-dokumentationen before du anvander physics.*-metoder -- Phaser 4 och andra motor-versioner kan ha andra API:er.
+**Problem:** Koden anvande `this.physics.closest(point, gameObjects)` for att hitta narmaste zombie. Denna metod existerar INTE i Phaser 3 Arcade Physics API och returnerar undefined/null.
+**Losning:** Ersatt med en manuell for...of-loop over zombieGroup.getChildren() med distanceBetween()-jamforelse.
+
+---
+
+## Visuella effekter
+
+### Zombie corpse depth -- aktiva sprites vs lik
+**Problem:** Om zombie-sprites satter sig som "corpses" pa depth 5 blockar de visuellt aktiva zombies.
+**Losning:** I die()-metoden: satt `this.setDepth(1)` sa corpses hamnar under levande zombies (depth 5).
+
+### Graphics.setRotation() i Containers
+**Losning:** Phaser.GameObjects.Graphics stodjer setRotation() och setPosition(). Container.destroy() forstorer alla barn automatiskt -- anvand for blood splatter cleanup.
+
+### Pitch variation pa Web Audio API BufferSource
+**Problem:** Vill ha slumpmassig pitch-variation per uppspelning.
+**Losning:** Satt `source.playbackRate.value = 0.9 + Math.random() * 0.2` pa varje ny BufferSource.
+
+## Zombie aggro
+
+### aggroType maste aterstalas vid reset()
+**Problem:** Zombie-pool ateranvander sprites via reset(). aggroType maste nollstallas.
+**Losning:** Nollstall `aggroType = 'base_seeker'` och `wanderTarget = null` i reset().

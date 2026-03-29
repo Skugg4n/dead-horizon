@@ -14,6 +14,10 @@ export class HUD {
   private waveAnnouncementText: Phaser.GameObjects.Text;
   private waveAnnouncementBg: Phaser.GameObjects.Graphics;
   private container: Phaser.GameObjects.Container;
+  // F3: Base health bar
+  private baseHpBar: Phaser.GameObjects.Graphics;
+  private baseHpBarBg: Phaser.GameObjects.Graphics;
+  private baseHpLabel: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -58,6 +62,29 @@ export class HUD {
     this.staminaBar = scene.add.graphics();
     this.container.add(this.staminaBar);
     this.updateStaminaBar(100, 100);
+
+    // F3: Base HP bar -- right side of top HUD bar
+    const baseBarX = GAME_WIDTH - 210;
+    const baseBarW = 120;
+
+    // "BASE" label
+    this.baseHpLabel = scene.add.text(baseBarX - 2, 14, 'BASE', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '7px',
+      color: '#9A9A9A',
+    }).setOrigin(1, 0.5);
+    this.container.add(this.baseHpLabel);
+
+    // Background track
+    this.baseHpBarBg = scene.add.graphics();
+    this.baseHpBarBg.fillStyle(0x333333);
+    this.baseHpBarBg.fillRect(baseBarX, 8, baseBarW, 12);
+    this.container.add(this.baseHpBarBg);
+
+    // Filled bar
+    this.baseHpBar = scene.add.graphics();
+    this.container.add(this.baseHpBar);
+    this.updateBaseHpBar(200, 200); // default full
 
     // Wave text (centered, 10px, brighter color)
     this.waveText = scene.add.text(GAME_WIDTH / 2, 10, 'Wave 1/5', {
@@ -134,6 +161,17 @@ export class HUD {
     const color = ratio > 0.5 ? 0x4CAF50 : ratio > 0.25 ? 0xFFD700 : 0xF44336;
     this.hpBar.fillStyle(color);
     this.hpBar.fillRect(16, 8, 180 * ratio, 12);
+  }
+
+  /** F3: Update base health bar color (green -> yellow -> red) */
+  updateBaseHpBar(hp: number, maxHp: number): void {
+    const baseBarX = GAME_WIDTH - 210;
+    const baseBarW = 120;
+    this.baseHpBar.clear();
+    const ratio = maxHp > 0 ? hp / maxHp : 0;
+    const color = ratio > 0.5 ? 0x4CAF50 : ratio > 0.25 ? 0xFFD700 : 0xF44336;
+    this.baseHpBar.fillStyle(color);
+    this.baseHpBar.fillRect(baseBarX, 8, baseBarW * ratio, 12);
   }
 
   updateStaminaBar(stamina: number, maxStamina: number): void {
