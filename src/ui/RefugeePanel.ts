@@ -3,14 +3,12 @@
 
 import Phaser from 'phaser';
 import { RefugeeManager } from '../systems/RefugeeManager';
-import { GAME_WIDTH, REFUGEE_FOOD_PER_DAY } from '../config/constants';
+import { REFUGEE_FOOD_PER_DAY } from '../config/constants';
+import { UIPanel } from './UIPanel';
 import type { RefugeeJob } from '../config/types';
 
-const PANEL_WIDTH = 300;
-const PANEL_X = (GAME_WIDTH - PANEL_WIDTH) / 2;
-const PANEL_Y = 40;
+const PANEL_WIDTH = 400;
 const ROW_HEIGHT = 52;
-const PANEL_PADDING = 10;
 
 const JOB_LABELS: Record<RefugeeJob, string> = {
   gather_food: 'Food',
@@ -25,16 +23,13 @@ const JOB_BUTTONS: RefugeeJob[] = ['gather_food', 'gather_scrap', 'repair', 'res
 export class RefugeePanel {
   private scene: Phaser.Scene;
   private refugeeManager: RefugeeManager;
-  private container: Phaser.GameObjects.Container;
-  private visible: boolean = false;
+  private panel: UIPanel;
 
   constructor(scene: Phaser.Scene, refugeeManager: RefugeeManager) {
     this.scene = scene;
     this.refugeeManager = refugeeManager;
 
-    this.container = scene.add.container(PANEL_X, PANEL_Y);
-    this.container.setDepth(150);
-    this.container.setVisible(false);
+    this.panel = new UIPanel(scene, 'REFUGEES', PANEL_WIDTH, 400);
 
     this.buildPanel();
 
@@ -45,77 +40,58 @@ export class RefugeePanel {
   }
 
   private buildPanel(): void {
-    this.container.removeAll(true);
+    const content = this.panel.getContentContainer();
+    content.removeAll(true);
 
     const refugees = this.refugeeManager.getAll();
     const maxRefugees = this.refugeeManager.getMaxRefugees();
     const foodNeeded = refugees.length * REFUGEE_FOOD_PER_DAY + 1;
 
-    const headerHeight = 44;
-    const contentHeight = Math.max(30, refugees.length * ROW_HEIGHT);
-    const panelHeight = headerHeight + contentHeight + PANEL_PADDING;
-
-    // Background
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x1A1A2E, 0.94);
-    bg.fillRect(0, 0, PANEL_WIDTH, panelHeight);
-    bg.lineStyle(1, 0x6B6B6B);
-    bg.strokeRect(0, 0, PANEL_WIDTH, panelHeight);
-    this.container.add(bg);
-
-    // Title
-    const title = this.scene.add.text(PANEL_WIDTH / 2, PANEL_PADDING, 'REFUGEES', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '13px',
-      color: '#E8DCC8',
-    }).setOrigin(0.5, 0);
-    this.container.add(title);
-
     // Info line
     const infoStr = `${refugees.length}/${maxRefugees} refugees  |  Food needed: ${foodNeeded}/day`;
-    const info = this.scene.add.text(PANEL_WIDTH / 2, PANEL_PADDING + 16, infoStr, {
+    const info = this.scene.add.text(0, 0, infoStr, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#AAAAAA',
-    }).setOrigin(0.5, 0);
-    this.container.add(info);
+    });
+    content.add(info);
 
     if (refugees.length === 0) {
-      const empty = this.scene.add.text(PANEL_WIDTH / 2, headerHeight + 8, 'No refugees yet', {
+      const empty = this.scene.add.text(0, 20, 'No refugees yet', {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#6B6B6B',
-      }).setOrigin(0.5, 0);
-      this.container.add(empty);
+      });
+      content.add(empty);
       return;
     }
 
     // Refugee rows
     refugees.forEach((refugee, i) => {
-      const y = headerHeight + i * ROW_HEIGHT;
+      const y = 20 + i * ROW_HEIGHT;
 
       // Name, HP, status, skill
       const statusColor = refugee.status === 'injured' ? '#F44336' : '#4CAF50';
       const hpStr = `HP:${refugee.hp}/${refugee.maxHp}`;
       const jobStr = refugee.job ? JOB_LABELS[refugee.job] : 'Idle';
 
-      const nameLine = this.scene.add.text(PANEL_PADDING, y, `${refugee.name}`, {
+      const nameLine = this.scene.add.text(0, y, `${refugee.name}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#E8DCC8',
       });
-      this.container.add(nameLine);
+      content.add(nameLine);
 
-      const statsLine = this.scene.add.text(PANEL_PADDING, y + 13, `${hpStr}  [${refugee.status}]  Job: ${jobStr}  Skill: ${refugee.skillBonus}`, {
+      const statsLine = this.scene.add.text(0, y + 13, `${hpStr}  [${refugee.status}]  Job: ${jobStr}  Skill: ${refugee.skillBonus}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: statusColor,
       });
-      this.container.add(statsLine);
+      content.add(statsLine);
 
       // Job assignment buttons
       const btnY = y + 28;
-      let btnX = PANEL_PADDING;
+      let btnX = 0;
 
       for (const job of JOB_BUTTONS) {
         const isCurrentJob = refugee.job === job;
@@ -138,7 +114,7 @@ export class RefugeePanel {
           });
         }
 
-        this.container.add(btn);
+        content.add(btn);
         btnX += btn.width + 8;
       }
 
@@ -146,18 +122,17 @@ export class RefugeePanel {
       if (i < refugees.length - 1) {
         const sep = this.scene.add.graphics();
         sep.lineStyle(1, 0x6B6B6B, 0.3);
-        sep.lineBetween(PANEL_PADDING, y + ROW_HEIGHT - 2, PANEL_WIDTH - PANEL_PADDING, y + ROW_HEIGHT - 2);
-        this.container.add(sep);
+        sep.lineBetween(0, y + ROW_HEIGHT - 2, PANEL_WIDTH - 24, y + ROW_HEIGHT - 2);
+        content.add(sep);
       }
     });
   }
 
   toggle(): void {
-    this.visible = !this.visible;
-    if (this.visible) {
+    this.panel.toggle();
+    if (this.panel.isVisible()) {
       this.refresh();
     }
-    this.container.setVisible(this.visible);
   }
 
   refresh(): void {
@@ -165,6 +140,6 @@ export class RefugeePanel {
   }
 
   getContainer(): Phaser.GameObjects.Container {
-    return this.container;
+    return this.panel.getContainer();
   }
 }

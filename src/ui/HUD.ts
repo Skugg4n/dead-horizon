@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH } from '../config/constants';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 
 export class HUD {
   private scene: Phaser.Scene;
@@ -21,10 +21,16 @@ export class HUD {
     this.container.setDepth(100);
     this.container.setScrollFactor(0);
 
-    // HP bar background
+    // --- Top HUD bar (y=0, h=32) ---
+    const topBg = scene.add.graphics();
+    topBg.fillStyle(0x000000, 0.5);
+    topBg.fillRect(0, 0, GAME_WIDTH, 32);
+    this.container.add(topBg);
+
+    // HP bar background (x=16, y=8, w=180, h=12)
     this.hpBarBg = scene.add.graphics();
     this.hpBarBg.fillStyle(0x333333);
-    this.hpBarBg.fillRect(16, 16, 200, 16);
+    this.hpBarBg.fillRect(16, 8, 180, 12);
     this.container.add(this.hpBarBg);
 
     // HP bar
@@ -32,10 +38,10 @@ export class HUD {
     this.container.add(this.hpBar);
     this.updateHpBar(100, 100);
 
-    // Stamina bar background
+    // Stamina bar background (x=16, y=22, w=100, h=6)
     this.staminaBarBg = scene.add.graphics();
     this.staminaBarBg.fillStyle(0x333333);
-    this.staminaBarBg.fillRect(16, 36, 120, 8);
+    this.staminaBarBg.fillRect(16, 22, 100, 6);
     this.container.add(this.staminaBarBg);
 
     // Stamina bar
@@ -43,36 +49,42 @@ export class HUD {
     this.container.add(this.staminaBar);
     this.updateStaminaBar(100, 100);
 
-    // Wave text
-    this.waveText = scene.add.text(GAME_WIDTH / 2, 16, 'Wave 1/5', {
+    // Wave text (centered, y=10, 12px)
+    this.waveText = scene.add.text(GAME_WIDTH / 2, 10, 'Wave 1/5', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#E8DCC8',
     }).setOrigin(0.5, 0);
     this.container.add(this.waveText);
 
-    // Ammo counter
-    this.ammoText = scene.add.text(GAME_WIDTH - 16, 16, 'Ammo: 0', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#FFD700',
-    }).setOrigin(1, 0);
-    this.container.add(this.ammoText);
+    // --- Bottom HUD bar (y=GAME_HEIGHT-24, h=24) ---
+    const bottomBg = scene.add.graphics();
+    bottomBg.fillStyle(0x000000, 0.5);
+    bottomBg.fillRect(0, GAME_HEIGHT - 24, GAME_WIDTH, 24);
+    this.container.add(bottomBg);
 
-    // Weapon name
-    this.weaponText = scene.add.text(GAME_WIDTH - 16, 32, '', {
+    // Weapon name + durability (left, x=16)
+    this.weaponText = scene.add.text(16, GAME_HEIGHT - 18, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#E8DCC8',
-    }).setOrigin(1, 0);
+    }).setOrigin(0, 0.5);
     this.container.add(this.weaponText);
 
-    // Kill counter
-    this.killText = scene.add.text(GAME_WIDTH - 16, 44, 'Kills: 0', {
+    // Ammo counter (center-right, x=GAME_WIDTH-200)
+    this.ammoText = scene.add.text(GAME_WIDTH - 200, GAME_HEIGHT - 18, 'Ammo: 0', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
+      fontSize: '8px',
+      color: '#FFD700',
+    }).setOrigin(0, 0.5);
+    this.container.add(this.ammoText);
+
+    // Kill counter (far right, x=GAME_WIDTH-16, origin right)
+    this.killText = scene.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 18, 'Kills: 0', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
       color: '#E8DCC8',
-    }).setOrigin(1, 0);
+    }).setOrigin(1, 0.5);
     this.container.add(this.killText);
 
     // Wave announcement (centered, hidden by default)
@@ -87,16 +99,17 @@ export class HUD {
   updateHpBar(hp: number, maxHp: number): void {
     this.hpBar.clear();
     const ratio = hp / maxHp;
+    // Green -> Yellow -> Red gradient
     const color = ratio > 0.5 ? 0x4CAF50 : ratio > 0.25 ? 0xFFD700 : 0xF44336;
     this.hpBar.fillStyle(color);
-    this.hpBar.fillRect(16, 16, 200 * ratio, 16);
+    this.hpBar.fillRect(16, 8, 180 * ratio, 12);
   }
 
   updateStaminaBar(stamina: number, maxStamina: number): void {
     this.staminaBar.clear();
     const ratio = stamina / maxStamina;
     this.staminaBar.fillStyle(0x4A90D9);
-    this.staminaBar.fillRect(16, 36, 120 * ratio, 8);
+    this.staminaBar.fillRect(16, 22, 100 * ratio, 6);
   }
 
   updateWave(wave: number): void {
@@ -131,7 +144,6 @@ export class HUD {
 
   updateAmmo(ammo: number): void {
     this.ammoText.setText(`Ammo: ${ammo}`);
-    // Flash red when ammo is low
     if (ammo <= 0) {
       this.ammoText.setColor('#F44336');
     } else if (ammo <= 5) {

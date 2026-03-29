@@ -1,5 +1,34 @@
 # Dead Horizon -- Changelog
 
+## [1.2.0] - 2026-03-28
+
+### Added -- UI component system
+- UIButton.ts: shared button component with background rect, border, hover effects (gold highlight), click handler
+- UIPanel.ts: shared panel component with header, [X] close button, dark background (#1A1A1A 95%), CLOSE_ALL_PANELS event for mutual exclusion
+
+### Changed -- DayScene UI redesign
+- Top bar (h=48, #1A1A1A 85%): AP pips left, DAY counter centered (14px), base name + upgrade button right
+- Two-row action bar at bottom: Row 1 (BUILD, AMMO, WEAPONS, CRAFT, SKILLS, END DAY), Row 2 (REFUGEES, LOOT RUN)
+- Resource bar moved to bottom (h=24, #1A1A1A 90%) with color-coded resources, separators, and capacity display
+- All raw text buttons replaced with createUIButton() from UIButton.ts
+- Removed bracket prefixes from resource display, using color-coding instead
+- No overlapping elements at 800x600
+
+### Changed -- NightScene HUD redesign
+- Top HUD (h=32, dark bg 50%): HP bar left (180x12), stamina bar below HP (100x6), wave info centered
+- Removed resource bar from NightScene (not needed during combat)
+- Bottom HUD (h=24, dark bg 50%): weapon name + durability left, ammo counter center-right, kill counter far right
+- Wave announcement centered with fade-out, no HUD overlap
+
+### Changed -- Panel standardization
+- WeaponPanel, SkillPanel, RefugeePanel, LootRunPanel, CraftingPanel, EventDialog converted to UIPanel standard
+- All panels: centered horizontally, y=56, max 400px wide, header with title + [X] close, dark background, 12px padding
+- Only one panel open at a time (opening new closes old via CLOSE_ALL_PANELS event)
+
+### Fixed
+- Build menu now participates in CLOSE_ALL_PANELS event system -- opening any UIPanel closes the build menu, and vice versa
+- ESLint: replaced non-null assertion with type assertion in DayScene resource bar loop
+
 ## [1.1.0] - 2026-03-28
 
 ### Added -- Sprite integration (all 47 assets)

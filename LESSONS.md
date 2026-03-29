@@ -42,6 +42,10 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 **Problem:** generateAllTextures() i preload() skapar texturer med samma nycklar som this.load.image() forsoker ladda. Laddade bilder overskriver programmatiska texturer, men om en bild saknas registreras aldrig nagon textur for den nyckeln.
 **Losning:** Ladda alla sprites i preload() med this.load.image/spritesheet. Flytta generateAllTextures() till create() -- da har laddningen slutforts. Varje generate-funktion kollar `scene.textures.exists(key)` och hoppar over om texturen redan finns. Misslyckade laddningar ignoreras tyst (loaderror-event), och fallback-texturen skapas istallet.
 
+### CLOSE_ALL_PANELS re-entrancy vid build menu
+**Problem:** Build-menyn i DayScene anvander sin egen rendering (inte UIPanel) men behover delta i CLOSE_ALL_PANELS-systemet for omsesidig exklusion med UIPanel-baserade paneler. Nar toggleBuildMenu() emittar CLOSE_ALL_PANELS for att stanga andra paneler, triggas aven den egna lyssnaren som direkt stanger build-menyn igen.
+**Losning:** Anvand en buildMenuOpening-flagga som satts innan CLOSE_ALL_PANELS emittas och nollstalls efter. Lyssnaren kollar flaggan och ignorerar eventet om build-menyn haller pa att oppnas.
+
 ### ResourceBar.setText kraschar efter scenovergang
 **Problem:** ResourceBar lyssnar pa resource-changed events. Nar scenen forstors (t.ex. vid overgang fran NightScene till DayScene) forstors Text-objektens WebGL-texturer, men event-lyssnaren lever kvar. Nasta resource-changed-emit orsakar "Cannot read properties of null (reading 'glTexture')".
 **Losning:** Lagg till `!text.active`-check i updateResource() innan setText() anropas.

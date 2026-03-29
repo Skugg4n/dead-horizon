@@ -10,7 +10,6 @@ import { Barricade } from '../structures/Barricade';
 import { Wall } from '../structures/Wall';
 import { Trap } from '../structures/Trap';
 import { HUD } from '../ui/HUD';
-import { ResourceBar } from '../ui/ResourceBar';
 import { WeaponManager } from '../systems/WeaponManager';
 import { SkillManager } from '../systems/SkillManager';
 import { ZoneManager } from '../systems/ZoneManager';
@@ -53,7 +52,6 @@ export class NightScene extends Phaser.Scene {
   private achievementManager!: AchievementManager;
   private refugeeManager!: RefugeeManager;
   private hud!: HUD;
-  // ResourceBar is constructed for its side effects (listens to events, renders UI)
   private shootCooldown: number = 0;
   private pillboxAssignments: { structure: StructureInstance; refugee: RefugeeInstance; cooldown: number }[] = [];
   private kills: number = 0;
@@ -129,7 +127,6 @@ export class NightScene extends Phaser.Scene {
     this.hud = new HUD(this);
     this.hud.updateAmmo(this.loadedAmmo);
     this.updateWeaponHUD();
-    new ResourceBar(this, this.resourceManager.getAll());
 
     this.setupWeaponKeys();
     this.setupParticles();

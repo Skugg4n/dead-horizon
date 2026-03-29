@@ -24,6 +24,8 @@ import type { EventChoice } from '../ui/EventDialog';
 import structuresJson from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
+import { createUIButton } from '../ui/UIButton';
+import { CLOSE_ALL_PANELS } from '../ui/UIPanel';
 
 // Parse structure colors from JSON (string hex to number)
 const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
@@ -66,11 +68,12 @@ export class DayScene extends Phaser.Scene {
   // UI elements
   private buildMenuContainer!: Phaser.GameObjects.Container;
   private buildMenuVisible: boolean = false;
+  private buildMenuOpening: boolean = false;
   private buildMenuEntries: { structureId: string; text: Phaser.GameObjects.Text }[] = [];
   private structurePopup: Phaser.GameObjects.Container | null = null;
   private infoText!: Phaser.GameObjects.Text;
-  private resourceText!: Phaser.GameObjects.Text;
-  private baseUpgradeText!: Phaser.GameObjects.Text;
+  private resourceTexts: Map<ResourceType, Phaser.GameObjects.Text> = new Map();
+  private baseUpgradeBtn!: Phaser.GameObjects.Container;
   private baseTentGraphics!: Phaser.GameObjects.Graphics;
   private baseSpriteImage: Phaser.GameObjects.Image | null = null;
 
@@ -101,18 +104,18 @@ export class DayScene extends Phaser.Scene {
     this.setupCameras();
 
     // UI layer (created after cameras so addToUI works)
-    this.apBar = new ActionPointBar(this, this.currentAP);
-    this.addToUI(this.apBar.getContainer());
-    this.createResourceDisplay();
-    this.createEndDayButton();
-    this.createBuildButton();
-    this.createLoadAmmoButton();
+    this.createTopBar();
+    this.createActionBar();
+    this.createResourceBar();
     this.createBuildMenu();
-    this.createWeaponsButton();
-    this.createSkillButton();
-    this.createRefugeesButton();
-    this.createLootRunButton();
-    this.createBaseUpgradeUI();
+    // Close build menu when other panels open
+    this.events.on(CLOSE_ALL_PANELS, () => {
+      if (this.buildMenuVisible && !this.buildMenuOpening) {
+        this.buildMenuVisible = false;
+        this.buildMenuContainer.setVisible(false);
+        this.cancelPlacement();
+      }
+    });
     this.createInfoText();
 
     // Weapon system
@@ -175,8 +178,7 @@ export class DayScene extends Phaser.Scene {
     // Achievement system
     this.achievementManager = new AchievementManager(this, this.gameState);
 
-    // Create crafting and zone buttons
-    this.createCraftButton();
+    // Zone selector (kept top-right)
     this.createZoneSelector();
 
     // Listen for looting XP awards
@@ -379,13 +381,6 @@ export class DayScene extends Phaser.Scene {
     const existingObjects = [...this.children.list];
     this.uiCamera.ignore(existingObjects);
 
-    // Day indicator (UI element)
-    const dayText = this.add.text(GAME_WIDTH / 2, 16, `DAY ${this.gameState.progress.currentWave}`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#E8DCC8',
-    }).setOrigin(0.5).setDepth(100);
-    this.addToUI(dayText);
   }
 
   // Register game objects as UI-only: visible on uiCamera, hidden from main camera.
@@ -402,62 +397,47 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
-  private createResourceDisplay(): void {
-    const res = this.gameState.inventory.resources;
-    const cap = this.getResourceCap();
-    const text = `Scrap: ${res.scrap}/${cap}  Food: ${res.food}/${cap}  Ammo: ${res.ammo}/${cap}  Parts: ${res.parts}/${cap}  Meds: ${res.meds}/${cap}`;
-    this.resourceText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 16, text, {
+  // -- Top Bar: AP pips left, DAY centered, base info + upgrade right --
+  private createTopBar(): void {
+    const topBg = this.add.graphics();
+    topBg.fillStyle(0x1A1A1A, 0.85);
+    topBg.fillRect(0, 0, GAME_WIDTH, 48);
+    topBg.setDepth(100).setScrollFactor(0);
+    this.addToUI(topBg);
+
+    // AP bar (left side)
+    this.apBar = new ActionPointBar(this, this.currentAP);
+    this.addToUI(this.apBar.getContainer());
+
+    // DAY counter (centered)
+    const dayText = this.add.text(GAME_WIDTH / 2, 20, `DAY ${this.gameState.progress.currentWave}`, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
+      fontSize: '14px',
       color: '#E8DCC8',
     }).setOrigin(0.5).setDepth(100);
-    this.addToUI(this.resourceText);
+    this.addToUI(dayText);
+
+    // Base info + upgrade button (right side)
+    this.createBaseUpgradeUI();
   }
 
-  private updateResourceDisplay(): void {
-    this.enforceResourceCaps();
-    const res = this.gameState.inventory.resources;
-    const cap = this.getResourceCap();
-    const text = `Scrap: ${res.scrap}/${cap}  Food: ${res.food}/${cap}  Ammo: ${res.ammo}/${cap}  Parts: ${res.parts}/${cap}  Meds: ${res.meds}/${cap}`;
-    this.resourceText.setText(text);
-  }
+  // -- Two-row action bar at bottom --
+  private createActionBar(): void {
+    const barBg = this.add.graphics();
+    barBg.fillStyle(0x1A1A1A, 0.85);
+    barBg.fillRect(0, GAME_HEIGHT - 88, GAME_WIDTH, 64);
+    barBg.setDepth(100).setScrollFactor(0);
+    this.addToUI(barBg);
 
-  private createEndDayButton(): void {
-    const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 40, '[ END DAY ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#D4620B',
-    }).setOrigin(1, 1).setDepth(100).setInteractive({ useHandCursor: true });
+    const ROW1_Y = GAME_HEIGHT - 64;
+    const ROW2_Y = GAME_HEIGHT - 42;
 
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#D4620B'));
-    btn.on('pointerdown', () => this.endDay());
-    this.addToUI(btn);
-  }
+    // Row 1: Primary actions
+    const buildBtn = createUIButton(this, 16, ROW1_Y, 'BUILD', '#4CAF50', () => this.toggleBuildMenu());
+    buildBtn.setDepth(100);
+    this.addToUI(buildBtn);
 
-  private createBuildButton(): void {
-    const btn = this.add.text(16, GAME_HEIGHT - 40, '[ BUILD ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#4CAF50',
-    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
-
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#4CAF50'));
-    btn.on('pointerdown', () => this.toggleBuildMenu());
-    this.addToUI(btn);
-  }
-
-  private createLoadAmmoButton(): void {
-    const btn = this.add.text(130, GAME_HEIGHT - 40, '[ LOAD AMMO ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#4A90D9',
-    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
-
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#4A90D9'));
-    btn.on('pointerdown', () => {
+    const ammoBtn = createUIButton(this, 120, ROW1_Y, 'AMMO', '#4A90D9', () => {
       if (this.currentAP < 1) {
         this.showInfo('Not enough AP!');
         return;
@@ -472,72 +452,97 @@ export class DayScene extends Phaser.Scene {
         this.showInfo(result.message);
       }
     });
-    this.addToUI(btn);
+    ammoBtn.setDepth(100);
+    this.addToUI(ammoBtn);
+
+    const weaponsBtn = createUIButton(this, 220, ROW1_Y, 'WEAPONS', '#C5A030', () => this.weaponPanel.toggle());
+    weaponsBtn.setDepth(100);
+    this.addToUI(weaponsBtn);
+
+    const craftBtn = createUIButton(this, 340, ROW1_Y, 'CRAFT', '#D4A030', () => this.craftingPanel.toggle());
+    craftBtn.setDepth(100);
+    this.addToUI(craftBtn);
+
+    const skillsBtn = createUIButton(this, 560, ROW1_Y, 'SKILLS', '#C5A030', () => this.skillPanel.toggle());
+    skillsBtn.setDepth(100);
+    this.addToUI(skillsBtn);
+
+    const endDayBtn = createUIButton(this, GAME_WIDTH - 16, ROW1_Y, 'END DAY', '#D4620B', () => this.endDay(), 1);
+    endDayBtn.setDepth(100);
+    this.addToUI(endDayBtn);
+
+    // Row 2: Secondary actions
+    const refugeesBtn = createUIButton(this, 16, ROW2_Y, 'REFUGEES', '#8B6FC0', () => this.refugeePanel.toggle());
+    refugeesBtn.setDepth(100);
+    this.addToUI(refugeesBtn);
+
+    const lootBtn = createUIButton(this, 150, ROW2_Y, 'LOOT RUN', '#D4A030', () => this.lootRunPanel.toggle());
+    lootBtn.setDepth(100);
+    this.addToUI(lootBtn);
   }
 
-  private createWeaponsButton(): void {
-    const btn = this.add.text(290, GAME_HEIGHT - 40, '[ WEAPONS ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#C5A030',
-    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
+  // -- Resource bar at very bottom --
+  private createResourceBar(): void {
+    const resBg = this.add.graphics();
+    resBg.fillStyle(0x1A1A1A, 0.9);
+    resBg.fillRect(0, GAME_HEIGHT - 24, GAME_WIDTH, 24);
+    resBg.setDepth(100).setScrollFactor(0);
+    this.addToUI(resBg);
 
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#C5A030'));
-    btn.on('pointerdown', () => this.weaponPanel.toggle());
-    this.addToUI(btn);
+    const RESOURCE_COLORS: Record<ResourceType, string> = {
+      scrap: '#C5A030',
+      food: '#4CAF50',
+      ammo: '#4A90D9',
+      parts: '#E8DCC8',
+      meds: '#F44336',
+    };
+    const RESOURCE_ORDER: ResourceType[] = ['scrap', 'food', 'ammo', 'parts', 'meds'];
+    const sectionWidth = GAME_WIDTH / RESOURCE_ORDER.length;
+    const cap = this.getResourceCap();
+    const res = this.gameState.inventory.resources;
+
+    // Separators
+    const sep = this.add.graphics();
+    sep.lineStyle(1, 0x333333, 1);
+    for (let i = 1; i < RESOURCE_ORDER.length; i++) {
+      const sx = sectionWidth * i;
+      sep.lineBetween(sx, GAME_HEIGHT - 24, sx, GAME_HEIGHT);
+    }
+    sep.setDepth(100).setScrollFactor(0);
+    this.addToUI(sep);
+
+    for (let i = 0; i < RESOURCE_ORDER.length; i++) {
+      const type = RESOURCE_ORDER[i] as ResourceType;
+      const color = RESOURCE_COLORS[type];
+      const label = type.charAt(0).toUpperCase() + type.slice(1);
+      const value = res[type];
+
+      const text = this.add.text(
+        sectionWidth * i + sectionWidth / 2,
+        GAME_HEIGHT - 12,
+        `${label}: ${value}/${cap}`,
+        {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: color,
+        },
+      ).setOrigin(0.5).setDepth(100);
+      this.addToUI(text);
+      this.resourceTexts.set(type, text);
+    }
   }
 
-  private createSkillButton(): void {
-    const btn = this.add.text(GAME_WIDTH - 150, GAME_HEIGHT - 40, '[ SKILLS ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#C5A030',
-    }).setOrigin(1, 1).setDepth(100).setInteractive({ useHandCursor: true });
-
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#C5A030'));
-    btn.on('pointerdown', () => this.skillPanel.toggle());
-    this.addToUI(btn);
-  }
-
-  private createRefugeesButton(): void {
-    const btn = this.add.text(430, GAME_HEIGHT - 40, '[ REFUGEES ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#8B6FC0',
-    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
-
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#8B6FC0'));
-    btn.on('pointerdown', () => this.refugeePanel.toggle());
-    this.addToUI(btn);
-  }
-
-  private createLootRunButton(): void {
-    const btn = this.add.text(570, GAME_HEIGHT - 40, '[ LOOT RUN ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#D4A030',
-    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
-
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#D4A030'));
-    btn.on('pointerdown', () => this.lootRunPanel.toggle());
-    this.addToUI(btn);
-  }
-
-  private createCraftButton(): void {
-    const btn = this.add.text(GAME_WIDTH - 150, GAME_HEIGHT - 58, '[ CRAFT ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#D4A030',
-    }).setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
-
-    btn.on('pointerover', () => btn.setColor('#FFD700'));
-    btn.on('pointerout', () => btn.setColor('#D4A030'));
-    btn.on('pointerdown', () => this.craftingPanel.toggle());
-    this.addToUI(btn);
+  private updateResourceDisplay(): void {
+    this.enforceResourceCaps();
+    const res = this.gameState.inventory.resources;
+    const cap = this.getResourceCap();
+    const RESOURCE_ORDER: ResourceType[] = ['scrap', 'food', 'ammo', 'parts', 'meds'];
+    for (const type of RESOURCE_ORDER) {
+      const text = this.resourceTexts.get(type);
+      if (!text || !text.active) continue;
+      const label = type.charAt(0).toUpperCase() + type.slice(1);
+      text.setText(`${label}: ${res[type]}/${cap}`);
+    }
   }
 
   private createZoneSelector(): void {
@@ -679,7 +684,7 @@ export class DayScene extends Phaser.Scene {
   }
 
   private createInfoText(): void {
-    this.infoText = this.add.text(GAME_WIDTH / 2, 50, '', {
+    this.infoText = this.add.text(GAME_WIDTH / 2, 56, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#C5A030',
@@ -702,6 +707,10 @@ export class DayScene extends Phaser.Scene {
   private toggleBuildMenu(): void {
     this.buildMenuVisible = !this.buildMenuVisible;
     if (this.buildMenuVisible) {
+      // Close other panels before opening build menu
+      this.buildMenuOpening = true;
+      this.events.emit(CLOSE_ALL_PANELS);
+      this.buildMenuOpening = false;
       this.refreshBuildMenuAffordability();
     }
     this.buildMenuContainer.setVisible(this.buildMenuVisible);
@@ -958,38 +967,49 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
-  /** Create the base level and upgrade UI */
+  /** Create the base level and upgrade UI in the top bar (right side) */
   private createBaseUpgradeUI(): void {
     const levelData = this.getBaseLevelData();
     const next = this.getNextBaseLevelData();
 
-    let text = `BASE: ${levelData.name}`;
+    // Base name label
+    const baseLabel = this.add.text(GAME_WIDTH - 16, 10, levelData.name, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#E8DCC8',
+    }).setOrigin(1, 0).setDepth(100);
+    this.addToUI(baseLabel);
+
+    // Upgrade button below the label (or MAX indicator)
     if (next && next.cost) {
       const costStr = Object.entries(next.cost).map(([r, n]) => `${n} ${r}`).join(', ');
-      text += ` [UPGRADE to ${next.name} -- ${costStr}, ${next.apCost ?? 0} AP]`;
+      this.baseUpgradeBtn = createUIButton(
+        this,
+        GAME_WIDTH - 16,
+        26,
+        `UPGRADE (${costStr})`,
+        '#4CAF50',
+        () => this.upgradeBase(),
+        1,
+      );
+      this.baseUpgradeBtn.setDepth(100);
+      this.addToUI(this.baseUpgradeBtn);
     } else {
-      text += ' [MAX]';
+      const maxText = this.add.text(GAME_WIDTH - 16, 26, 'MAX', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#6B6B6B',
+      }).setOrigin(1, 0).setDepth(100);
+      this.addToUI(maxText);
+      // Assign a dummy container so updateBaseUpgradeUI can destroy it
+      this.baseUpgradeBtn = this.add.container(0, 0);
+      this.addToUI(this.baseUpgradeBtn);
     }
-
-    this.baseUpgradeText = this.add.text(GAME_WIDTH / 2, 30, text, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: next ? '#4CAF50' : '#6B6B6B',
-    }).setOrigin(0.5).setDepth(100);
-
-    if (next) {
-      this.baseUpgradeText.setInteractive({ useHandCursor: true });
-      this.baseUpgradeText.on('pointerover', () => this.baseUpgradeText.setColor('#FFD700'));
-      this.baseUpgradeText.on('pointerout', () => this.baseUpgradeText.setColor('#4CAF50'));
-      this.baseUpgradeText.on('pointerdown', () => this.upgradeBase());
-    }
-
-    this.addToUI(this.baseUpgradeText);
   }
 
-  /** Refresh the base upgrade UI text after an upgrade */
+  /** Refresh the base upgrade UI after an upgrade */
   private updateBaseUpgradeUI(): void {
-    this.baseUpgradeText.destroy();
+    this.baseUpgradeBtn.destroy();
     this.createBaseUpgradeUI();
 
     // Redraw base tent visual
