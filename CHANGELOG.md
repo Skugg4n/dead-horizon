@@ -11,19 +11,20 @@
 - F1: Zombie death animation (flash + corpse stays 10-15s with dark tint)
 - F2: Persistent blood splatters on ground (randomized ellipses + droplets)
 - F3: Base health bar in HUD (green->yellow->red, zombies damage base)
-- F4: 5 new procedural sounds (footstep, melee hit, zombie attack, structure damage, day-to-night)
-- F4: Pitch variation (+/-10%) on all weapon and zombie sounds
-- F5: Zombie aggro balance (70% base seekers, 30% wanderers, brutes always seek base)
-- U1: One-click loot runs (click destination row = start, auto-close result after 3s)
+- F4: 5 new procedural sounds + pitch variation on all sounds
+- F5: Zombie aggro balance (70% base seekers, 30% wanderers)
+- U1: One-click loot runs with auto-close result
 - U2: Refugee panel redesign (portrait icons, HP bars, status colors)
 - U3: Refugee companions on loot runs
 - U4: EventDialog dynamic height, never overflows
 - U5: Keyboard shortcuts in DayScene (B/L/R/E)
+- New title screen with procedural pixel art background, styled buttons, info panel
+- Terrain generation (trees, rocks, water, paths) with zone variation
 
 ### Changed
 - Version: 1.6.0 -> 1.7.0
+- MenuScene completely redesigned
 - GameState.base extended with hp/maxHp fields
-- SaveManager migrates old saves for new fields
 
 ## [1.6.0] - 2026-03-29
 
