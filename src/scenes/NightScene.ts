@@ -766,6 +766,12 @@ export class NightScene extends Phaser.Scene {
 
     if (!nearestZombie) return;
 
+    // Re-check: zombie could have died during the same frame (e.g. killed by a
+    // trap overlap processed earlier in checkZombieStructureInteractions).
+    // shootAt() also guards, but checking here avoids consuming ammo / cooldown
+    // for a target that is already dead.
+    if (!(nearestZombie as Zombie).active) return;
+
     // Melee weapons don't cost ammo
     if (isMelee) {
       this.shootAt(nearestZombie);
@@ -967,13 +973,22 @@ export class NightScene extends Phaser.Scene {
         ? REFUGEE_PILLBOX_RANGE + 50
         : REFUGEE_PILLBOX_RANGE;
 
-      // 5B: Use physics.closest() instead of nested loop
-      const activeZombies = this.zombieGroup.getChildren().filter(c => c.active);
-      if (activeZombies.length === 0) continue;
-      const nearest = this.physics.closest({ x: px, y: py } as Phaser.Types.Math.Vector2Like, activeZombies) as Zombie | null;
+      // Find the nearest active zombie within range using a manual distance loop.
+      // Note: this.physics.closest() is NOT part of Phaser 3 Arcade Physics API
+      // and always returns null, so we iterate manually instead.
+      let nearest: Zombie | null = null;
+      let nearestDist = Infinity;
+      for (const child of this.zombieGroup.getChildren()) {
+        const z = child as Zombie;
+        if (!z.active) continue;
+        const d = distanceBetween(px, py, z.x, z.y);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearest = z;
+        }
+      }
       if (!nearest) continue;
 
-      const nearestDist = distanceBetween(px, py, nearest.x, nearest.y);
       const nearestZombie: Zombie | null = nearestDist <= range ? nearest : null;
 
       if (nearestZombie) {

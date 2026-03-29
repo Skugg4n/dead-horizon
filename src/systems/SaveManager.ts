@@ -105,10 +105,26 @@ function load(): GameState {
           ...defaults.inventory,
           ...(saved.inventory ?? {}),
           resources: { ...defaults.inventory.resources, ...(saved.inventory?.resources ?? {}) },
-          weapons: saved.inventory?.weapons ?? defaults.inventory.weapons,
+          // Ensure every weapon has the 'upgrades' array -- old saves (pre-v1.4) stored
+          // weapons without this field, causing WeaponManager.getWeaponStats() to crash
+          // when iterating upgrades.
+          weapons: (saved.inventory?.weapons ?? defaults.inventory.weapons).map(w => ({
+            ...w,
+            upgrades: w.upgrades ?? [],
+          })),
           loadedAmmo: saved.inventory?.loadedAmmo ?? defaults.inventory.loadedAmmo,
         },
-        base: { ...defaults.base, ...(saved.base ?? {}) },
+        base: {
+          ...defaults.base,
+          ...(saved.base ?? {}),
+          // Ensure every structure has hp and maxHp -- old saves may lack these fields,
+          // causing NaN arithmetic in BuildingManager.takeDamage() and NightScene.
+          structures: (saved.base?.structures ?? defaults.base.structures).map(s => ({
+            ...s,
+            hp: s.hp ?? s.maxHp ?? 100,
+            maxHp: s.maxHp ?? s.hp ?? 100,
+          })),
+        },
         progress: { ...defaults.progress, ...(saved.progress ?? {}) },
         map: { ...defaults.map, ...(saved.map ?? {}) },
         stats: { ...defaults.stats, ...(saved.stats ?? {}) },

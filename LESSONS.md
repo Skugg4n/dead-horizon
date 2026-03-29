@@ -92,8 +92,16 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ### Skjut-krasch (target redan dod)
 **Problem:** tryAutoShoot hittade en zombie, men mellan detect och shootAt dog zombien. shootAt forsoke komma at properties pa en inaktiv sprite.
-**Losning:** Lagg till `if (!target.active) return;` som forsta rad i shootAt().
+**Losning:** Lagg till `if (!target.active) return;` som forsta rad i shootAt(). Dubbelkolla ocksa att nearestZombie fortfarande ar aktiv direkt INNAN shootAt()-anropet i tryAutoShoot() -- en zombie kan dod under samma frame om en trap-overlap processades tidigare i update-cykeln.
+
+### Continue-krasch -- saknade falt i gamla saves
+**Problem:** WeaponManager.getWeaponStats() itererade `weapon.upgrades` (for...of) men faltet saknades i saves fran pre-v1.4. Resulterade i "Cannot read properties of undefined (reading Symbol.iterator)".
+**Losning:** SaveManager.load() maste normalisera VARJE weapon-objekt: `upgrades: w.upgrades ?? []`. Samma monster galler StructureInstance.hp/maxHp -- normalisera med fallback 100 om saknas. Regel: nar ett nytt falt laggs till pa en sub-objekt i en array (weapons[], structures[]), maste SaveManager.load() patcha VARJE element i arrayen, inte bara top-level-objektet.
 
 ### Spitter-krasch (spelare redan dod)
 **Problem:** Spitter-projektil traffade spelare efter spelarens dod. takeDamage pa forstord sprite kraschade.
 **Losning:** Lagg till `!this.player.active` guard i alla overlap-callbacks som anropar player.takeDamage().
+
+### Pillbox skjuter inte -- this.physics.closest() finns inte i Phaser 3
+**Problem:** Koden anvande `this.physics.closest(point, gameObjects)` for att hitta narmaste zombie. Denna metod existerar INTE i Phaser 3 Arcade Physics API och returnerar undefined/null, vilket gjorde att pillboxen aldrig hittade nagon zombie att skjuta pa.
+**Losning:** Ersatt med en manuell for...of-loop over zombieGroup.getChildren() med distanceBetween()-jamforelse. Kontrollera alltid mot Phaser 3-dokumentationen before du anvander physics.*-metoder -- Phaser 4 och andra motor-versioner kan ha andra API:er.

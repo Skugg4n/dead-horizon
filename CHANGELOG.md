@@ -1,5 +1,19 @@
 # Dead Horizon -- Changelog
 
+## [1.7.0] - 2026-03-29
+
+### Fixed
+- B1: Shooting crash root cause -- tryAutoShoot now re-verifies target is still active
+  immediately before calling shootAt(), preventing ammo waste and potential issues
+  if a zombie dies mid-frame (e.g. killed by trap in the same update tick).
+- B2: Continue-knapp kraschade med gamla saves -- WeaponManager.getWeaponStats() kraschade
+  pa `weapon.upgrades.includes()` nar upgrades-faltet saknades i saves fran pre-v1.4.
+  SaveManager.load() normaliserar nu alla vapen-objekt med `upgrades: w.upgrades ?? []`.
+  Strukturer i sparade spel normaliseras ocksa med hp/maxHp fallback (100) om saknas.
+- B3: Pillbox-refugees skadar inte zombies -- this.physics.closest() existerar INTE i
+  Phaser 3 Arcade Physics och returnerade alltid null. Ersatt med en manuell
+  distance-loop som korrekt hittar narmaste aktiva zombie inom pillboxens range.
+
 ## [1.6.0] - 2026-03-29
 
 ### Fixed
