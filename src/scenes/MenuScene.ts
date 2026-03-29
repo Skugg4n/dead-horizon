@@ -601,7 +601,7 @@ export class MenuScene extends Phaser.Scene {
     let continueSubtext = '';
     if (hasSave) {
       const state = SaveManager.load();
-      continueSubtext = `Day ${state.progress.totalRuns ?? 0} -- ${state.zone ?? 'forest'}`;
+      continueSubtext = `Day ${(state.progress.totalRuns ?? 0) + 1} -- ${state.zone ?? 'forest'}`;
     }
 
     // Button Y starts after title block (~220px from top)
@@ -1013,25 +1013,37 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.characterSelectContainer.add(name);
 
-    // Character icon
-    const iconMap: Record<string, string> = {
-      scavenger: 'S', engineer: 'E', soldier: 'W', medic: 'M',
-    };
-    const iconLetter = iconMap[char.id] ?? '?';
+    // Character portrait (use pixel art portrait if available, fallback to letter icon)
     const iconCenterY = cardY + 90;
-    const iconBg = this.add.graphics();
-    iconBg.fillStyle(0x2A2A4E);
-    iconBg.fillCircle(centerX, iconCenterY, 32);
-    iconBg.lineStyle(2, 0xC5A030);
-    iconBg.strokeCircle(centerX, iconCenterY, 32);
-    this.characterSelectContainer.add(iconBg);
-
-    const icon = this.add.text(centerX, iconCenterY, iconLetter, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '24px',
-      color: '#E8DCC8',
-    }).setOrigin(0.5);
-    this.characterSelectContainer.add(icon);
+    const portraitKey = `portrait_${char.id}`;
+    if (this.textures.exists(portraitKey)) {
+      const portrait = this.add.image(centerX, iconCenterY, portraitKey);
+      portrait.setDisplaySize(64, 64);
+      this.characterSelectContainer.add(portrait);
+      // Gold border around portrait
+      const borderGfx = this.add.graphics();
+      borderGfx.lineStyle(2, 0xC5A030);
+      borderGfx.strokeRect(centerX - 32, iconCenterY - 32, 64, 64);
+      this.characterSelectContainer.add(borderGfx);
+    } else {
+      // Fallback: letter icon in circle
+      const iconMap: Record<string, string> = {
+        scavenger: 'S', engineer: 'E', soldier: 'W', medic: 'M',
+      };
+      const iconLetter = iconMap[char.id] ?? '?';
+      const iconBg = this.add.graphics();
+      iconBg.fillStyle(0x2A2A4E);
+      iconBg.fillCircle(centerX, iconCenterY, 32);
+      iconBg.lineStyle(2, 0xC5A030);
+      iconBg.strokeCircle(centerX, iconCenterY, 32);
+      this.characterSelectContainer.add(iconBg);
+      const icon = this.add.text(centerX, iconCenterY, iconLetter, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '24px',
+        color: '#E8DCC8',
+      }).setOrigin(0.5);
+      this.characterSelectContainer.add(icon);
+    }
 
     // Description
     const desc = this.add.text(centerX, cardY + 145, char.description, {

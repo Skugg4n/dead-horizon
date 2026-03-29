@@ -81,6 +81,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image('terrain_road_overgrown', 'assets/sprites/terrain_road_overgrown.png');
     this.load.image('terrain_concrete', 'assets/sprites/terrain_concrete.png');
 
+    // Character portraits (64x64) for character select screen
+    this.load.image('portrait_soldier',   'assets/sprites/characters/portrait_soldier.png');
+    this.load.image('portrait_scavenger', 'assets/sprites/characters/portrait_scavenger.png');
+    this.load.image('portrait_engineer',  'assets/sprites/characters/portrait_engineer.png');
+    this.load.image('portrait_medic',     'assets/sprites/characters/portrait_medic.png');
+
     // Silently ignore missing files -- spriteFactory fallbacks will cover them
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
       console.warn(`[BootScene] Asset not found, using fallback: ${file.key}`);

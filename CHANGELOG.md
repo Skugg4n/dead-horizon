@@ -1,5 +1,12 @@
 # Dead Horizon -- Changelog
 
+## [Unreleased] - 2026-03-29
+
+### Added
+- Character portraits (64x64 px pixel art) for all 4 playable characters: Soldier, Scavenger, Engineer, Medic
+- Portrait assets in public/assets/sprites/characters/
+- Portraits loaded in BootScene.ts as portrait_soldier, portrait_scavenger, portrait_engineer, portrait_medic
+
 ## [1.7.0] - 2026-03-29
 
 ### Fixed

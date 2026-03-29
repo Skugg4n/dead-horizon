@@ -1,21 +1,33 @@
 # Dead Horizon -- Game Design Document
 
-**Version:** 0.1.0
-**Datum:** 2026-03-28
-**Status:** Draft
+**Version:** 1.7.0
+**Datum:** 2026-03-29
+**Status:** Active
 
 ---
 
-## 1. Spelöversikt
+## 1. Speloversikt
 
-Genre: Top-down wave defense / base builder / roguelite / idle
-Perspektiv: Top-down (rakt ovanifrån)
-Kontroll: Mus (dagfas), Tangentbord (nattfas)
-Session-längd: En "dag" (dag + natt) tar ca 3-5 minuter realtid
+Genre: Top-down wave defense / base builder / roguelite
+Perspektiv: Top-down (rakt ovanifran)
+Kontroll: WASD + mus (nattfas), mus (dagfas)
+Session-langd: En "dag" (dag + natt) tar ca 3-5 minuter realtid
+
+### Tema och ton
+Post-apokalyptisk zombieoverlevnad. Morkt, gritty, taktiskt. Spelaren ar en overlevare som bygger en bas, forsvara den mot nattliga zombieangrepp, och skickar loot runs for resurser. Kanslan ar desperat men hoppfull -- varje natt ar ett test, varje dag en chans att forbereda sig battre.
+
+### Titel-skarmen
+Vansterstallda layouten med:
+- "DEAD HORIZON" titel i stor pixel art-stil
+- Tagline: "POST APOCALYPTIC TOP-DOWN SURVIVAL / BASE BUILDING - SHOOTER"
+- "Refugees. Repairs. Survive. Die many times."
+- CONTINUE (visar dag + zon), NEW GAME, SETTINGS, ACHIEVEMENTS
+- Procedurell bakgrund med byggnadssilhuetter, lagreld, zombie-skuggor
+- "What to Expect" info-panel (Build & Fortify, Scavenge & Repair, Zombie Swarms)
 
 ---
 
-## 2. Kärn-loop
+## 2. Karn-loop
 
 ```
 START RUN
@@ -23,22 +35,25 @@ START RUN
   v
 [Dagfas: 12 Action Points]
   - Bygg / uppgradera bas
-  - Sätt ut fällor och barrikader
+  - Satt ut fallor och barrikader
   - Tilldela refugees uppgifter
-  - Skicka loot runs
+  - Skicka loot runs (ett-klick)
   - Ladda vapen med ammo
+  - Tangentbordsgenvargar: B=build, L=loot, R=refugees, E=end day
   |
   v
 [Nattfas: Realtid]
-  - Zombies attackerar i vågor
-  - Spelaren rör sig med piltangenter
-  - Auto-shoot på närliggande fiender
-  - Refugees i pillboxes hjälper till
+  - Zombies attackerar i vagor
+  - Spelaren ror sig med WASD
+  - Auto-shoot pa narliggande fiender
+  - Refugees i pillboxes hjalper till
+  - Procedurell terrang (trad, stenar, vatten paverkar rorelse)
+  - Base HP bar visar basens halsa
   |
   v
 [Resultat]
-  - Överlevde? -> Ny dag, hårdare wave
-  - Dog? -> Behåll allt gear, starta om från wave 1
+  - Overlevde? -> Ny dag, hardare wave
+  - Dog? -> Behall allt gear, starta om fran wave 1
   |
   v
 REPEAT
@@ -56,50 +71,61 @@ Varje dag har spelaren **12 AP** (representerar 12 timmars dagsljus). Varje hand
 |----------|-----------|
 | Bygg/placera struktur | 1-2 |
 | Uppgradera struktur | 1-3 |
-| Sätt ut fälla | 1 |
+| Satt ut falla | 1 |
 | Ladda vapen | 1 |
 | Kort loot run | 3 |
-| Lång loot run | 5 |
-| Tilldela refugee | 0 (gratis, begränsat antal) |
+| Lang loot run | 5 |
+| Tilldela refugee | 0 (gratis, begransat antal) |
 | Reparera vapen | 1 |
 
 ### 3.2 Byggande
 
-Spelaren klickar i en bygg-meny för att välja struktur, sedan klickar på kartan för att placera. Strukturer inkluderar:
+Spelaren klickar i en bygg-meny (tangent B) for att valja struktur, sedan klickar pa kartan for att placera. Byggmenyn stangs INTE efter placering -- spelaren kan placera flera i rad.
 
-1. **Barrikader** -- saktar ner zombies. Billiga, låg HP. Byggs av Scrap.
-2. **Väggar** -- blockerar zombies. Dyrare, hög HP. Byggs av Scrap.
-3. **Fällor** -- skadar zombies som går över dem. Engångs eller begränsad durability.
-4. **Pillboxes** -- position där en refugee kan stå och skjuta. Kräver refugee + vapen.
-5. **Förråd** -- ökar lagringskapacitet för resurser.
-6. **Tält/hus** -- bostäder för refugees. Fler bostäder = fler refugees kan hanteras.
-7. **Matodling** -- producerar Food passivt (idle-element).
+Strukturer:
+1. **Barrikader** -- saktar ner zombies. Billiga, lag HP. Byggs av Scrap.
+2. **Vaggar** -- blockerar zombies. Dyrare, hog HP. Byggs av Scrap.
+3. **Fallor** -- skadar zombies som gar over dem. Engangsfallor.
+4. **Pillboxes** -- position dar en refugee kan sta och skjuta. Kraver refugee-tilldelning.
+5. **Forrad** -- okar lagringskapacitet for resurser.
+6. **Talt/hus** -- bostader for refugees.
+7. **Matodling** -- producerar Food passivt.
 
-Alla strukturer kan uppgraderas i nivåer (Level 1-3 i MVP).
+Alla strukturer kan uppgraderas i nivaer (Level 1-3).
 
 ### 3.3 Loot Runs
 
-Spelaren skickar sig själv eller refugees på expeditioner:
+Ett-klick-system (v1.7.0): klicka pa destinationsrad = starta direkt med nuvarande utrustning.
 
-1. Välj destination (kort = 3 AP, lång = 5 AP)
-2. Välj utrustning att ta med (vapen, meds)
-3. Välj sällskap (refugees -- men de saknas då hemma)
-4. Kör! Resultat visas efter AP-kostnaden spenderats
+1. Klicka destination (kort = 3 AP, lang = 5 AP)
+2. Valfritt: valj refugee-companion (ger combat strength)
+3. Resultat visas, stanger automatiskt efter 3 sekunder
 
-**Encounters:** Under loot runs kan spelaren möta en encounter. Presenteras som ett val:
-- "Du möter en grupp plundrare. Fight or Flee?"
-- Resultatet beror på vad du tog med dig. Bättre vapen och fler companions = högre chans att lyckas.
+**Encounters:** Under loot runs kan spelaren mota en encounter:
+- "Du moter en grupp plundrare. Fight or Flee?"
+- Resultatet beror pa vad du tog med dig. Battre vapen och fler companions = hogre chans.
 - Win: Extra loot, kanske en ny refugee
-- Lose: Förlorar all loot från den runnen. Companions kan skadas.
+- Lose: Forlorar all loot fran den runnen. Companions kan skadas.
+
+**Destinations per zon:**
+- Forest: nearby_houses, abandoned_store
+- City: city_ruins, hospital, police_station
+- Military: military_outpost, armory
 
 ### 3.4 Refugee-tilldelning
 
-Refugees tilldelas via sliders/knappar:
+Panel oppnas med tangent R. Varje refugee har:
+- Portratt-ikon (cirkel fargkodad: gron=frisk, gul=skadad, rod=kritisk, bla=borta)
+- HP-bar
+- Jobb-knappar med visuell feedback
+
+Jobb:
 - **Samla mat** -- producerar Food
 - **Samla material** -- producerar Scrap
-- **Loot run** -- följer med på expeditioner
+- **Loot run** -- companion pa expeditioner
 - **Reparationer** -- reparerar skadade strukturer
-- **Vila/heal** -- skadade refugees återhämtar sig (kostar Meds)
+- **Vila/heal** -- skadade refugees aterharntar sig (kostar Meds)
+- **Pillbox** -- bemannar en pillbox for nattstrid
 
 ---
 
@@ -107,50 +133,88 @@ Refugees tilldelas via sliders/knappar:
 
 ### 4.1 Spelarkontroll
 
-- **Rörelse:** Piltangenter (eller WASD)
-- **Skjutning:** Auto-shoot på närmaste fiende inom räckvidd
-- **Vapenval:** Siffertangenter (1-5) eller scroll
-- **Sprint:** Shift (begränsad stamina)
+- **Rorelse:** WASD
+- **Skjutning:** Auto-shoot pa narmaste fiende inom rackhall
+- **Sprint:** Shift (begransad stamina, regenereras)
 
 ### 4.2 Ljud-mekanik
 
-Varje vapen har ett **ljud-värde** (Noise Level):
+Varje vapen har ett **ljud-varde** (Noise Level):
 
 | Vapenklass | Noise Level |
 |-----------|-------------|
 | Melee | 0 (tyst) |
-| Pistol | 2 (låg) |
-| Pistol + Suppressor | 1 |
+| Pistol | 2 (lag) |
 | Rifle | 4 (medel) |
-| Shotgun | 5 (hög) |
+| Shotgun | 5 (hog) |
 | Explosives | 8 (extrem) |
 
-Zombies har en **awareness radius**. När ett vapen avfyras inom deras radius, ändrar de bana mot ljudkällan. Högre noise = större radius. Detta skapar taktiska val:
-- Använd melee för att vara tyst men riskera närkamp
-- Använd rifle för att ta ut fiender på avstånd men dra fler mot dig
-- Suppressors minskar noise med 1-2 nivåer
+Zombies reagerar pa vapenljud via SoundMechanic:
+- Vapenljud skapar visuella ljudringar runt spelaren
+- Zombies inom rackvidd andrar mal till spelaren
+- Hogre noise = storre radius
+- Taktiskt val: tyst melee vs effektiv rifle som drar fler zombies
 
-### 4.3 Fiender
+### 4.3 Zombie Aggro (v1.7.0)
 
-**MVP-fiender:**
-1. **Walker** -- långsam, låg HP, kommer i stora grupper. Grundfiende.
-2. **Runner** -- snabb, låg HP, farlig i grupp. Springer runt barrikader.
-3. **Brute** -- långsam, hög HP, bryter igenom väggar. Kräver fokuserad eld.
+- 70% av zombies ar "base_seekers" -- gar direkt mot basen
+- 30% ar "wanderers" -- vandrar slumpmassigt nara kartans kanter
+- Brutes och bossar ar ALLTID base_seekers
+- Vapenljud overridar beteendet for ALLA zombie-typer
+- Mer byggd bas = fler zombies attracted (taktiskt val: stor bas vs liten)
 
-**Framtida fiender (post-MVP):**
-4. Spitter (ranged attack)
-5. Screamer (drar fler zombies när den tar skada)
-6. Boss-varianter
+### 4.4 Fiender
 
-### 4.4 Wave-struktur
+6 fiendetyper implementerade:
 
-Varje "level" har 5 waves. Varje wave är svårare:
+1. **Walker** -- langsam, lag HP, kommer i stora grupper. Grundfiende.
+2. **Runner** -- snabb, lag HP, farlig i grupp. Springer runt barrikader.
+3. **Brute** -- langsam, hog HP, bryter igenom vaggar. Kraver fokuserad eld.
+4. **Spitter** -- ranged attack med projektiler. Kan skada spelare pa avstand.
+5. **Screamer** -- drar fler zombies nar den tar skada. Prioritet-mal.
+6. **Brute Boss** -- extra tuff brute med mer HP och skada.
+
+### 4.5 Wave-struktur
+
+Varje zon har 5 waves. Varje wave ar svarare:
 
 - **Wave 1:** Bara Walkers. Introduktion.
-- **Wave 2:** Walkers + några Runners.
-- **Wave 3:** Fler av allt. Första Brute.
-- **Wave 4:** Intensiv. Kräver bra försvar.
-- **Wave 5:** Boss-wave. Designad att kräva flera runs av wave 1-4 för att ha nog utrustning.
+- **Wave 2:** Walkers + nagra Runners.
+- **Wave 3:** Fler av allt. Forsta Brute.
+- **Wave 4:** Intensiv. Spitters och Screamers.
+- **Wave 5:** Boss-wave. Brute Boss + alla typer.
+
+### 4.6 Terrang (v1.7.0)
+
+Procedurellt genererad terrang varje natt:
+
+| Element | Effekt | Zonvariation |
+|---------|--------|-------------|
+| **Trad** | Blockerar rorelse (physics collider) | Forest: 5-8, City: 1-3, Military: 2-4 |
+| **Stenar** | Blockerar rorelse | Forest: 4-8, City: 7-12, Military: 5-9 |
+| **Buskar** | Visuell dekoration | Bara i Forest |
+| **Stubbar** | Visuell dekoration | Forest + Military |
+| **Vattensamlingar** | Saktar ner zombies 50% | Forest + Military |
+| **Stigar** | Visuell dekoration | Alla zoner |
+
+Tradkronor renderas ovanfor spelare/zombies for djupkansla. Seed ar deterministisk per dag.
+
+### 4.7 Visuella effekter
+
+- **Zombie-dod:** Tvafas-animation (flash vit + shrink), kroppen ligger kvar 10-15s
+- **Blodflaggar:** Permanenta blodspar pa marken hela natten (randomiserade ellipser + droppar)
+- **Base HP bar:** Visar basens halsa i HUD (gron -> gul -> rod)
+
+### 4.8 Ljud (procedurellt via Web Audio API)
+
+Alla ljud genereras procedurellt -- inga externa ljudfiler:
+- Vapensounds per klass (pistol, rifle, shotgun, melee swing, explosives)
+- Zombie groan, attack, death
+- Footstep, melee hit thud, zombie attack hit
+- Structure damage, day-to-night whoosh
+- UI-klick, wave clear fanfare
+- Ambient (natt/dag)
+- **Pitch-variation:** +/-10% pa alla weapon/zombie sounds for naturlighet
 
 ---
 
@@ -158,23 +222,21 @@ Varje "level" har 5 waves. Varje wave är svårare:
 
 ### 5.1 Resurstyper
 
-| Resurs | Källa | Användning |
+| Resurs | Kalla | Anvandning |
 |--------|-------|------------|
-| **Scrap** | Loot, dekonstruera, refugee-insamling | Bygg, barrikader, fällor |
-| **Food** | Refugee-insamling, odling | Håller refugees vid liv |
-| **Ammo** | Loot, köp (framtid) | Ladda vapen innan natt |
-| **Parts** | Sällsynt loot, encounters | Uppgradera/reparera vapen |
+| **Scrap** | Loot, dekonstruera, refugee-insamling | Bygg, barrikader, fallor |
+| **Food** | Refugee-insamling, odling | Haller refugees vid liv |
+| **Ammo** | Loot | Ladda vapen innan natt |
+| **Parts** | Sallsynt loot, encounters | Uppgradera/reparera vapen |
 | **Meds** | Loot, encounters | Hela skadade refugees |
 
 ### 5.2 Resurstryck
 
-Spelet skapar konstant tryck genom att resurser alltid är knappa:
-- Food äts varje dag (fler refugees = mer food-behov)
-- Ammo förbrukas varje natt
+Spelet skapar konstant tryck genom att resurser alltid ar knappa:
+- Food ats varje dag (fler refugees = mer food-behov)
+- Ammo forbrukas varje natt
 - Vapen tappar durability varje natt
 - Strukturer tar skada varje natt
-
-Spelaren måste alltid prioritera. Det ska aldrig finnas nog av allt.
 
 ---
 
@@ -182,75 +244,66 @@ Spelaren måste alltid prioritera. Det ska aldrig finnas nog av allt.
 
 ### 6.1 Vapenklasser
 
-| Klass | Range | Damage | Noise | Ammo/natt | Speciellt |
-|-------|-------|--------|-------|-----------|-----------|
-| **Melee** | Kort | Medel | 0 | 0 | Tyst, riskabelt |
-| **Pistol** | Medel | Låg | 2 | 2 | Balanserad |
-| **Shotgun** | Kort | Hög | 5 | 4 | AOE, högt ljud |
-| **Rifle** | Lång | Medel-Hög | 4 | 3 | Bäst range |
-| **Explosives** | Medel | Mycket hög | 8 | 5 | AOE, sällsynt ammo |
+| Klass | Range | Damage | Noise | Speciellt |
+|-------|-------|--------|-------|-----------|
+| **Melee** | Kort | Medel | 0 | Tyst, riskabelt |
+| **Pistol** | Medel | Lag | 2 | Balanserad |
+| **Shotgun** | Kort | Hog | 5 | AOE, hogt ljud |
+| **Rifle** | Lang | Medel-Hog | 4 | Bast range |
+| **Explosives** | Medel | Mycket hog | 8 | AOE, sallsynt ammo |
 
-### 6.2 Rariteter
+### 6.2 Vapen-XP
 
-1. **Common** (grå) -- grundvapen, låga stats
-2. **Uncommon** (grön) -- något bättre
-3. **Rare** (blå) -- märkbart bättre, kan ha bonus-egenskap
-4. **Legendary** (orange) -- unika vapen med speciella effekter
-
-### 6.3 Vapen-XP
-
-Varje vapen tjänar XP genom användning. Nivåer (1-5):
+Varje vapenklass tjanar XP genom anvandning. Nivaer (1-5):
 - Lvl 2: +10% reload speed
 - Lvl 3: +10% accuracy/damage
 - Lvl 4: +10% reload speed
-- Lvl 5: Speciell förmåga (beror på vapen)
+- Lvl 5: Speciell formaga
 
-### 6.4 Uppgraderingar (Parts)
+### 6.3 Uppgraderingar (Parts)
 
 Vapen kan uppgraderas med Parts:
 - **Damage boost** -- +15% damage
-- **Extended mag** -- fler skott innan reload
-- **Suppressor** -- minskar Noise Level med 1-2
-- **Scope** -- ökar range (rifles)
-- **Reinforcement** -- ökad durability
+- **Extended mag** -- fler skott
+- **Suppressor** -- minskar Noise Level
+- **Scope** -- okar range
+- **Reinforcement** -- okad durability
 
-### 6.5 Durability
+### 6.4 Durability
 
-Vapen har durability som sjunker varje natt de används. När durability når 0 går vapnet sönder (kan inte användas). Repareras med Parts (1 AP).
+Vapen har durability som sjunker varje natt de anvands. Nar durability nar 0 gar vapnet sonder. Repareras med Parts (1 AP).
 
 ---
 
-## 7. Leveling-system
+## 7. Skill-system
 
 ### 7.1 Filosofi
 
-Skills levlar genom användning -- du blir bättre på det du gör. Ingen generell "level." Varje skill har nivå 1-10. XP tjänas automatiskt genom relaterade aktiviteter.
+Skills levlar genom anvandning -- du blir battre pa det du gor. 10 skills, niva 1-10 vardera.
 
-### 7.2 Skills (MVP)
+### 7.2 Skills
 
-| Skill | Levlas genom | Effekt per nivå |
+| Skill | Levlas genom | Effekt per niva |
 |-------|-------------|-----------------|
-| **Combat (per vapenklass)** | Kills med den vapenklassen | +accuracy, +damage, +reload speed |
-| **Looting** | Genomförda loot runs | Bättre loot-tabeller, färre AP per run, bättre encounter-odds |
-| **Building** | Byggda/uppgraderade strukturer | Billigare kostnader, starkare strukturer |
+| **Combat Melee** | Kills med melee | +damage, +swing speed |
+| **Combat Pistol** | Kills med pistol | +accuracy, +damage |
+| **Combat Rifle** | Kills med rifle | +accuracy, +damage, +range |
+| **Combat Shotgun** | Kills med shotgun | +spread, +damage |
+| **Looting** | Genomforda loot runs | Battre loot-tabeller |
+| **Building** | Byggda strukturer | Billigare kostnader |
+| **Speed/Agility** | Rorelse under natt | Snabbare movement |
+| **Leadership** | Ha refugees i tjanst | Effektivare refugees |
+| **Survival** | Overleva waves | Battre mateffektivitet |
+| **Stealth** | Undvika zombies | Lagre ljud-signatur |
 
-### 7.3 Skills (Post-MVP)
+### 7.3 Karaktarer
 
-| Skill | Levlas genom | Effekt per nivå |
-|-------|-------------|-----------------|
-| **Speed/Agility** | Rörelse under natt | Snabbare movement, dodge-chans |
-| **Leadership** | Ha refugees i tjänst | Effektivare refugees, fler kan hanteras |
-| **Survival** | Överleva waves | Bättre mateffektivitet, meds effektivare |
-| **Stealth** | (kräver stealth-mekanik) | Lägre ljud-signatur, zombies reagerar långsammare |
+Spelaren valjer karaktar vid start. Ger startbonus i skills:
 
-### 7.4 Karaktärer
-
-Spelaren väljer karaktär vid start av varje run. Karaktären ger startbonus i skills:
-
-1. **The Scavenger** -- +3 Looting, +2 Speed. Bra på att hitta grejer.
-2. **The Engineer** -- +3 Building, +2 Combat (Melee). Bygger billigare och bättre.
-3. **The Soldier** -- +3 Combat (Rifle), +2 Combat (Pistol). Ren stridskraft.
-4. **The Medic** -- +3 Survival, +2 Leadership. Refugees håller sig friskare.
+1. **The Scavenger** -- +3 Looting. Bra pa att hitta grejer.
+2. **The Engineer** -- +3 Building, +2 Melee. Bygger billigare och battre.
+3. **The Soldier** -- +3 Rifle, +2 Pistol. Ren stridskraft.
+4. **The Medic** -- Inga skill-bonusar. Haller folk vid liv genom erfarenhet.
 
 ---
 
@@ -258,73 +311,100 @@ Spelaren väljer karaktär vid start av varje run. Karaktären ger startbonus i 
 
 ### 8.1 Rekrytering
 
-Refugees fås genom:
-- Loot run encounters (rescue-events)
-- Slumpmässig invandring (chans per dag)
+Refugees fas genom:
+- Loot run encounters (rescue-events, 30% chans)
+- Slumpmassig invandring (chans per dag)
 
 ### 8.2 Egenskaper
 
 Varje refugee har:
 - **Namn** (genererat)
 - **HP** (kan skadas, healas med Meds)
-- **Skill-bonus** (t.ex. "Bra skytt", "Snabb samlare", "Mekaniker")
-- **Morale** (post-MVP: påverkas av mat, skador, dödsfall bland andra)
+- **Status:** Frisk (gron), Skadad (gul), Kritisk (rod), Borta (bla)
 
-### 8.3 Status
+### 8.3 Pillbox-bemanning
 
-- **Frisk** -- kan tilldelas jobb
-- **Skadad** -- måste vila + Meds för att bli frisk. Kan inte jobba.
-- **Borta** -- på loot run
+Refugees tilldelade till pillboxes auto-skjuter narmaste zombie under natten. Range och damage styrs av REFUGEE_PILLBOX_RANGE och REFUGEE_PILLBOX_DAMAGE.
 
 ---
 
-## 9. Karta och bas
+## 9. Zoner
 
-### 9.1 Kartlayout
+3 zoner implementerade, var och en med unika waves och terrang:
 
-- Fast stor karta (storlek TBD vid prototyp)
-- Bas i centrum (börjar som tält)
-- Horisontell väg som går genom kartan
-- Skog/natur runt vägen
-- Fog of war -- bara området nära basen och utforskade vägar är synliga
-- Zombies spawnar vid kartans kanter, följer vägar mot basen
+| Zon | Terrang | Fiender | Resurser |
+|-----|---------|---------|----------|
+| **Forest** | Trad, buskar, vatten | Standard mix | Grundresurser |
+| **City** | Betong, asfalt | Fler runners/spitters | Mer scrap/parts |
+| **Military** | Sand, kratrar | Tuffare fiender | Mer ammo/vapen |
 
-### 9.2 Basexpansion
+Spelaren valjer zon i DayScene. Varje zon har egna wave-filer (src/data/).
 
-Basen börjar som ett tält och byggs ut:
-1. **Tält** -- start. Plats för spelaren.
-2. **Camp** -- första upgrade. Liten mur, plats för 2 refugees.
-3. **Outpost** -- andra upgrade. Bättre murar, förråd, plats för 5 refugees.
+---
+
+## 10. Karta och bas
+
+### 10.1 Kartlayout
+
+- Fast karta: 1280x960 pixlar (80x60 tiles a 16px)
+- Bas i centrum
+- Zombies spawnar vid kartans kanter
+- Procedurell terrang varje natt (trad, stenar, vatten etc.)
+
+### 10.2 Basexpansion
+
+Basen borjar som ett talt och byggs ut:
+1. **Talt** -- start. Plats for spelaren.
+2. **Camp** -- forsta upgrade. Liten mur, plats for 2 refugees.
+3. **Outpost** -- andra upgrade. Battre murar, forrad, plats for 5 refugees.
 4. **Settlement** -- tredje upgrade. Full bas med alla byggnadstyper.
 
-### 9.3 Fog of War
+### 10.3 Base HP (v1.7.0)
 
-- Spelaren ser bara ett begränsat område runt basen
-- Loot runs avslöjar mer av kartan
-- Zombies är osynliga tills de är inom synfältet
-- Ljud kan höras utanför synfältet (indikation att fiender närmar sig)
+Basen har HP (200 max). Zombies som nar basens radie ger skada. HP visas som en bar i HUD under natten (gron->gul->rod). Base HP aterstalls varje natt.
 
 ---
 
-## 10. Progression och svårighetsgrad
+## 11. Progression och svarighetsgrad
 
-### 10.1 Roguelite-loop
+### 11.1 Roguelite-loop
 
-- Spelaren dör -> behåller ALL utrustning, alla upgrades, alla refugees, all skill-progress
-- Startar om från Wave 1 med allt man har
+- Spelaren dor -> behaller ALL utrustning, alla upgrades, alla refugees, all skill-progress
+- Startar om fran Wave 1 med allt man har
 - Bas-strukturer finns kvar (eventuellt skadade)
-- Wave 5 är avsiktligt omöjlig utan flera genomgångar
+- Wave 5 ar avsiktligt omojlig utan flera genomgangar
 
-### 10.2 Svårighetskurva
+### 11.2 Svarighetskurva
 
-Varje wave ökar i:
+Varje wave okar i:
 - Antal fiender
 - Fiendetyper (nya typer introduceras gradvis)
 - Fiendernas HP och speed
-- Antal riktningar de kommer ifrån
+- Antal riktningar de kommer ifran
 
-### 10.3 Framtida progression (post-MVP)
+---
 
-- Flera "levels" (5 waves per level)
-- Nya zoner med unika fiender och resurser
-- Prestige-system (reset med permanenta bonusar)
+## 12. Achievements
+
+Lasbara achievements som sporrar spelaren:
+- Tracked via AchievementManager
+- Visas i menyn under ACHIEVEMENTS
+- Exempel: "Forsta natten", "100 kills", "Bygg settlement"
+
+---
+
+## 13. Save-system
+
+- localStorage-baserat
+- Automatisk save vid scenoverganger
+- Migration for gamla save-format (SaveManager normaliserar saknade falt)
+- Continue-knapp pa titelskarmen laddar senaste save
+
+---
+
+## 14. Random Day Events
+
+Slumpmassiga handelser under dagfasen:
+- Presenteras via EventDialog (modal med valknappar)
+- Dynamisk panelhojd baserat pa innehall
+- Exempel: "En grupp overlevande vill byta resurser", "Storm narmar sig"
