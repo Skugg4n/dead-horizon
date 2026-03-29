@@ -108,10 +108,12 @@ export class LootRunPanel {
       content.add(bg);
 
       // Destination name and cost (10px title)
+      // Name is constrained so AP badge on the right doesn't overlap
       const nameText = this.scene.add.text(0, y, `${dest.name}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color,
+        wordWrap: { width: contentWidth - 60 },
       });
       content.add(nameText);
 
@@ -122,13 +124,14 @@ export class LootRunPanel {
       }).setOrigin(1, 0);
       content.add(apText);
 
-      // Details (8px label)
+      // Details (8px label) -- word-wrapped to fit within content area
       const encounterPct = Math.round(dest.encounterChance * 100);
       const lootNames = dest.loot.map(l => l.resource).join(', ');
-      const detailText = this.scene.add.text(0, y + 16, `Encounter: ${encounterPct}%  |  Loot: ${lootNames}`, {
+      const detailText = this.scene.add.text(0, y + 16, `Encounter: ${encounterPct}%  |  ${lootNames}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: '#6B6B6B',
+        wordWrap: { width: contentWidth },
       });
       content.add(detailText);
 
@@ -230,6 +233,7 @@ export class LootRunPanel {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '9px',
           color,
+          wordWrap: { width: contentWidth - 8 },
         }).setInteractive({ useHandCursor: true });
 
         entry.on('pointerdown', () => {
@@ -274,6 +278,7 @@ export class LootRunPanel {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '9px',
           color,
+          wordWrap: { width: contentWidth - 8 },
         }).setInteractive({ useHandCursor: true });
 
         entry.on('pointerdown', () => {
@@ -418,6 +423,7 @@ export class LootRunPanel {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#E8DCC8',
+      wordWrap: { width: contentWidth },
     });
     content.add(destText);
 

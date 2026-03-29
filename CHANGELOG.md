@@ -1,5 +1,33 @@
 # Dead Horizon -- Changelog
 
+## [1.7.0] - 2026-03-29
+
+### Changed
+- MenuScene: komplett omdesign av forstasidan
+  - Vansterstallda titel "DEAD" / "HORIZON" i stor pixel art-stil med skugga
+  - Tagline, rod accent "Refugees. Repairs. Survive." och gra "Die many times."
+  - Styled knappar med Graphics-bakgrund, hover-effekter, orange primarlinje
+  - CONTINUE knapp visar "Day X -- zone" som undertext
+  - EVAC-skylt i ovre hoger, zombie-silhuetter i skyggorna
+  - Tata skogsilhuetter pa vardera sida for pixel art-kansla
+  - Lagreld med animerat flacker och ember-partiklar som stiger uppat
+  - Titeln "andas" med subtil alpha-tween
+  - "WHAT TO EXPECT:" info-panel i nedre hoger med 3 feature-rader
+  - Version "v1.7.0 -- EARLY ACCESS" i nedre vanster
+  - All befintlig funktionalitet bevarad (Continue, New Game, Character Select, Achievements, Settings)
+- EventDialog: dynamisk hoJD baserat pa innehall -- graTlada lackar aldrig langre utanfor
+  - Hojen beraknas fran antal textrader i beskrivning + valknapptext
+  - Valknappar har Graphics-bakgrund med hover-effekt
+  - Battre separering med linje mellan beskrivning och val
+- RefugeePanel: text overflow fixad
+  - Alla textrader har wordWrap satt till CONTENT_WIDTH (336px)
+  - Status-tag hogerljustas pa samma rad som namn
+  - Jobbknappar fordelas jamnt over CONTENT_WIDTH med fast spacing
+  - Langa namn kapas med "." vid 22 tecken
+- LootRunPanel: text overflow fixad
+  - Alla textelement har wordWrap satt till contentWidth
+  - Destinationsnamn begransat till contentWidth-60 for att ge plats at AP-badge
+
 ## [1.6.0] - 2026-03-29
 
 ### Fixed

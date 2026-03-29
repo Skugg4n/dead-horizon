@@ -1,5 +1,6 @@
 // Dead Horizon -- Refugee panel UI for DayScene
 // Shows refugee list with name, HP, status, job, skill bonus, and job assignment buttons
+// All text is word-wrapped to fit within the panel width
 
 import Phaser from 'phaser';
 import { RefugeeManager } from '../systems/RefugeeManager';
@@ -7,7 +8,9 @@ import { REFUGEE_FOOD_PER_DAY } from '../config/constants';
 import { UIPanel } from './UIPanel';
 import type { RefugeeJob } from '../config/types';
 
-const ROW_HEIGHT = 52;
+const ROW_HEIGHT = 56;
+// Panel inner content width: UIPanel uses width=360, padding=12 each side
+const CONTENT_WIDTH = 336;
 
 const JOB_LABELS: Record<RefugeeJob, string> = {
   gather_food: 'Food',
@@ -46,12 +49,13 @@ export class RefugeePanel {
     const maxRefugees = this.refugeeManager.getMaxRefugees();
     const foodNeeded = refugees.length * REFUGEE_FOOD_PER_DAY + 1;
 
-    // Info line
-    const infoStr = `${refugees.length}/${maxRefugees} refugees  |  Food needed: ${foodNeeded}/day`;
+    // Info line -- word-wrapped to content width
+    const infoStr = `${refugees.length}/${maxRefugees} refugees  |  Food: ${foodNeeded}/day`;
     const info = this.scene.add.text(0, 0, infoStr, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#6B6B6B',
+      wordWrap: { width: CONTENT_WIDTH },
     });
     content.add(info);
 
@@ -69,33 +73,61 @@ export class RefugeePanel {
     refugees.forEach((refugee, i) => {
       const y = 20 + i * ROW_HEIGHT;
 
-      // Name, HP, status, skill
       const statusColor = refugee.status === 'injured' ? '#F44336' : '#4CAF50';
       const hpStr = `HP:${refugee.hp}/${refugee.maxHp}`;
       const jobStr = refugee.job ? JOB_LABELS[refugee.job] : 'Idle';
 
-      const nameLine = this.scene.add.text(0, y, `${refugee.name}`, {
+      // Name line -- clamp to CONTENT_WIDTH to prevent overflow
+      // Truncate long names with ellipsis if needed (max ~22 chars at 10px)
+      const maxNameLen = 22;
+      const displayName = refugee.name.length > maxNameLen
+        ? refugee.name.slice(0, maxNameLen - 1) + '.'
+        : refugee.name;
+
+      const nameLine = this.scene.add.text(0, y, displayName, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#E8DCC8',
+        wordWrap: { width: CONTENT_WIDTH },
       });
       content.add(nameLine);
 
-      const statsLine = this.scene.add.text(0, y + 13, `${hpStr}  [${refugee.status}]  Job: ${jobStr}  Skill: ${refugee.skillBonus}`, {
+      // Status tags on the right side of the name row
+      const statusTag = this.scene.add.text(CONTENT_WIDTH, y, `[${refugee.status}]`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: statusColor,
+      }).setOrigin(1, 0);
+      content.add(statusTag);
+
+      // Stats line: HP and current job
+      const statsStr = `${hpStr}  Job: ${jobStr}  +${refugee.skillBonus}`;
+      const statsLine = this.scene.add.text(0, y + 13, statsStr, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#9A9A9A',
+        wordWrap: { width: CONTENT_WIDTH },
       });
       content.add(statsLine);
 
-      // Job assignment buttons
+      // Job assignment buttons -- laid out with fixed spacing to prevent overflow
+      // 4 buttons across CONTENT_WIDTH with even spacing
       const btnY = y + 28;
-      let btnX = 0;
+      const btnSpacing = Math.floor(CONTENT_WIDTH / JOB_BUTTONS.length);
 
-      for (const job of JOB_BUTTONS) {
+      JOB_BUTTONS.forEach((job, btnIndex) => {
         const isCurrentJob = refugee.job === job;
         const canAssign = refugee.status !== 'injured' || job === 'rest';
-        const color = isCurrentJob ? '#FFD700' : (canAssign ? '#E8DCC8' : '#444444');
+        const btnX = btnIndex * btnSpacing;
+
+        let color: string;
+        if (isCurrentJob) {
+          color = '#FFD700';
+        } else if (canAssign) {
+          color = '#E8DCC8';
+        } else {
+          color = '#444444';
+        }
 
         const btn = this.scene.add.text(btnX, btnY, `[${JOB_LABELS[job]}]`, {
           fontFamily: '"Press Start 2P", monospace',
@@ -114,14 +146,13 @@ export class RefugeePanel {
         }
 
         content.add(btn);
-        btnX += btn.width + 8;
-      }
+      });
 
       // Separator line
       if (i < refugees.length - 1) {
         const sep = this.scene.add.graphics();
-        sep.lineStyle(1, 0x6B6B6B, 0.3);
-        sep.lineBetween(0, y + ROW_HEIGHT - 2, 360 - 24, y + ROW_HEIGHT - 2);
+        sep.lineStyle(1, 0x6B6B6B, 0.25);
+        sep.lineBetween(0, y + ROW_HEIGHT - 3, CONTENT_WIDTH, y + ROW_HEIGHT - 3);
         content.add(sep);
       }
     });
