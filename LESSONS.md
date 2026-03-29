@@ -97,3 +97,22 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Spitter-krasch (spelare redan dod)
 **Problem:** Spitter-projektil traffade spelare efter spelarens dod. takeDamage pa forstord sprite kraschade.
 **Losning:** Lagg till `!this.player.active` guard i alla overlap-callbacks som anropar player.takeDamage().
+
+---
+
+## UI
+
+### Dialog/panel overflow -- berakna hojd dynamiskt
+**Problem:** Fasta DIALOG_HEIGHT-konstanter overskattar eller underskattar faktisk innehallshojd beroende pa
+text-wrapping och antal val-alternativ, vilket ger en gra ruta som lacker utanfor eller har for mycket tomt utrymme.
+**Losning:** Mata upp text-hojden via ett temporart off-screen Text-objekt innan dialogrutan ritas. Summera
+HEADER_H + PADDING + descHeight + choicesTotalH + BOTTOM_PAD for att fa exakt hojd. Klamra till MAX_H = GAME_HEIGHT - 60.
+
+### Non-null assertions (!) ger ESLint-fel
+**Problem:** ESLint-regeln `@typescript-eslint/no-non-null-assertion` forbjuder `array[i]!`.
+**Losning:** Anvand `?? 0` (eller lampligt fallback) istallet for `!`-assertion.
+
+### Tangentbordsgenvag kolliderar med onKeydown-handler
+**Problem:** Nar en bekraftelse-dialog ar oppen och anvandaren trycker E igen kan det trigga EndDay igen.
+**Losning:** Spara referensen till keydown-handleren i en variabel och anropa `keyboard.off('keydown', handler)`
+sa snart dialogrutan avvisas (oavsett om det ar via knapptryck, musklick, Escape eller Enter).

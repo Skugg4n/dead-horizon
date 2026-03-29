@@ -1,5 +1,27 @@
 # Dead Horizon -- Changelog
 
+## [1.7.0] - 2026-03-29
+
+### Changed (UI Polish)
+
+- U1: LootRunPanel -- ett-klick loot runs. Klicka pa destinations-rad = starta direkt.
+  SELECT-knapp och vapenvals-steg borttagna. Resultat-dialog stanger automatiskt
+  efter 3 sekunder (eller vid ett klick).
+- U2: RefugeePanel -- helt omdesignat. Varje refugee har ett portratt-ikon (cirkel med
+  statuskoder: gron=frisk, gul=skadad, rod=kritisk, bla=borta). HP-bar per rad.
+  Job-knappar med tydlig aktiv-highlight. Layout contained inom panelen.
+- U3: Refugees kan nu tas med pa loot runs. Valbara via companions-steg efter att
+  destination valts (visas bara om nagra refugees ar tillgangliga). Inga vapen
+  kravs langre -- companions ger combat strength.
+- U4: EventDialog -- gra box-overflow fixad for gott. Panelhodjd beraknas dynamiskt
+  fran faktisk innehallshojd (text-wrapping, antal val). Rundade horn, hover-highlight
+  per valknapp, font-storlek minskas automatiskt for langa val-texter.
+- U5: Tangentbordsgenvargar i DayScene:
+  B = Oppna/stang byggmeny
+  L = Oppna/stang loot run-panel
+  R = Oppna/stang refugee-panel
+  E = Avsluta dag (med bekraftelse-dialog -- Enter/Y = ja, Escape = avbryt)
+
 ## [1.6.0] - 2026-03-29
 
 ### Fixed

@@ -1,15 +1,16 @@
 // Dead Horizon -- Loot run panel UI for DayScene
-// Shows destinations, weapon/companion selection, and loot results
+// U1: Simplified one-click flow -- clicking a destination row starts the run immediately.
+// U3: Companion selection is retained but now shown as an optional pre-run popup.
 
 import Phaser from 'phaser';
 import { LootManager, type LootDestination, type LootResult } from '../systems/LootManager';
 import { EncounterDialog } from './EncounterDialog';
 import { UIPanel } from './UIPanel';
-import type { GameState, WeaponInstance, RefugeeInstance, ResourceType } from '../config/types';
+import type { GameState, RefugeeInstance, ResourceType } from '../config/types';
 
 const PANEL_WIDTH = 360;
 
-type PanelState = 'destinations' | 'configure' | 'results';
+type PanelState = 'destinations' | 'companions' | 'results';
 
 export class LootRunPanel {
   private scene: Phaser.Scene;
@@ -25,9 +26,11 @@ export class LootRunPanel {
 
   // Selection state
   private selectedDestination: LootDestination | null = null;
-  private selectedWeapons: WeaponInstance[] = [];
   private selectedCompanions: RefugeeInstance[] = [];
   private panelState: PanelState = 'destinations';
+
+  // Timer handle for auto-close of results
+  private resultsTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor(
     scene: Phaser.Scene,
@@ -45,7 +48,6 @@ export class LootRunPanel {
     this.onResourceChange = onResourceChange;
 
     this.panel = new UIPanel(scene, 'LOOT RUNS', 360, 460);
-
     this.encounterDialog = new EncounterDialog(scene);
   }
 
@@ -59,11 +61,11 @@ export class LootRunPanel {
 
   toggle(): void {
     if (this.panel.isVisible()) {
+      this.cancelResultsTimer();
       this.panel.hide();
     } else {
       this.panelState = 'destinations';
       this.selectedDestination = null;
-      this.selectedWeapons = [];
       this.selectedCompanions = [];
       this.panel.show();
       this.rebuild();
@@ -79,15 +81,16 @@ export class LootRunPanel {
       case 'destinations':
         this.buildDestinationList();
         break;
-      case 'configure':
-        this.buildConfigureScreen();
+      case 'companions':
+        this.buildCompanionScreen();
         break;
       case 'results':
-        // Results are shown via encounter dialog or inline
+        // Results screen is built by showLootResults -- nothing to do here
         break;
     }
   }
 
+  // -- Destination list: each row is fully clickable to start the run --
   private buildDestinationList(): void {
     const content = this.panel.getContentContainer();
     content.removeAll(true);
@@ -95,93 +98,107 @@ export class LootRunPanel {
     const destinations = this.lootManager.getDestinations();
     const contentWidth = PANEL_WIDTH - 24;
 
-    // Destination entries
     destinations.forEach((dest, i) => {
-      const y = i * 60;
+      const y = i * 68;
       const hasAP = this.currentAP() >= dest.apCost;
       const color = hasAP ? '#E8DCC8' : '#6B6B6B';
 
-      // Hover background
-      const bg = this.scene.add.graphics();
-      bg.fillStyle(0x333333, 0);
-      bg.fillRect(-4, y - 2, contentWidth + 8, 54);
-      content.add(bg);
+      // Clickable row background
+      const rowBg = this.scene.add.graphics();
+      rowBg.fillStyle(0x333333, 0);
+      rowBg.fillRect(0, y, contentWidth, 62);
+      content.add(rowBg);
 
-      // Destination name and cost (10px title)
-      const nameText = this.scene.add.text(0, y, `${dest.name}`, {
+      // Destination name
+      const nameText = this.scene.add.text(0, y + 4, dest.name, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color,
       });
       content.add(nameText);
 
-      const apText = this.scene.add.text(contentWidth, y + 2, `${dest.apCost} AP`, {
+      // AP cost -- right-aligned
+      const apText = this.scene.add.text(contentWidth, y + 6, `${dest.apCost} AP`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: hasAP ? '#FFD700' : '#F44336',
       }).setOrigin(1, 0);
       content.add(apText);
 
-      // Details (8px label)
+      // Encounter + loot details
       const encounterPct = Math.round(dest.encounterChance * 100);
       const lootNames = dest.loot.map(l => l.resource).join(', ');
-      const detailText = this.scene.add.text(0, y + 16, `Encounter: ${encounterPct}%  |  Loot: ${lootNames}`, {
+      const detailText = this.scene.add.text(0, y + 20, `Encounter: ${encounterPct}%  |  ${lootNames}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: '#6B6B6B',
       });
       content.add(detailText);
 
-      // Select button (9px body)
       if (hasAP) {
-        const selectBtn = this.scene.add.text(0, y + 32, '[ SELECT ]', {
+        // "Click to go" hint
+        const hintText = this.scene.add.text(0, y + 38, '> CLICK TO START', {
           fontFamily: '"Press Start 2P", monospace',
-          fontSize: '9px',
+          fontSize: '8px',
           color: '#4A90D9',
-        }).setInteractive({ useHandCursor: true });
-        selectBtn.on('pointerover', () => selectBtn.setColor('#FFD700'));
-        selectBtn.on('pointerout', () => selectBtn.setColor('#4A90D9'));
-        selectBtn.on('pointerdown', () => {
-          this.selectedDestination = dest;
-          this.selectedWeapons = [];
-          this.selectedCompanions = [];
-          this.panelState = 'configure';
-          this.rebuild();
         });
-        content.add(selectBtn);
+        content.add(hintText);
 
-        // Hover effect on entire entry
-        bg.setInteractive(
-          new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, 54),
+        // Make the full row interactive
+        rowBg.setInteractive(
+          new Phaser.Geom.Rectangle(0, y, contentWidth, 62),
           Phaser.Geom.Rectangle.Contains,
         );
-        bg.on('pointerover', () => {
-          bg.clear();
-          bg.fillStyle(0x444444, 0.5);
-          bg.fillRect(-4, y - 2, contentWidth + 8, 54);
+        rowBg.on('pointerover', () => {
+          rowBg.clear();
+          rowBg.fillStyle(0x4A90D9, 0.12);
+          rowBg.fillRect(0, y, contentWidth, 62);
+          hintText.setColor('#FFD700');
         });
-        bg.on('pointerout', () => {
-          bg.clear();
-          bg.fillStyle(0x333333, 0);
-          bg.fillRect(-4, y - 2, contentWidth + 8, 54);
+        rowBg.on('pointerout', () => {
+          rowBg.clear();
+          rowBg.fillStyle(0x333333, 0);
+          rowBg.fillRect(0, y, contentWidth, 62);
+          hintText.setColor('#4A90D9');
         });
+        rowBg.on('pointerdown', () => {
+          this.selectedDestination = dest;
+          // If there are available companions, show optional companion screen.
+          // Otherwise go straight to running.
+          const availableCompanions = this.gameState.refugees.filter(
+            r => r.status === 'healthy' && r.job !== 'loot_run',
+          );
+          if (availableCompanions.length > 0) {
+            this.panelState = 'companions';
+            this.selectedCompanions = [];
+            this.rebuild();
+          } else {
+            this.selectedCompanions = [];
+            this.startRun();
+          }
+        });
+      }
+
+      // Row separator
+      if (i < destinations.length - 1) {
+        const sep = this.scene.add.graphics();
+        sep.lineStyle(1, 0x333333, 0.5);
+        sep.lineBetween(0, y + 64, contentWidth, y + 64);
+        content.add(sep);
       }
     });
   }
 
-  private buildConfigureScreen(): void {
+  // -- Optional companion selection before starting the run --
+  private buildCompanionScreen(): void {
     if (!this.selectedDestination) return;
 
     const content = this.panel.getContentContainer();
     content.removeAll(true);
 
     const contentWidth = PANEL_WIDTH - 24;
-    const weapons = this.gameState.inventory.weapons;
-    const healthyRefugees = this.gameState.refugees.filter(
-      r => r.status === 'healthy' && r.job !== 'loot_run'
-    );
 
-    // Back button (9px body)
+    // Back button
     const backBtn = this.scene.add.text(0, 0, '< BACK', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
@@ -193,7 +210,7 @@ export class LootRunPanel {
     });
     content.add(backBtn);
 
-    // Destination title (10px)
+    // Destination title
     const destTitle = this.scene.add.text(contentWidth / 2, 0, this.selectedDestination.name, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -203,105 +220,53 @@ export class LootRunPanel {
 
     let yOffset = 22;
 
-    // Weapons section (10px title)
-    const weaponLabel = this.scene.add.text(0, yOffset, 'Weapons to bring:', {
+    const companionLabel = this.scene.add.text(0, yOffset, 'Take companions? (optional)', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#C5A030',
-    });
-    content.add(weaponLabel);
-    yOffset += 16;
-
-    if (weapons.length === 0) {
-      const noWeapons = this.scene.add.text(8, yOffset, '(no weapons)', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: '#6B6B6B',
-      });
-      content.add(noWeapons);
-      yOffset += 20;
-    } else {
-      for (const weapon of weapons) {
-        const isSelected = this.selectedWeapons.some(w => w.id === weapon.id);
-        const marker = isSelected ? '[x]' : '[ ]';
-        const color = isSelected ? '#4CAF50' : '#E8DCC8';
-
-        const entry = this.scene.add.text(8, yOffset, `${marker} ${weapon.weaponId} (DMG: ${this.getWeaponDisplayDamage(weapon)})`, {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '9px',
-          color,
-        }).setInteractive({ useHandCursor: true });
-
-        entry.on('pointerdown', () => {
-          if (isSelected) {
-            this.selectedWeapons = this.selectedWeapons.filter(w => w.id !== weapon.id);
-          } else {
-            this.selectedWeapons.push(weapon);
-          }
-          this.rebuild();
-        });
-
-        content.add(entry);
-        yOffset += 20;
-      }
-    }
-
-    // Companions section
-    yOffset += 6;
-    const companionLabel = this.scene.add.text(0, yOffset, 'Companions:', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
+      fontSize: '8px',
       color: '#C5A030',
     });
     content.add(companionLabel);
-    yOffset += 16;
+    yOffset += 18;
 
-    if (healthyRefugees.length === 0) {
-      const noRefugees = this.scene.add.text(8, yOffset, '(no healthy refugees available)', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: '#6B6B6B',
-      });
-      content.add(noRefugees);
-      yOffset += 20;
-    } else {
-      for (const refugee of healthyRefugees) {
-        const isSelected = this.selectedCompanions.some(c => c.id === refugee.id);
-        const marker = isSelected ? '[x]' : '[ ]';
-        const color = isSelected ? '#4CAF50' : '#E8DCC8';
+    const healthyRefugees = this.gameState.refugees.filter(
+      r => r.status === 'healthy' && r.job !== 'loot_run',
+    );
 
-        const entry = this.scene.add.text(8, yOffset, `${marker} ${refugee.name} (${refugee.skillBonus})`, {
+    for (const refugee of healthyRefugees) {
+      const isSelected = this.selectedCompanions.some(c => c.id === refugee.id);
+      const marker = isSelected ? '[x]' : '[ ]';
+      const entryColor = isSelected ? '#4CAF50' : '#E8DCC8';
+
+      const entry = this.scene.add.text(
+        0,
+        yOffset,
+        `${marker} ${refugee.name}  (${refugee.skillBonus})  HP:${refugee.hp}/${refugee.maxHp}`,
+        {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '9px',
-          color,
-        }).setInteractive({ useHandCursor: true });
+          color: entryColor,
+        },
+      ).setInteractive({ useHandCursor: true });
 
-        entry.on('pointerdown', () => {
-          if (isSelected) {
-            this.selectedCompanions = this.selectedCompanions.filter(c => c.id !== refugee.id);
-          } else {
-            this.selectedCompanions.push(refugee);
-          }
-          this.rebuild();
-        });
+      entry.on('pointerover', () => entry.setColor('#FFD700'));
+      entry.on('pointerout', () => entry.setColor(isSelected ? '#4CAF50' : '#E8DCC8'));
+      entry.on('pointerdown', () => {
+        if (isSelected) {
+          this.selectedCompanions = this.selectedCompanions.filter(c => c.id !== refugee.id);
+        } else {
+          this.selectedCompanions.push(refugee);
+        }
+        // Rebuild so markers update
+        this.buildCompanionScreen();
+      });
 
-        content.add(entry);
-        yOffset += 20;
-      }
+      content.add(entry);
+      yOffset += 20;
     }
 
-    // Strength preview (9px body)
     yOffset += 8;
-    const strength = this.lootManager.calculateStrength(this.selectedWeapons, this.selectedCompanions.length);
-    const strengthText = this.scene.add.text(0, yOffset, `Combat strength: ${strength}`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#E8DCC8',
-    });
-    content.add(strengthText);
-    yOffset += 20;
 
-    // GO button (10px title)
+    // GO button -- starts run with whatever companions are selected (can be zero)
     const goBtn = this.scene.add.text(contentWidth / 2, yOffset, '[ GO ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -313,22 +278,16 @@ export class LootRunPanel {
     content.add(goBtn);
   }
 
-  private getWeaponDisplayDamage(weapon: WeaponInstance): number {
-    return this.lootManager.calculateStrength([weapon], 0);
-  }
-
   private startRun(): void {
     if (!this.selectedDestination) return;
 
-    // Check AP
     if (this.currentAP() < this.selectedDestination.apCost) {
       return;
     }
 
-    // Spend AP
     this.spendAP(this.selectedDestination.apCost);
 
-    // Mark companions as 'away'
+    // Mark companions as away on loot run
     for (const companion of this.selectedCompanions) {
       const refugee = this.gameState.refugees.find(r => r.id === companion.id);
       if (refugee) {
@@ -337,13 +296,12 @@ export class LootRunPanel {
       }
     }
 
-    // Execute the loot run
     const result = this.lootManager.executeLootRun(this.selectedDestination.id);
 
     if (result.encounter) {
-      // Show encounter dialog
+      // Show encounter dialog -- weapons list is empty (no weapon selection step)
       this.panel.hide();
-      const strength = this.lootManager.calculateStrength(this.selectedWeapons, this.selectedCompanions.length);
+      const strength = this.lootManager.calculateStrength([], this.selectedCompanions.length);
       const thresholds: Record<string, number> = {
         nearby_houses: 50,
         abandoned_store: 70,
@@ -353,14 +311,13 @@ export class LootRunPanel {
 
       this.encounterDialog.show(strength, threshold, (choice) => {
         if (choice === 'fight') {
-          this.lootManager.resolveFight(result, this.selectedWeapons, this.selectedCompanions);
+          this.lootManager.resolveFight(result, [], this.selectedCompanions);
         } else {
           this.lootManager.resolveFlee(result);
         }
         this.showEncounterResult(result);
       });
     } else {
-      // No encounter, show results directly
       this.showLootResults(result);
     }
   }
@@ -369,17 +326,17 @@ export class LootRunPanel {
     let details = '';
 
     if (result.encounterOutcome === 'win') {
-      details = 'You fought and won! Loot multiplied by 1.5x.';
+      details = 'You fought and won! Loot x1.5.';
       if (result.rescuedRefugee) {
-        details += '\nYou rescued a survivor who joins your camp!';
+        details += ' Rescued a survivor!';
       }
     } else if (result.encounterOutcome === 'lose') {
-      details = 'You were overwhelmed. All loot lost.';
+      details = 'Overwhelmed. All loot lost.';
       if (result.injuredCompanions.length > 0) {
-        details += `\n${result.injuredCompanions.length} companion(s) were injured.`;
+        details += ` ${result.injuredCompanions.length} companion(s) injured.`;
       }
     } else if (result.encounterOutcome === 'flee') {
-      details = 'You fled safely, but dropped some loot.';
+      details = 'Fled safely, dropped some loot.';
     }
 
     this.encounterDialog.showResult(
@@ -397,7 +354,6 @@ export class LootRunPanel {
       this.applyResults(result);
     }
 
-    // Build a results display in the panel content
     const content = this.panel.getContentContainer();
     content.removeAll(true);
     this.panelState = 'results';
@@ -405,7 +361,7 @@ export class LootRunPanel {
     const contentWidth = PANEL_WIDTH - 24;
     const lootEntries = Object.entries(result.loot) as Array<[ResourceType, number]>;
 
-    // Title (10px)
+    // Title
     const title = this.scene.add.text(contentWidth / 2, 0, 'LOOT RUN COMPLETE', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -413,7 +369,6 @@ export class LootRunPanel {
     }).setOrigin(0.5, 0);
     content.add(title);
 
-    // Destination (9px body)
     const destText = this.scene.add.text(0, 18, `Location: ${result.destination.name}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
@@ -421,8 +376,8 @@ export class LootRunPanel {
     });
     content.add(destText);
 
-    // Loot gained
     let yOffset = 34;
+
     if (lootEntries.length === 0) {
       const noLoot = this.scene.add.text(0, yOffset, 'No loot gained.', {
         fontFamily: '"Press Start 2P", monospace',
@@ -453,8 +408,19 @@ export class LootRunPanel {
       }
     }
 
-    // Close button (10px)
     yOffset += 8;
+
+    // Auto-close countdown label
+    const countdownText = this.scene.add.text(contentWidth / 2, yOffset, 'Closing in 3...', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5, 0);
+    content.add(countdownText);
+
+    yOffset += 16;
+
+    // Close button -- single click closes immediately
     const closeBtn = this.scene.add.text(contentWidth / 2, yOffset, '[ CLOSE ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -463,15 +429,41 @@ export class LootRunPanel {
     closeBtn.on('pointerover', () => closeBtn.setColor('#FFD700'));
     closeBtn.on('pointerout', () => closeBtn.setColor('#E8DCC8'));
     closeBtn.on('pointerdown', () => {
+      this.cancelResultsTimer();
       this.panel.hide();
     });
     content.add(closeBtn);
 
     this.panel.show();
+
+    // Auto-close after RESULTS_AUTO_CLOSE_MS with a live countdown
+    let remaining = 3;
+    this.resultsTimer = this.scene.time.addEvent({
+      delay: 1000,
+      repeat: 2,
+      callback: () => {
+        remaining--;
+        if (remaining > 0) {
+          countdownText.setText(`Closing in ${remaining}...`);
+        } else {
+          this.cancelResultsTimer();
+          this.panel.hide();
+        }
+      },
+    });
+
+    // Ensure the result panel shows (may have been hidden during encounter dialog)
+    this.panel.getContainer().setVisible(true);
+  }
+
+  private cancelResultsTimer(): void {
+    if (this.resultsTimer) {
+      this.resultsTimer.remove();
+      this.resultsTimer = null;
+    }
   }
 
   private applyResults(result: LootResult): void {
-    // Add loot to resources
     for (const [resource, amount] of Object.entries(result.loot) as Array<[ResourceType, number]>) {
       if (amount > 0) {
         this.gameState.inventory.resources[resource] += amount;
@@ -487,7 +479,7 @@ export class LootRunPanel {
       }
     }
 
-    // Return companions from 'away' (except injured ones already handled)
+    // Return companions who are still 'away' to healthy idle
     for (const companion of this.selectedCompanions) {
       const refugee = this.gameState.refugees.find(r => r.id === companion.id);
       if (refugee && refugee.status === 'away') {
@@ -496,18 +488,12 @@ export class LootRunPanel {
       }
     }
 
-    // Handle rescued refugee
     if (result.rescuedRefugee) {
       this.scene.events.emit('refugee-rescued');
     }
 
-    // Award looting XP
     this.lootManager.awardLootingXP();
-
-    // Notify resource change
     this.onResourceChange();
-
-    // Emit completion event
     this.scene.events.emit('loot-run-finished', result);
   }
 }
