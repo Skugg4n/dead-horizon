@@ -72,14 +72,37 @@ export class BootScene extends Phaser.Scene {
     this.load.image('icon_lootrun', 'assets/sprites/icon_lootrun.png');
     this.load.image('icon_endday', 'assets/sprites/icon_endday.png');
 
-    // Terrain tiles
+    // Terrain tiles (from public/assets/sprites/terrain/)
     for (let i = 1; i <= 3; i++) {
-      this.load.image(`terrain_grass_${i}`, `assets/sprites/terrain_grass_${i}.png`);
+      this.load.image(`terrain_grass_${i}`, `assets/sprites/terrain/terrain_grass_${i}.png`);
     }
-    this.load.image('terrain_dirt', 'assets/sprites/terrain_dirt.png');
-    this.load.image('terrain_road', 'assets/sprites/terrain_road.png');
-    this.load.image('terrain_road_overgrown', 'assets/sprites/terrain_road_overgrown.png');
-    this.load.image('terrain_concrete', 'assets/sprites/terrain_concrete.png');
+    this.load.image('terrain_dirt_1', 'assets/sprites/terrain/terrain_dirt_1.png');
+    this.load.image('terrain_dirt_2', 'assets/sprites/terrain/terrain_dirt_2.png');
+    this.load.image('terrain_path_1', 'assets/sprites/terrain/terrain_path_1.png');
+    this.load.image('terrain_leaves', 'assets/sprites/terrain/terrain_leaves.png');
+
+    // Tree sprites
+    this.load.image('tree_trunk', 'assets/sprites/terrain/tree_trunk.png');
+    this.load.image('tree_canopy_1', 'assets/sprites/terrain/tree_canopy_1.png');
+    this.load.image('tree_canopy_2', 'assets/sprites/terrain/tree_canopy_2.png');
+    this.load.image('tree_canopy_3', 'assets/sprites/terrain/tree_canopy_3.png');
+
+    // Bushes, rocks, water
+    this.load.image('bush_1', 'assets/sprites/terrain/bush_1.png');
+    this.load.image('bush_2', 'assets/sprites/terrain/bush_2.png');
+    this.load.image('rock_1', 'assets/sprites/terrain/rock_1.png');
+    this.load.image('rock_2', 'assets/sprites/terrain/rock_2.png');
+    this.load.image('rock_cluster', 'assets/sprites/terrain/rock_cluster.png');
+    this.load.image('water_puddle', 'assets/sprites/terrain/water_puddle.png');
+
+    // Decorations
+    this.load.image('decor_flower_1', 'assets/sprites/terrain/decor_flower_1.png');
+    this.load.image('decor_flower_2', 'assets/sprites/terrain/decor_flower_2.png');
+    this.load.image('decor_mushroom', 'assets/sprites/terrain/decor_mushroom.png');
+    this.load.image('decor_bones', 'assets/sprites/terrain/decor_bones.png');
+    this.load.image('decor_crate', 'assets/sprites/terrain/decor_crate.png');
+    this.load.image('decor_log', 'assets/sprites/terrain/decor_log.png');
+    this.load.image('decor_lantern', 'assets/sprites/terrain/decor_lantern.png');
 
     // Character portraits (64x64) for character select screen
     this.load.image('portrait_soldier',   'assets/sprites/characters/portrait_soldier.png');

@@ -265,28 +265,38 @@ export class DayScene extends Phaser.Scene {
     // Use terrain tile sprites when available, otherwise rich Graphics.
     // ------------------------------------------------------------------
     const hasGrassTiles = this.textures.exists('terrain_grass_1');
-    const hasRoadTile   = this.textures.exists('terrain_road');
+    const hasDirtTile   = this.textures.exists('terrain_dirt_1');
+    const hasPathTile   = this.textures.exists('terrain_path_1');
+    const hasLeaves     = this.textures.exists('terrain_leaves');
 
     if (hasGrassTiles) {
+      const baseCX = Math.floor(MAP_WIDTH / 2);
+      const baseCY = Math.floor(MAP_HEIGHT / 2);
+      const baseRadius = 7;
+
       for (let ty = 0; ty < MAP_HEIGHT; ty++) {
         for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
+          const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
           const isRoad = ty === roadRow || ty === roadRow - 1;
-          if (isRoad && hasRoadTile) {
-            const tile = this.add.image(
-              tx * TILE_SIZE + TILE_SIZE / 2,
-              ty * TILE_SIZE + TILE_SIZE / 2,
-              'terrain_road',
-            );
-            this.mapContainer.add(tile);
+          const distToBase = Math.sqrt((tx - baseCX) ** 2 + (ty - baseCY) ** 2);
+          const hash = (tx * 1619 + ty * 3571) | 0;
+
+          let tileKey: string;
+          if (isRoad) {
+            tileKey = hasPathTile && (hash & 1) ? 'terrain_path_1'
+              : hasDirtTile ? ((hash & 2) ? 'terrain_dirt_1' : 'terrain_dirt_2')
+              : 'terrain_grass_1';
+          } else if (distToBase < baseRadius && hasDirtTile) {
+            tileKey = (hash & 1) ? 'terrain_dirt_1' : 'terrain_dirt_2';
+          } else if (distToBase < baseRadius + 2 && hasLeaves) {
+            tileKey = (hash & 1) ? 'terrain_leaves' : 'terrain_grass_3';
           } else {
-            const variant = ((tx * 7 + ty * 13) % 3) + 1;
-            const tile = this.add.image(
-              tx * TILE_SIZE + TILE_SIZE / 2,
-              ty * TILE_SIZE + TILE_SIZE / 2,
-              `terrain_grass_${variant}`,
-            );
-            this.mapContainer.add(tile);
+            const variant = ((hash >>> 0) % 3) + 1;
+            tileKey = `terrain_grass_${variant}`;
           }
+          const tile = this.add.image(tileX, tileY, tileKey);
+          this.mapContainer.add(tile);
         }
       }
     } else {
