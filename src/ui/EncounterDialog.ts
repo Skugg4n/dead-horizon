@@ -21,17 +21,11 @@ export class EncounterDialog {
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
-    // Semi-transparent backdrop covering full screen
+    // No full-screen backdrop -- the dialog panel blocks interaction via
+    // setInteractive on the panel background added in show()/showResult().
     this.backdrop = scene.add.graphics();
-    this.backdrop.fillStyle(0x000000, 0.6);
-    this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.backdrop.setDepth(190);
     this.backdrop.setVisible(false);
-    // Backdrop is interactive to block clicks but does NOT close the dialog
-    this.backdrop.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
-      Phaser.Geom.Rectangle.Contains,
-    );
 
     this.container = scene.add.container(DIALOG_X, DIALOG_Y);
     this.container.setDepth(200);
@@ -47,12 +41,17 @@ export class EncounterDialog {
     this.onChoice = onChoice;
     this.container.removeAll(true);
 
-    // Dialog background with UIPanel styling
+    // Dialog background with UIPanel styling.
+    // setInteractive blocks clicks from passing through to the world behind.
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x1A1A1A, 0.95);
     bg.fillRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT);
     bg.lineStyle(1, 0x333333, 1);
     bg.strokeRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT);
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT),
+      Phaser.Geom.Rectangle.Contains,
+    );
     this.container.add(bg);
 
     // Header bar
@@ -131,13 +130,18 @@ export class EncounterDialog {
   ): void {
     this.container.removeAll(true);
 
-    // Dialog background with UIPanel styling
+    // Dialog background with UIPanel styling.
+    // setInteractive blocks clicks from passing through to the world behind.
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x1A1A1A, 0.95);
     bg.fillRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT);
     const borderColor = outcome === 'win' ? 0x4CAF50 : (outcome === 'lose' ? 0xF44336 : 0x4A90D9);
     bg.lineStyle(1, 0x333333, 1);
     bg.strokeRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT);
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT),
+      Phaser.Geom.Rectangle.Contains,
+    );
     this.container.add(bg);
 
     // Header bar with outcome color

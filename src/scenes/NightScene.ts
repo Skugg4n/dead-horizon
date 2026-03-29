@@ -1570,13 +1570,7 @@ export class NightScene extends Phaser.Scene {
 
     const container = this.add.container(0, 0).setDepth(200).setScrollFactor(0);
 
-    // Semi-transparent backdrop
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x000000, 0.5);
-    backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    container.add(backdrop);
-
-    // Panel
+    // No full-screen backdrop -- panel blocks clicks via setInteractive.
     const panelW = 320;
     const panelH = 180;
     const px = (GAME_WIDTH - panelW) / 2;
@@ -1587,6 +1581,10 @@ export class NightScene extends Phaser.Scene {
     panel.fillRoundedRect(px, py, panelW, panelH, 8);
     panel.lineStyle(2, 0xD4620B);
     panel.strokeRoundedRect(px, py, panelW, panelH, 8);
+    panel.setInteractive(
+      new Phaser.Geom.Rectangle(px, py, panelW, panelH),
+      Phaser.Geom.Rectangle.Contains,
+    );
     container.add(panel);
 
     // Step counter
@@ -1652,12 +1650,8 @@ export class NightScene extends Phaser.Scene {
 
     showStep();
 
-    // Advance on click or keypress
-    backdrop.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
-      Phaser.Geom.Rectangle.Contains
-    );
-    backdrop.on('pointerdown', advance);
+    // Panel already has setInteractive -- click anywhere on it to advance.
+    panel.on('pointerdown', advance);
     const keyHandler = this.input.keyboard?.on('keydown', advance);
 
     // Clean up when container is destroyed

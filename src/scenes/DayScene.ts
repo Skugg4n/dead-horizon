@@ -249,46 +249,249 @@ export class DayScene extends Phaser.Scene {
   }
 
   private createMap(): void {
-    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelWidth  = MAP_WIDTH  * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    const centerX = mapPixelWidth  / 2;
+    const centerY = mapPixelHeight / 2;
 
     this.mapContainer = this.add.container(0, 0);
 
-    // Ground -- use terrain tiles if available, otherwise solid color
-    const hasGrassTiles = this.textures.exists('terrain_grass_1');
-    const hasRoadTile = this.textures.exists('terrain_road');
+    // Determine road row (horizontal path through map centre)
     const roadRow = Math.floor(MAP_HEIGHT / 2);
-    const roadY = roadRow * TILE_SIZE;
+    const roadY   = roadRow * TILE_SIZE;
+
+    // ------------------------------------------------------------------
+    // GROUND LAYER
+    // Use terrain tile sprites when available, otherwise rich Graphics.
+    // ------------------------------------------------------------------
+    const hasGrassTiles = this.textures.exists('terrain_grass_1');
+    const hasRoadTile   = this.textures.exists('terrain_road');
 
     if (hasGrassTiles) {
       for (let ty = 0; ty < MAP_HEIGHT; ty++) {
         for (let tx = 0; tx < MAP_WIDTH; tx++) {
           const isRoad = ty === roadRow || ty === roadRow - 1;
           if (isRoad && hasRoadTile) {
-            const tile = this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, 'terrain_road');
+            const tile = this.add.image(
+              tx * TILE_SIZE + TILE_SIZE / 2,
+              ty * TILE_SIZE + TILE_SIZE / 2,
+              'terrain_road',
+            );
             this.mapContainer.add(tile);
           } else {
             const variant = ((tx * 7 + ty * 13) % 3) + 1;
-            const tile = this.add.image(tx * TILE_SIZE + TILE_SIZE / 2, ty * TILE_SIZE + TILE_SIZE / 2, `terrain_grass_${variant}`);
+            const tile = this.add.image(
+              tx * TILE_SIZE + TILE_SIZE / 2,
+              ty * TILE_SIZE + TILE_SIZE / 2,
+              `terrain_grass_${variant}`,
+            );
             this.mapContainer.add(tile);
           }
         }
       }
     } else {
+      // -----------------------------------------------------------------
+      // GRAPHICS-based rich ground (5 daytime green shades)
+      // Brighter palette than NightScene -- daylight colours.
+      // -----------------------------------------------------------------
+      const grassColors = [0x4A7A2A, 0x528733, 0x3E6E22, 0x567D2E, 0x3A6825];
+
       const ground = this.add.graphics();
-      ground.fillStyle(0x3A6B2A);
-      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+      ground.setDepth(0);
+
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const tileX = tx * TILE_SIZE;
+          const tileY = ty * TILE_SIZE;
+
+          // Deterministic colour per tile for non-flat look
+          const hash     = (tx * 1619 + ty * 3571) | 0;
+          const colorIdx = ((hash >>> 0) % grassColors.length);
+          let tileColor  = grassColors[colorIdx] ?? 0x4A7A2A;
+
+          // Edge tiles slightly darker for a subtle vignette
+          const isEdge = tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2;
+          if (isEdge) {
+            const r = ((tileColor >> 16) & 0xFF) * 0.80;
+            const g = ((tileColor >>  8) & 0xFF) * 0.80;
+            const b = ( tileColor        & 0xFF) * 0.80;
+            tileColor = (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
+          }
+
+          ground.fillStyle(tileColor);
+          ground.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
+        }
+      }
       this.mapContainer.add(ground);
 
+      // -----------------------------------------------------------------
+      // ROAD -- natural dirt path, slightly varied colour per tile
+      // -----------------------------------------------------------------
       const road = this.add.graphics();
-      road.fillStyle(0x6B5A43);
-      road.fillRect(0, roadY - TILE_SIZE, mapPixelWidth, TILE_SIZE * 2);
+      road.setDepth(1);
+
+      for (let tx = 0; tx < MAP_WIDTH; tx++) {
+        // Very slight meander
+        const wander  = ((tx * 7919) & 0x3) < 2 ? 0 : 1;
+        const baseRow = roadRow + wander - 1;
+        for (let rowOffset = 0; rowOffset < 2; rowOffset++) {
+          const ty = baseRow + rowOffset;
+          if (ty < 0 || ty >= MAP_HEIGHT) continue;
+          const hash2    = (tx * 2017 + ty * 4049) | 0;
+          const dirtBase = 0x7A6248;
+          // Small per-tile variation in red channel
+          const dirtVary  = (hash2 & 0xF) * 0x010000;
+          const dirtColor = dirtBase + (dirtVary > 0x0F0000 ? 0 : dirtVary);
+          road.fillStyle(dirtColor);
+          road.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+      }
       this.mapContainer.add(road);
+
+      // -----------------------------------------------------------------
+      // CLEARED BASE AREA -- lighter, sandy dirt around the base
+      // -----------------------------------------------------------------
+      const baseArea = this.add.graphics();
+      baseArea.setDepth(1);
+
+      const baseClearRadius = 110; // pixels
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
+          const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
+          const dx    = tileX - centerX;
+          const dy    = tileY - centerY;
+          const dist  = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < baseClearRadius) {
+            // Lighter sandy earth inside the cleared zone
+            const hash3     = (tx * 1301 + ty * 2909) | 0;
+            const dirtShade = 0x6A5030 + ((hash3 & 0x7) * 0x010101);
+            baseArea.fillStyle(dirtShade > 0x7A6040 ? 0x7A6040 : dirtShade);
+            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          } else if (dist < baseClearRadius + 32) {
+            // Soft transition ring
+            const blend = 1 - (dist - baseClearRadius) / 32;
+            baseArea.fillStyle(0x6A5030, blend * 0.65);
+            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          }
+        }
+      }
+      this.mapContainer.add(baseArea);
+
+      // -----------------------------------------------------------------
+      // ROAD EDGE MARKINGS
+      // -----------------------------------------------------------------
+      const markings = this.add.graphics();
+      markings.setDepth(2);
+      markings.fillStyle(0x8B7B5B, 0.5);
+      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 3) {
+        markings.fillRect(x + 6, roadY - 2, TILE_SIZE - 10, 3);
+      }
+      this.mapContainer.add(markings);
+
+      // -----------------------------------------------------------------
+      // GROUND DETAIL PATCHES (grass tufts, leaves, pebbles) -- depth 2
+      // -----------------------------------------------------------------
+      const patches = this.add.graphics();
+      patches.setDepth(2);
+
+      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+          const hash4 = ((tx * 3571 + ty * 6173) * 2654435769) >>> 0;
+          if ((hash4 % 100) < 18) {
+            const tileX  = tx * TILE_SIZE;
+            const tileY  = ty * TILE_SIZE;
+            const patchX = tileX + (hash4 % TILE_SIZE);
+            const patchY = tileY + ((hash4 >> 5) % TILE_SIZE);
+            const pType  = (hash4 >> 10) % 3;
+            if (pType === 0) {
+              // Bright grass tuft
+              patches.fillStyle(0x6AAF3A, 0.55);
+              patches.fillEllipse(patchX, patchY, 6, 4);
+            } else if (pType === 1) {
+              // Dead/dry leaf
+              patches.fillStyle(0x8B6A1A, 0.40);
+              patches.fillEllipse(patchX, patchY, 5, 3);
+            } else {
+              // Small pebble
+              patches.fillStyle(0x9A9080, 0.45);
+              patches.fillCircle(patchX, patchY, 1.5);
+            }
+          }
+        }
+      }
+      this.mapContainer.add(patches);
+
+      // -----------------------------------------------------------------
+      // MAP EDGE DECORATIONS: bushes, flowers, stones (10-15 elements)
+      // Placed around the perimeter so they don't block the play area.
+      // -----------------------------------------------------------------
+      const decor = this.add.graphics();
+      decor.setDepth(3);
+
+      // Deterministic decoration positions along the map edges
+      const decorPositions: Array<{ x: number; y: number; type: number }> = [];
+      for (let i = 0; i < 14; i++) {
+        const seed = (i * 6271 + 1337) >>> 0;
+        // Alternate between all four edges
+        const edge = i % 4;
+        let dx = 0;
+        let dy = 0;
+        if (edge === 0) {
+          // Top edge
+          dx = ((seed * 1619) >>> 0) % (mapPixelWidth - 48) + 24;
+          dy = ((seed * 3571) >>> 0) % 48 + 8;
+        } else if (edge === 1) {
+          // Bottom edge
+          dx = ((seed * 2017) >>> 0) % (mapPixelWidth - 48) + 24;
+          dy = mapPixelHeight - (((seed * 4049) >>> 0) % 48 + 16);
+        } else if (edge === 2) {
+          // Left edge
+          dx = ((seed * 1301) >>> 0) % 48 + 8;
+          dy = ((seed * 2909) >>> 0) % (mapPixelHeight - 48) + 24;
+        } else {
+          // Right edge
+          dx = mapPixelWidth - (((seed * 1009) >>> 0) % 48 + 16);
+          dy = ((seed * 3137) >>> 0) % (mapPixelHeight - 48) + 24;
+        }
+        decorPositions.push({ x: dx, y: dy, type: (seed >> 8) % 3 });
+      }
+
+      for (const pos of decorPositions) {
+        if (pos.type === 0) {
+          // Bush -- dark green ellipse cluster
+          decor.fillStyle(0x2E6020, 0.85);
+          decor.fillEllipse(pos.x, pos.y, 22, 16);
+          decor.fillStyle(0x3A7028, 0.70);
+          decor.fillEllipse(pos.x + 8, pos.y - 4, 14, 10);
+          decor.fillStyle(0x264A18, 0.60);
+          decor.fillEllipse(pos.x - 6, pos.y + 2, 12, 8);
+        } else if (pos.type === 1) {
+          // Small wildflower -- green stem + coloured top
+          const flowerColor = ((pos.x * 31 + pos.y * 17) % 3) === 0
+            ? 0xFFD740
+            : ((pos.x + pos.y) % 3 === 1 ? 0xFF7043 : 0xE040FB);
+          decor.fillStyle(0x3A7028, 1);
+          decor.fillRect(pos.x - 1, pos.y, 2, 8);
+          decor.fillStyle(flowerColor, 0.9);
+          decor.fillCircle(pos.x, pos.y, 4);
+        } else {
+          // Stone -- grey rounded blob
+          decor.fillStyle(0x787060, 0.85);
+          decor.fillEllipse(pos.x, pos.y, 18, 12);
+          decor.fillStyle(0x9A9080, 0.50);
+          decor.fillEllipse(pos.x - 3, pos.y - 3, 8, 6);
+        }
+      }
+      this.mapContainer.add(decor);
     }
 
-    // Grid overlay to help with placement
+    // ------------------------------------------------------------------
+    // GRID OVERLAY -- very subtle, just enough for placement guidance
+    // ------------------------------------------------------------------
     const grid = this.add.graphics();
-    grid.lineStyle(1, 0x2D5A22, 0.3);
+    grid.lineStyle(1, 0x2D5A22, 0.1);
     for (let x = 0; x <= mapPixelWidth; x += TILE_SIZE) {
       grid.lineBetween(x, 0, x, mapPixelHeight);
     }
@@ -297,19 +500,9 @@ export class DayScene extends Phaser.Scene {
     }
     this.mapContainer.add(grid);
 
-    // Road markings (only needed for fallback graphics)
-    if (!hasRoadTile) {
-      const markings = this.add.graphics();
-      markings.fillStyle(0x8B7B5B);
-      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 2) {
-        markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
-      }
-      this.mapContainer.add(markings);
-    }
-
-    // Base in center -- visual depends on base level
-    const centerX = mapPixelWidth / 2;
-    const centerY = mapPixelHeight / 2;
+    // ------------------------------------------------------------------
+    // BASE TENT (centre)
+    // ------------------------------------------------------------------
     this.baseTentGraphics = this.add.graphics();
     this.drawBaseTent(this.baseTentGraphics, centerX, centerY);
     this.mapContainer.add(this.baseTentGraphics);
@@ -955,16 +1148,16 @@ export class DayScene extends Phaser.Scene {
 
     // Build a small confirmation overlay -- all objects are world-space
     // but added to the UI camera so they stay fixed.
-    const backdrop = this.add.graphics().setDepth(250);
-    backdrop.fillStyle(0x000000, 0.55);
-    backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    this.addToUI(backdrop);
-
+    // No full-screen backdrop: the panel itself blocks clicks via setInteractive.
     const panel = this.add.graphics().setDepth(251);
     panel.fillStyle(0x1A1A1A, 0.97);
     panel.fillRoundedRect(px, py, panelW, panelH, 8);
     panel.lineStyle(2, 0xD4620B, 0.9);
     panel.strokeRoundedRect(px, py, panelW, panelH, 8);
+    panel.setInteractive(
+      new Phaser.Geom.Rectangle(px, py, panelW, panelH),
+      Phaser.Geom.Rectangle.Contains,
+    );
     this.addToUI(panel);
 
     const prompt = this.add.text(GAME_WIDTH / 2, py + 20, 'End day and start night?', {
@@ -977,7 +1170,6 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(prompt);
 
     const dismiss = (): void => {
-      backdrop.destroy();
       panel.destroy();
       prompt.destroy();
       yesBtn.destroy();
@@ -1434,11 +1626,7 @@ export class DayScene extends Phaser.Scene {
 
     const container = this.add.container(0, 0).setDepth(300).setScrollFactor(0);
 
-    const backdrop = this.add.graphics();
-    backdrop.fillStyle(0x000000, 0.5);
-    backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    container.add(backdrop);
-
+    // No full-screen backdrop -- panel blocks clicks via setInteractive.
     const panelW = 320;
     const panelH = 180;
     const px = (GAME_WIDTH - panelW) / 2;
@@ -1449,6 +1637,10 @@ export class DayScene extends Phaser.Scene {
     panel.fillRoundedRect(px, py, panelW, panelH, 8);
     panel.lineStyle(2, 0x4CAF50);
     panel.strokeRoundedRect(px, py, panelW, panelH, 8);
+    panel.setInteractive(
+      new Phaser.Geom.Rectangle(px, py, panelW, panelH),
+      Phaser.Geom.Rectangle.Contains,
+    );
     container.add(panel);
 
     const stepCounter = this.add.text(GAME_WIDTH / 2, py + 16, '', {
@@ -1509,11 +1701,8 @@ export class DayScene extends Phaser.Scene {
 
     showStep();
 
-    backdrop.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
-      Phaser.Geom.Rectangle.Contains
-    );
-    backdrop.on('pointerdown', advance);
+    // Panel already has setInteractive -- click anywhere on the panel to advance.
+    panel.on('pointerdown', advance);
     const keyHandler = this.input.keyboard?.on('keydown', advance);
     container.once('destroy', () => {
       if (keyHandler) this.input.keyboard?.off('keydown', advance);

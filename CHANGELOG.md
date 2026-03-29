@@ -2,6 +2,10 @@
 
 ## [Unreleased] - 2026-03-29
 
+### Changed
+- Removed ALL full-screen dark overlay rectangles (0x000000, 0.5-0.6 alpha) from dialogs and tutorial panels. Affected files: EventDialog.ts, EncounterDialog.ts, DayScene.ts (end-day confirm + tutorial), NightScene.ts (tutorial). Click-blocking now handled via setInteractive on the dialog panel background itself.
+- DayScene.createMap() visual overhaul for graphics fallback path: per-tile colour variation with 5 daytime green shades (matching NightScene pattern), lighter sandy cleared area around base, natural wandering road with per-tile dirt colour variation, edge decorations (14 bushes/flowers/stones around map perimeter), ground detail patches (grass tufts, leaves, pebbles, ~18% density). Grid overlay alpha reduced from 0.3 to 0.1 for subtlety.
+
 ### Added
 - 24 detailed terrain sprites for rich map visuals: 7 ground tiles (grass variants, dirt, path, leaf litter), 7 decorations (flowers, mushroom, bones, crate, log, lantern), 4 tree parts (trunk + 3 canopy sizes), 2 bushes, 1 water puddle, 3 rocks
 - All terrain sprites saved to public/assets/sprites/terrain/ with 8x preview versions

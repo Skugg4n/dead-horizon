@@ -35,17 +35,11 @@ export class EventDialog {
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
-    // Full-screen semi-transparent backdrop
+    // No full-screen backdrop -- the dialog panel itself blocks interaction
+    // via setInteractive on the panel background.
     this.backdrop = scene.add.graphics();
-    this.backdrop.fillStyle(0x000000, 0.6);
-    this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.backdrop.setDepth(190);
     this.backdrop.setVisible(false);
-    // Block all clicks behind the dialog
-    this.backdrop.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
-      Phaser.Geom.Rectangle.Contains,
-    );
 
     // Container is repositioned dynamically in show() once we know dialog height
     this.container = scene.add.container(0, 0);
@@ -110,11 +104,16 @@ export class EventDialog {
     this.container.setPosition(dialogX, dialogY);
 
     // -- Background with rounded corners --
+    // setInteractive on bg blocks all clicks from reaching the world behind the dialog.
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x1A1A1A, 0.97);
     bg.fillRoundedRect(0, 0, DIALOG_WIDTH, finalH, 10);
     bg.lineStyle(2, 0xD4920B, 0.9);
     bg.strokeRoundedRect(0, 0, DIALOG_WIDTH, finalH, 10);
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, DIALOG_WIDTH, finalH),
+      Phaser.Geom.Rectangle.Contains,
+    );
     this.container.add(bg);
 
     // Header bar (rounded only at top)
