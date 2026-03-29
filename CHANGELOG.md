@@ -1,5 +1,50 @@
 # Dead Horizon -- Changelog
 
+## [1.7.0] - 2026-03-29
+
+### Added
+
+#### F1: Cooler zombie death effects
+- Zombie death nu en tvafas-animation: flash vit + liten shrink (impact), sedan faller kroppen med en vinkel
+- Kroppen (sprite) ligger kvar som ett "corpse" i 10-15 sekunder (random variation) sedan fade ut
+- Corpse-sprites har mork rod tint och lag depth (1) -- ingen interaktion, blockar inte
+- Spritesheets: spelar death-animation, sedan stannar kroppen kvar
+
+#### F2: Persistent blood splatters
+- Zombie-dod skapar nu en permanent blodflagg pa marken (Graphics-baserad, depth 0)
+- Varje blodflagg ar randomiserad: 1-3 overlappande ellipser + 2-5 droppe-sateliter
+- Slumpmassig rotation, storlek och rod nyans for visuell variation
+- Blodflaggar ligga kvar hela natten (NightScenes bloodSplatContainer destroyas vid shutdown)
+
+#### F3: Base health bar
+- HUD visar nu basens HP som en bar i ovre hoger i NightScene
+- Zombie base-seekers som nar basens radie ger skada till basen (canAttack() cooldown)
+- Farg: gron -> gul -> rod baserat pa HP-procent
+- Base-HP aterstaills till max varje natt (regenereras over natten)
+- structure_damage-ljud spelas nar basen tar skada
+
+#### F4: More procedural sounds
+- Ny: footstep (kort, dov thump, spelas var 100px rorelseavstand)
+- Ny: melee_hit (dov impact-thud nar melee-vapen traffar)
+- Ny: zombie_attack_hit (guttural slap nar zombie traffar spelaren)
+- Ny: structure_damage (knarrande crack nar struktur tar skada, ej destroyas)
+- Ny: day_to_night (dramatisk fallande whoosh nar NightScene startar)
+- Pitch-variation (+/- 10% randomisering) pa ALLA weapon sounds och zombie sounds vid varje uppspelning
+- Befintliga: shoot_pistol, shoot_rifle, shoot_shotgun, shoot_melee, shoot_explosives, zombie_groan, zombie_attack, zombie_death, footstep, melee_hit, zombie_attack_hit
+
+#### F5: Zombie aggro balance
+- 70% av zombies ar "base_seeker" (gar mot basen, default-beteende)
+- 30% ar "wanderer" (roar slumpmassigt nara kartans kanter)
+- Bestams slumpmassigt vid spawn -- brutes och bossar alltid base_seekers (strukturskadande roll)
+- Wanderers valjer slumpmassiga punkter i kartans yttre 25% band, valjer ny punkt nar de natt fram
+- SoundMechanic (vapenljud) overridar ALLA zombies -- bade seekers och wanderers lockades mot spelarens position
+- WaveManager.setMapSize() + Zombie.setMapSize() for wanderer boundary-berakningar
+
+### Changed
+- Version: 1.6.0 -> 1.7.0
+- GameState.base utokat med `hp` och `maxHp` falt (BASE_MAX_HP = 200)
+- SaveManager migrerar gamla saves (saknade base.hp far BASE_MAX_HP som default)
+
 ## [1.6.0] - 2026-03-29
 
 ### Fixed

@@ -97,3 +97,24 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Spitter-krasch (spelare redan dod)
 **Problem:** Spitter-projektil traffade spelare efter spelarens dod. takeDamage pa forstord sprite kraschade.
 **Losning:** Lagg till `!this.player.active` guard i alla overlap-callbacks som anropar player.takeDamage().
+
+---
+
+## Visuella effekter
+
+### Zombie corpse depth -- aktiva sprites vs lik
+**Problem:** Om zombie-sprites satter sig som "corpses" pa depth 5 (samma som levande zombies) blockar de visuellt aktiva zombies.
+**Losning:** I die()-metoden: satt `this.setDepth(1)` sa corpses hamnar under levande zombies (depth 5) och spelarens sprites.
+
+### Graphics.setRotation() i Containers
+**Losning:** Phaser.GameObjects.Graphics stodjer setRotation() och setPosition() precis som sprites. Lagg till Graphics i en Container for enkel batch-hantering. Container.destroy() forstorer alla barn automatiskt -- anvand detta for blood splatter cleanup vid scene-shutdown.
+
+### Pitch variation pa Web Audio API BufferSource
+**Problem:** Vill ha slumpmassig pitch-variation per uppspelning men BufferSource.buffer ar precalculated.
+**Losning:** Satt `source.playbackRate.value = 0.9 + Math.random() * 0.2` pa varje ny BufferSource. Cachen (bufferCache) ar fortfarande giltig -- bara playback-hastigheten varieras, inte buffern.
+
+## Zombie aggro
+
+### aggroType maste aterstalas vid reset()
+**Problem:** Zombie-pool ateranvander sprites via reset(). Om aggroType inte aterstalas kan en gammal wanderer bli en base_seeker (eller vice versa) i nasta wave.
+**Losning:** Nollstall `aggroType = 'base_seeker'` och `wanderTarget = null` i reset(). WaveManager assignar sedan korrekt aggroType efter reset-anropet.

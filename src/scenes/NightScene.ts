@@ -14,7 +14,7 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { SkillManager } from '../systems/SkillManager';
 import { ZoneManager } from '../systems/ZoneManager';
 import { AchievementManager } from '../systems/AchievementManager';
-import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN, BASE_MAX_HP } from '../config/constants';
 import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
@@ -81,6 +81,14 @@ export class NightScene extends Phaser.Scene {
   private spitterProjectileGroup!: Phaser.Physics.Arcade.Group;
   // Event effects from day phase
   private fogPenalty: number = 0;
+  // F2: Blood splatter graphics layer (persistent for entire night, depth=0)
+  private bloodSplatContainer!: Phaser.GameObjects.Container;
+  // F3: Base HP tracking
+  private baseHp: number = BASE_MAX_HP;
+  private baseMaxHp: number = BASE_MAX_HP;
+  // Base center position (set once map is created)
+  private baseCenterX: number = 0;
+  private baseCenterY: number = 0;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -98,6 +106,17 @@ export class NightScene extends Phaser.Scene {
     this.movementAccumulator = 0;
 
     this.createMap();
+
+    // F2: Blood splatter container -- depth 0, below everything else
+    this.bloodSplatContainer = this.add.container(0, 0);
+    this.bloodSplatContainer.setDepth(0);
+
+    // F3: Load base HP from save (restores between nights)
+    this.baseHp = this.gameState.base.hp ?? BASE_MAX_HP;
+    this.baseMaxHp = this.gameState.base.maxHp ?? BASE_MAX_HP;
+    // Restore full HP each night (base regenerates overnight)
+    this.baseHp = this.baseMaxHp;
+
     this.createStructures();
     this.createFogOfWar();
     this.createPlayer();
@@ -122,6 +141,8 @@ export class NightScene extends Phaser.Scene {
     this.hud = new HUD(this);
     this.hud.updateAmmo(this.loadedAmmo);
     this.updateWeaponHUD();
+    // F3: Initialize base HP bar
+    this.hud.updateBaseHpBar(this.baseHp, this.baseMaxHp);
 
     this.setupWeaponKeys();
     this.setupParticles();
@@ -141,7 +162,8 @@ export class NightScene extends Phaser.Scene {
       }).setOrigin(1, 0).setScrollFactor(0).setDepth(200);
     }
 
-    // Start night ambient sound
+    // Start night ambient sound + F4 day-to-night whoosh
+    AudioManager.play('day_to_night');
     AudioManager.startAmbient('night');
 
     // Start wave 1 after a brief delay
@@ -181,6 +203,8 @@ export class NightScene extends Phaser.Scene {
       const xpToAward = Math.floor(this.movementAccumulator / 100);
       this.skillManager.addXP('speed_agility', xpToAward);
       this.movementAccumulator -= xpToAward * 100;
+      // F4: Footstep sound -- plays every ~100px of movement
+      AudioManager.play('footstep');
     }
 
     // Update zombies -- mark off-screen for pathfinding throttle
@@ -228,6 +252,9 @@ export class NightScene extends Phaser.Scene {
 
     // Update lighting overlay to follow player
     this.updateLighting();
+
+    // F3: Check if zombies have reached the base and damage it
+    this.checkZombieBaseInteractions();
 
     // Pillbox refugee shooting
     this.updatePillboxShooting(delta);
@@ -290,6 +317,9 @@ export class NightScene extends Phaser.Scene {
     // Base in center -- visual depends on base level
     const centerX = mapPixelWidth / 2;
     const centerY = mapPixelHeight / 2;
+    // Store for F3 base health bar and zombie aggro
+    this.baseCenterX = centerX;
+    this.baseCenterY = centerY;
     const baseLevelIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
     const baseLevelData = baseLevelsJson.baseLevels[baseLevelIdx];
     if (!baseLevelData) throw new Error('No base levels defined');
@@ -447,6 +477,9 @@ export class NightScene extends Phaser.Scene {
     // Zombies walk toward base by default, only aggro player via sound
     this.waveManager.setBasePosition(mapPixelWidth / 2, mapPixelHeight / 2);
 
+    // Pass map dimensions to waveManager for wanderer boundary calculations
+    this.waveManager.setMapSize(mapPixelWidth, mapPixelHeight);
+
     // Spawn zones at the four edges
     this.waveManager.setSpawnZones([
       { x: 0, y: mapPixelHeight / 2 },           // left
@@ -483,6 +516,8 @@ export class NightScene extends Phaser.Scene {
         zombie.resetAttackCooldown();
         zombie.playAttackPulse();
         this.flashDamageOverlay();
+        // F4: Guttural zombie attack sound
+        AudioManager.play('zombie_attack_hit');
       },
     );
 
@@ -505,6 +540,9 @@ export class NightScene extends Phaser.Scene {
             if (destroyed) {
               AudioManager.play('structure_break');
               wallBody.destroy();
+            } else {
+              // F4: Structure creak/crack on damage
+              AudioManager.play('structure_damage');
             }
           }
         }
@@ -544,8 +582,10 @@ export class NightScene extends Phaser.Scene {
       this.waveManager.onEnemyKilled();
       this.rollLootDrops(zombie.x, zombie.y);
       AudioManager.play('zombie_death');
-      // Blood splatter particles
+      // Blood splatter particles (short-lived burst)
       this.bloodEmitter.emitParticleAt(zombie.x, zombie.y, 6);
+      // F2: Persistent blood splat on ground layer
+      this.createBloodSplat(zombie.x, zombie.y);
 
       // Add weapon XP and combat skill XP based on equipped weapon class
       const equipped = this.weaponManager.getEquipped();
@@ -813,6 +853,9 @@ export class NightScene extends Phaser.Scene {
     // Muzzle flash particles for ranged weapons
     if (!isMelee) {
       this.muzzleEmitter.emitParticleAt(this.player.x, this.player.y, 4);
+    } else {
+      // F4: Melee hit thud -- fires immediately since melee is direct damage
+      AudioManager.play('melee_hit');
     }
 
     const angle = angleBetween(
@@ -931,6 +974,34 @@ export class NightScene extends Phaser.Scene {
 
     // Pillbox interaction: check once per frame (was incorrectly inside per-zombie loop)
     this.checkPillboxDamage();
+  }
+
+  /**
+   * F3: Check if base-seeking zombies have reached the base center.
+   * Zombies within the base radius deal damage and get knocked back.
+   * Uses canAttack() cooldown to prevent spam damage.
+   */
+  private checkZombieBaseInteractions(): void {
+    if (this.baseCenterX === 0) return;
+
+    const baseLevelIdx = Math.min(this.gameState.base.level, 3);
+    // Base "hit radius" scales with base size (level 0 = 24px, level 3 = 48px)
+    const baseRadius = 24 + baseLevelIdx * 8;
+
+    this.zombieGroup.getChildren().forEach(child => {
+      const zombie = child as Zombie;
+      if (!zombie.active || !zombie.canAttack()) return;
+
+      const dist = Phaser.Math.Distance.Between(
+        zombie.x, zombie.y,
+        this.baseCenterX, this.baseCenterY
+      );
+      if (dist <= baseRadius) {
+        // Zombie hits base
+        this.damageBase(zombie.damage);
+        zombie.resetAttackCooldown();
+      }
+    });
   }
 
   // Assign healthy refugees to pillbox structures for night defense
@@ -1145,6 +1216,64 @@ export class NightScene extends Phaser.Scene {
       duration: visualConfig.damageFlash.duration,
       ease: 'Power2',
     });
+  }
+
+  /**
+   * F2: Create a persistent blood splat at the given world position.
+   * Uses random shapes/sizes/rotations for visual variety.
+   * Added to bloodSplatContainer at depth 0 (below all other objects).
+   * Container is destroyed on scene shutdown, clearing all splatters.
+   */
+  private createBloodSplat(x: number, y: number): void {
+    const g = this.add.graphics();
+
+    // Random dark-red blood color with slight variation
+    const shade = Phaser.Math.Between(0, 30);
+    const color = (0x88 - shade) << 16; // dark red, e.g. 0x880000
+
+    g.fillStyle(color, 0.75 + Math.random() * 0.2);
+
+    // Random rotation for variety
+    const rotation = Math.random() * Math.PI * 2;
+    g.setRotation(rotation);
+
+    // Base splat: 1-3 overlapping ellipses for organic feel
+    const count = Phaser.Math.Between(1, 3);
+    for (let i = 0; i < count; i++) {
+      const rx = 4 + Math.random() * 8;
+      const ry = 3 + Math.random() * 6;
+      const ox = (Math.random() - 0.5) * 10;
+      const oy = (Math.random() - 0.5) * 10;
+      g.fillEllipse(ox, oy, rx * 2, ry * 2);
+    }
+
+    // Small satellite droplets
+    const drops = Phaser.Math.Between(2, 5);
+    for (let i = 0; i < drops; i++) {
+      const dr = 1 + Math.random() * 3;
+      const dx = (Math.random() - 0.5) * 20;
+      const dy = (Math.random() - 0.5) * 20;
+      g.fillCircle(dx, dy, dr);
+    }
+
+    g.setPosition(x, y);
+
+    this.bloodSplatContainer.add(g);
+  }
+
+  /**
+   * F3: Damage the base when a zombie reaches it.
+   * Updates the HUD base bar and plays structure_damage sound.
+   */
+  private damageBase(amount: number): void {
+    this.baseHp = Math.max(0, this.baseHp - amount);
+    this.hud.updateBaseHpBar(this.baseHp, this.baseMaxHp);
+    AudioManager.play('structure_damage');
+
+    // Base destroyed: game over
+    if (this.baseHp <= 0) {
+      this.events.emit('player-died');
+    }
   }
 
   private showTutorialOverlay(): void {

@@ -33,6 +33,8 @@ export class WaveManager {
   private basePosition: { x: number; y: number } | null = null;
   private wavesData: WaveDataSource;
   private hordeMultiplier: number = 1.0;
+  private mapWidth: number = 0;
+  private mapHeight: number = 0;
 
   constructor(scene: Phaser.Scene, zombieGroup: Phaser.Physics.Arcade.Group, wavesData?: WaveDataSource) {
     this.scene = scene;
@@ -54,6 +56,12 @@ export class WaveManager {
 
   setSpawnZones(zones: { x: number; y: number }[]): void {
     this.spawnZones = zones;
+  }
+
+  /** Set map pixel dimensions for wanderer boundary calculations */
+  setMapSize(width: number, height: number): void {
+    this.mapWidth = width;
+    this.mapHeight = height;
   }
 
   getCurrentWave(): number {
@@ -130,16 +138,30 @@ export class WaveManager {
     const offsetX = (Math.random() - 0.5) * 100;
     const offsetY = (Math.random() - 0.5) * 100;
 
+    // F5: 70% base seekers, 30% wanderers -- determined at spawn time
+    // Brutes and bosses always go for the base (structural damage focus)
+    const forceBaseSeeking = config.behavior === 'brute' || config.behavior === 'boss';
+    const aggroType: 'base_seeker' | 'wanderer' =
+      (!forceBaseSeeking && Math.random() < 0.3) ? 'wanderer' : 'base_seeker';
+
+    // Map size for wanderer boundary calculations
+    const mapWidth = this.mapWidth;
+    const mapHeight = this.mapHeight;
+
     // Try to reuse an inactive zombie from the pool
     const existing = this.zombieGroup.getFirstDead(false) as Zombie | null;
     if (existing) {
       existing.reset(zone.x + offsetX, zone.y + offsetY, config);
       if (this.target) existing.setTarget(this.target);
       if (this.basePosition) existing.setBasePosition(this.basePosition.x, this.basePosition.y);
+      existing.aggroType = aggroType;
+      if (mapWidth && mapHeight) existing.setMapSize(mapWidth, mapHeight);
     } else {
       const zombie = new Zombie(this.scene, zone.x + offsetX, zone.y + offsetY, config);
       if (this.target) zombie.setTarget(this.target);
       if (this.basePosition) zombie.setBasePosition(this.basePosition.x, this.basePosition.y);
+      zombie.aggroType = aggroType;
+      if (mapWidth && mapHeight) zombie.setMapSize(mapWidth, mapHeight);
       this.zombieGroup.add(zombie);
     }
 

@@ -8,7 +8,13 @@ type SoundId =
   | 'wave_start' | 'wave_clear'
   | 'ui_click' | 'ui_build' | 'ui_error'
   | 'loot_pickup' | 'structure_break'
-  | 'ambient_wind' | 'ambient_day';
+  | 'ambient_wind' | 'ambient_day'
+  // F4: New procedural sounds
+  | 'footstep'
+  | 'melee_hit'
+  | 'zombie_attack_hit'
+  | 'structure_damage'
+  | 'day_to_night';
 
 interface SoundDef {
   generate: (ctx: AudioContext) => AudioBuffer;
@@ -361,6 +367,100 @@ function genAmbientDay(ctx: AudioContext): AudioBuffer {
   return buf;
 }
 
+// --- F4: New procedural sound generators ---
+
+/** Soft footstep: very short low thump, muffled */
+function genFootstep(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.06 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = Math.exp(-t * 80);
+    // Low thump -- combination of low sine + filtered noise
+    d[i] = env * (Math.sin(t * 120 * 2 * Math.PI) * 0.4 + (Math.random() * 2 - 1) * 0.15);
+  }
+  return buf;
+}
+
+/** Melee hit thud: dull impact, body-hitting sound */
+function genMeleeHit(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.12 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = Math.exp(-t * 35);
+    // Dull impact: low frequency + noise, no high pitch
+    d[i] = env * (Math.sin(t * 80 * 2 * Math.PI) * 0.5
+      + Math.sin(t * 150 * 2 * Math.PI) * 0.25
+      + (Math.random() * 2 - 1) * 0.2);
+  }
+  return buf;
+}
+
+/** Zombie attack hit: guttural slap sound when zombie hits player */
+function genZombieAttackHit(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.18 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  const baseFreq = 60 + Math.random() * 30;
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Short guttural grunt + wet slap noise
+    const gutturalEnv = Math.exp(-t * 20);
+    const slapEnv = Math.exp(-t * 60) * (i < Math.floor(0.01 * rate) ? 1 : 0.3);
+    d[i] = gutturalEnv * (Math.sin(t * baseFreq * 2 * Math.PI) * 0.4
+      + Math.sin(t * baseFreq * 1.5 * 2 * Math.PI) * 0.2)
+      + slapEnv * (Math.random() * 2 - 1) * 0.5;
+  }
+  return buf;
+}
+
+/** Structure damage: creak/crack sound when structure takes a hit */
+function genStructureDamage(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.2 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = Math.exp(-t * 18);
+    // Woody crack: mid-freq noise burst + sharp transient
+    const crack = i < Math.floor(0.005 * rate) ? (Math.random() * 2 - 1) * 0.8 : 0;
+    d[i] = env * (Math.sin(t * 300 * 2 * Math.PI) * 0.15
+      + (Math.random() * 2 - 1) * 0.3)
+      + crack;
+  }
+  return buf;
+}
+
+/** Day-to-night whoosh: dramatic sweep down, ominous */
+function genDayToNight(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(1.2 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Rising then sharply descending tone (like a gate slamming)
+    const env = t < 0.4
+      ? (t / 0.4)                          // fade in
+      : Math.exp(-(t - 0.4) * 3);          // fast fade out
+    const freq = 600 * Math.exp(-t * 1.5); // pitch falls from 600hz to ~80hz
+    // Noise element for whoosh
+    const noiseEnv = Math.exp(-t * 4) * 0.3;
+    d[i] = env * (
+      Math.sin(t * freq * 2 * Math.PI) * 0.35
+      + Math.sin(t * freq * 0.5 * 2 * Math.PI) * 0.2
+    ) + noiseEnv * (Math.random() * 2 - 1);
+  }
+  return buf;
+}
+
 const SOUND_DEFS: Record<SoundId, SoundDef> = {
   shoot_pistol: { generate: genPistol, volume: 0.5, cooldown: 80 },
   shoot_rifle: { generate: genRifle, volume: 0.55, cooldown: 80 },
@@ -381,6 +481,12 @@ const SOUND_DEFS: Record<SoundId, SoundDef> = {
   structure_break: { generate: genStructureBreak, volume: 0.45, cooldown: 100 },
   ambient_wind: { generate: genAmbientWind, volume: 0.15, cooldown: 0 },
   ambient_day: { generate: genAmbientDay, volume: 0.12, cooldown: 0 },
+  // F4: New sounds
+  footstep: { generate: genFootstep, volume: 0.18, cooldown: 250 },
+  melee_hit: { generate: genMeleeHit, volume: 0.45, cooldown: 80 },
+  zombie_attack_hit: { generate: genZombieAttackHit, volume: 0.4, cooldown: 200 },
+  structure_damage: { generate: genStructureDamage, volume: 0.35, cooldown: 120 },
+  day_to_night: { generate: genDayToNight, volume: 0.55, cooldown: 0 },
 };
 
 // Map weapon classes to sound IDs
@@ -405,6 +511,13 @@ function getBuffer(id: SoundId): AudioBuffer {
 
 // --- Public API ---
 
+// F4: Sounds that receive +/- 10% pitch randomization on every play
+const PITCH_VARIED_SOUNDS = new Set<SoundId>([
+  'shoot_pistol', 'shoot_rifle', 'shoot_shotgun', 'shoot_melee', 'shoot_explosives',
+  'zombie_groan', 'zombie_attack', 'zombie_death',
+  'footstep', 'melee_hit', 'zombie_attack_hit',
+]);
+
 function play(id: SoundId): void {
   if (muted || sfxMuted) return;
 
@@ -420,6 +533,11 @@ function play(id: SoundId): void {
   const buffer = getBuffer(id);
   const source = ctx.createBufferSource();
   source.buffer = buffer;
+
+  // F4: Apply random pitch variation (+/- 10%) for weapon and zombie sounds
+  if (PITCH_VARIED_SOUNDS.has(id)) {
+    source.playbackRate.value = 0.9 + Math.random() * 0.2;
+  }
 
   const gainNode = ctx.createGain();
   gainNode.gain.value = def.volume;
