@@ -197,39 +197,39 @@ Mål: Refugee-system och loot runs ger spelet djup och management-lager.
 
 ### 4A: Refugee-system
 
-- [ ] 4A.1 RefugeeManager -- track refugees, HP, status
-- [ ] 4A.2 Refugees spawnar (slump per dag)
-- [ ] 4A.3 RefugeePanel -- tilldela jobb (sliders/knappar)
-- [ ] 4A.4 Refugees samlar Food och Scrap under dag
-- [ ] 4A.5 Refugees i Pillboxes under natt (med vapen)
-- [ ] 4A.6 Refugees kan skadas under natt
-- [ ] 4A.7 Healing med Meds (refugee vilar tills frisk)
-- [ ] 4A.8 Food-konsumption per refugee per dag
+- [x] 4A.1 RefugeeManager -- track refugees, HP, status
+- [x] 4A.2 Refugees spawnar (slump per dag)
+- [x] 4A.3 RefugeePanel -- tilldela jobb (sliders/knappar)
+- [x] 4A.4 Refugees samlar Food och Scrap under dag
+- [x] 4A.5 Refugees i Pillboxes under natt (med vapen)
+- [x] 4A.6 Refugees kan skadas under natt
+- [x] 4A.7 Healing med Meds (refugee vilar tills frisk)
+- [x] 4A.8 Food-konsumption per refugee per dag
 
 ### 4B: Loot Runs
 
-- [ ] 4B.1 LootRunPanel -- välj destination, utrustning, sällskap
-- [ ] 4B.2 Loot run kostar 3-5 AP
-- [ ] 4B.3 Loot tables per destination
-- [ ] 4B.4 EncounterDialog -- "Fight or Flee"-val
-- [ ] 4B.5 Encounter-resultat baserat på medhavd styrka
-- [ ] 4B.6 Rescue-events (hitta nya refugees)
-- [ ] 4B.7 Fog of war avslöjas genom loot runs
+- [x] 4B.1 LootRunPanel -- valj destination, utrustning, sallskap
+- [x] 4B.2 Loot run kostar 3-5 AP
+- [x] 4B.3 Loot tables per destination
+- [x] 4B.4 EncounterDialog -- "Fight or Flee"-val
+- [x] 4B.5 Encounter-resultat baserat pa medhavd styrka
+- [x] 4B.6 Rescue-events (hitta nya refugees)
+- [x] 4B.7 Fog of war avslojas genom loot runs
 
 ### 4C: Basexpansion
 
-- [ ] 4C.1 Bas-nivåer (Tält -> Camp -> Outpost -> Settlement)
-- [ ] 4C.2 Varje nivå låser upp nya byggnadstyper
-- [ ] 4C.3 Shelter (bostäder för refugees)
-- [ ] 4C.4 Storage (ökad resurskapacitet)
-- [ ] 4C.5 Farm (passiv Food-produktion)
+- [x] 4C.1 Bas-nivaer (Talt -> Camp -> Outpost -> Settlement)
+- [x] 4C.2 Varje niva laser upp nya byggnadstyper
+- [x] 4C.3 Shelter (bostader for refugees)
+- [x] 4C.4 Storage (okad resurskapacitet)
+- [x] 4C.5 Farm (passiv Food-produktion)
 
 ### 4D: Fog of War
 
-- [ ] 4D.1 FogOfWar overlay-system
-- [ ] 4D.2 Synlighet runt bas och utforskade områden
-- [ ] 4D.3 Zombies osynliga utanför synfält
-- [ ] 4D.4 Ljud-indikation från osynliga zombies
+- [x] 4D.1 FogOfWar overlay-system
+- [x] 4D.2 Synlighet runt bas och utforskade omraden
+- [x] 4D.3 Zombies osynliga utanfor synfalt
+- [x] 4D.4 Ljud-indikation fran osynliga zombies
 
 **Leverans:** Komplett management-lager med refugees, loot och kartan avslöjas gradvis.
 

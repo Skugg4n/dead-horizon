@@ -2,14 +2,19 @@ import Phaser from 'phaser';
 import { SaveManager } from '../systems/SaveManager';
 import { BuildingManager, type StructureData } from '../systems/BuildingManager';
 import { WeaponManager } from '../systems/WeaponManager';
+import { RefugeeManager } from '../systems/RefugeeManager';
 import { loadAmmo } from '../systems/AmmoLoader';
 import { ActionPointBar } from '../ui/ActionPointBar';
 import { WeaponPanel } from '../ui/WeaponPanel';
-import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD } from '../config/constants';
+import { RefugeePanel } from '../ui/RefugeePanel';
+import { LootRunPanel } from '../ui/LootRunPanel';
+import { LootManager } from '../systems/LootManager';
+import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS } from '../config/constants';
 import { SkillManager } from '../systems/SkillManager';
 import { SkillPanel } from '../ui/SkillPanel';
-import type { GameState, StructureInstance } from '../config/types';
+import type { GameState, StructureInstance, ResourceType } from '../config/types';
 import structuresJson from '../data/structures.json';
+import baseLevelsJson from '../data/base-levels.json';
 
 const MAP_WIDTH = 40;  // tiles
 const MAP_HEIGHT = 30; // tiles
@@ -32,6 +37,10 @@ export class DayScene extends Phaser.Scene {
   private weaponPanel!: WeaponPanel;
   private skillManager!: SkillManager;
   private skillPanel!: SkillPanel;
+  private refugeeManager!: RefugeeManager;
+  private refugeePanel!: RefugeePanel;
+  private lootManager!: LootManager;
+  private lootRunPanel!: LootRunPanel;
   private apBar!: ActionPointBar;
   private currentAP!: number;
   private mapContainer!: Phaser.GameObjects.Container;
@@ -54,6 +63,8 @@ export class DayScene extends Phaser.Scene {
   private structurePopup: Phaser.GameObjects.Container | null = null;
   private infoText!: Phaser.GameObjects.Text;
   private resourceText!: Phaser.GameObjects.Text;
+  private baseUpgradeText!: Phaser.GameObjects.Text;
+  private baseTentGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'DayScene' });
@@ -89,6 +100,9 @@ export class DayScene extends Phaser.Scene {
     this.createBuildMenu();
     this.createWeaponsButton();
     this.createSkillButton();
+    this.createRefugeesButton();
+    this.createLootRunButton();
+    this.createBaseUpgradeUI();
     this.createInfoText();
 
     // Weapon system
@@ -110,6 +124,43 @@ export class DayScene extends Phaser.Scene {
     this.skillManager = new SkillManager(this, this.gameState);
     this.skillPanel = new SkillPanel(this, this.skillManager);
     this.addToUI(this.skillPanel.getContainer());
+
+    // Refugee system
+    this.refugeeManager = new RefugeeManager(this, this.gameState);
+    this.refugeePanel = new RefugeePanel(this, this.refugeeManager);
+    this.addToUI(this.refugeePanel.getContainer());
+
+    // Loot run system
+    this.lootManager = new LootManager(this, this.gameState);
+    this.lootRunPanel = new LootRunPanel(
+      this,
+      this.lootManager,
+      this.gameState,
+      () => this.currentAP,
+      (cost: number) => {
+        this.currentAP -= cost;
+        this.apBar.update(this.currentAP);
+      },
+      () => this.updateResourceDisplay(),
+    );
+    this.addToUI(this.lootRunPanel.getContainer());
+    this.addToUI(this.lootRunPanel.getEncounterContainer());
+
+    // Listen for looting XP awards
+    this.events.on('award-looting-xp', (xp: number) => {
+      this.skillManager.addXP('looting', xp);
+    });
+
+    // Listen for rescued refugees from loot runs
+    this.events.on('refugee-rescued', () => {
+      const newRefugee = this.refugeeManager.addRefugee();
+      if (newRefugee) {
+        this.showInfo(`Rescued ${newRefugee.name} during loot run!`);
+      }
+    });
+
+    // Day-start processing: food consumption, healing, random arrival
+    this.processDayStart();
 
     this.setupInput();
 
@@ -166,17 +217,15 @@ export class DayScene extends Phaser.Scene {
     }
     this.mapContainer.add(markings);
 
-    // Base tent in center
+    // Base in center -- visual depends on base level
     const centerX = mapPixelWidth / 2;
     const centerY = mapPixelHeight / 2;
-    const tent = this.add.graphics();
-    tent.fillStyle(0x7B7B7B);
-    tent.fillRect(centerX - 24, centerY - 24, 48, 48);
-    tent.lineStyle(2, 0xE8DCC8);
-    tent.strokeRect(centerX - 24, centerY - 24, 48, 48);
-    this.mapContainer.add(tent);
+    this.baseTentGraphics = this.add.graphics();
+    this.drawBaseTent(this.baseTentGraphics, centerX, centerY);
+    this.mapContainer.add(this.baseTentGraphics);
 
-    this.add.text(centerX, centerY - 32, 'BASE', {
+    const baseLevelData = this.getBaseLevelData();
+    this.add.text(centerX, centerY - (baseLevelData.visual.size / 2) - 8, 'BASE', {
       fontFamily: 'monospace',
       fontSize: '8px',
       color: '#E8DCC8',
@@ -262,18 +311,21 @@ export class DayScene extends Phaser.Scene {
 
   private createResourceDisplay(): void {
     const res = this.gameState.inventory.resources;
-    const text = `Scrap: ${res.scrap}  Food: ${res.food}  Ammo: ${res.ammo}  Parts: ${res.parts}  Meds: ${res.meds}`;
+    const cap = this.getResourceCap();
+    const text = `Scrap: ${res.scrap}/${cap}  Food: ${res.food}/${cap}  Ammo: ${res.ammo}/${cap}  Parts: ${res.parts}/${cap}  Meds: ${res.meds}/${cap}`;
     this.resourceText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 16, text, {
       fontFamily: 'monospace',
-      fontSize: '11px',
+      fontSize: '10px',
       color: '#E8DCC8',
     }).setOrigin(0.5).setDepth(100);
     this.addToUI(this.resourceText);
   }
 
   private updateResourceDisplay(): void {
+    this.enforceResourceCaps();
     const res = this.gameState.inventory.resources;
-    const text = `Scrap: ${res.scrap}  Food: ${res.food}  Ammo: ${res.ammo}  Parts: ${res.parts}  Meds: ${res.meds}`;
+    const cap = this.getResourceCap();
+    const text = `Scrap: ${res.scrap}/${cap}  Food: ${res.food}/${cap}  Ammo: ${res.ammo}/${cap}  Parts: ${res.parts}/${cap}  Meds: ${res.meds}/${cap}`;
     this.resourceText.setText(text);
   }
 
@@ -356,24 +408,55 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(btn);
   }
 
+  private createRefugeesButton(): void {
+    const btn = this.add.text(430, GAME_HEIGHT - 40, '[ REFUGEES ]', {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#8B6FC0',
+    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#8B6FC0'));
+    btn.on('pointerdown', () => this.refugeePanel.toggle());
+    this.addToUI(btn);
+  }
+
+  private createLootRunButton(): void {
+    const btn = this.add.text(570, GAME_HEIGHT - 40, '[ LOOT RUN ]', {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#D4A030',
+    }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#D4A030'));
+    btn.on('pointerdown', () => this.lootRunPanel.toggle());
+    this.addToUI(btn);
+  }
+
   private createBuildMenu(): void {
     this.buildMenuContainer = this.add.container(16, 80);
     this.buildMenuContainer.setDepth(110);
     this.buildMenuContainer.setVisible(false);
 
-    const allStructures = this.buildingManager.getAllStructureData();
+    const baseLevelData = this.getBaseLevelData();
+    const unlockedIds = baseLevelData.unlockedStructures as string[];
+    const availableStructures = this.buildingManager.getAvailableStructures(unlockedIds);
+    const lockedStructures = this.buildingManager.getLockedStructures(unlockedIds);
+    const totalEntries = availableStructures.length + lockedStructures.length;
 
     // Background panel
     const bg = this.add.graphics();
     bg.fillStyle(0x1A1A2E, 0.9);
-    bg.fillRect(0, 0, 220, allStructures.length * 40 + 16);
+    bg.fillRect(0, 0, 220, totalEntries * 40 + 16);
     bg.lineStyle(1, 0x6B6B6B);
-    bg.strokeRect(0, 0, 220, allStructures.length * 40 + 16);
+    bg.strokeRect(0, 0, 220, totalEntries * 40 + 16);
     this.buildMenuContainer.add(bg);
 
-    // Structure entries
-    allStructures.forEach((s, i) => {
-      const y = 8 + i * 40;
+    // Available structure entries
+    let entryIndex = 0;
+    availableStructures.forEach((s) => {
+      const y = 8 + entryIndex * 40;
       const canAfford = this.buildingManager.canAfford(s.id);
       const hasAP = this.buildingManager.hasEnoughAP(s.id, this.currentAP);
       const available = canAfford && hasAP;
@@ -395,6 +478,26 @@ export class DayScene extends Phaser.Scene {
       }
 
       this.buildMenuContainer.add(entry);
+      entryIndex++;
+    });
+
+    // Locked structure entries (greyed out with required level)
+    lockedStructures.forEach((s) => {
+      const y = 8 + entryIndex * 40;
+      // Find which level unlocks this structure
+      const requiredLevel = baseLevelsJson.baseLevels.find(
+        bl => (bl.unlockedStructures as string[]).includes(s.id)
+      );
+      const requiredName = requiredLevel?.name ?? '???';
+
+      const entry = this.add.text(8, y, `${s.name} [Requires ${requiredName}]`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#4A4A4A',
+      });
+
+      this.buildMenuContainer.add(entry);
+      entryIndex++;
     });
 
     this.addToUI(this.buildMenuContainer);
@@ -643,8 +746,204 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
+  /** Draw the base tent/building visual based on current level */
+  private drawBaseTent(graphics: Phaser.GameObjects.Graphics, centerX: number, centerY: number): void {
+    const levelData = this.getBaseLevelData();
+    const size = levelData.visual.size;
+    const halfSize = size / 2;
+    const fillColor = parseInt(levelData.visual.color.replace('0x', ''), 16);
+    const strokeColor = parseInt(levelData.visual.strokeColor.replace('0x', ''), 16);
+    const strokeWidth = levelData.visual.strokeWidth;
+
+    graphics.clear();
+    graphics.fillStyle(fillColor);
+    graphics.fillRect(centerX - halfSize, centerY - halfSize, size, size);
+    graphics.lineStyle(strokeWidth, strokeColor);
+    graphics.strokeRect(centerX - halfSize, centerY - halfSize, size, size);
+
+    // For Camp and above, draw inner wall detail
+    if (this.gameState.base.level >= 1) {
+      const inset = 4;
+      graphics.lineStyle(1, strokeColor, 0.4);
+      graphics.strokeRect(
+        centerX - halfSize + inset,
+        centerY - halfSize + inset,
+        size - inset * 2,
+        size - inset * 2
+      );
+    }
+  }
+
+  /** Create the base level and upgrade UI */
+  private createBaseUpgradeUI(): void {
+    const levelData = this.getBaseLevelData();
+    const next = this.getNextBaseLevelData();
+
+    let text = `BASE: ${levelData.name}`;
+    if (next && next.cost) {
+      const costStr = Object.entries(next.cost).map(([r, n]) => `${n} ${r}`).join(', ');
+      text += ` [UPGRADE to ${next.name} -- ${costStr}, ${next.apCost ?? 0} AP]`;
+    } else {
+      text += ' [MAX]';
+    }
+
+    this.baseUpgradeText = this.add.text(GAME_WIDTH / 2, 30, text, {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color: next ? '#4CAF50' : '#6B6B6B',
+    }).setOrigin(0.5).setDepth(100);
+
+    if (next) {
+      this.baseUpgradeText.setInteractive({ useHandCursor: true });
+      this.baseUpgradeText.on('pointerover', () => this.baseUpgradeText.setColor('#FFD700'));
+      this.baseUpgradeText.on('pointerout', () => this.baseUpgradeText.setColor('#4CAF50'));
+      this.baseUpgradeText.on('pointerdown', () => this.upgradeBase());
+    }
+
+    this.addToUI(this.baseUpgradeText);
+  }
+
+  /** Refresh the base upgrade UI text after an upgrade */
+  private updateBaseUpgradeUI(): void {
+    this.baseUpgradeText.destroy();
+    this.createBaseUpgradeUI();
+
+    // Redraw base tent visual
+    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    this.drawBaseTent(this.baseTentGraphics, mapPixelWidth / 2, mapPixelHeight / 2);
+
+    // Refresh build menu to show newly unlocked structures
+    this.refreshBuildMenu();
+  }
+
+  private processDayStart(): void {
+    // Farm production: each farm produces foodPerDay
+    const farmFood = this.getFarmProduction();
+    if (farmFood > 0) {
+      this.gameState.inventory.resources.food += farmFood;
+      this.enforceResourceCaps();
+      this.showInfo(`Farms produced +${farmFood} food`);
+    }
+
+    // Food consumption
+    const foodResult = this.refugeeManager.consumeFood();
+    if (foodResult.missing > 0) {
+      this.showInfo(`Not enough food! ${foodResult.missing} refugees starving.`);
+    }
+
+    // Heal injured refugees on rest
+    const healed = this.refugeeManager.processHealing();
+    if (healed.length > 0) {
+      this.showInfo(healed.join(', '));
+    }
+
+    // Random refugee arrival
+    const newRefugee = this.refugeeManager.tryRandomArrival();
+    if (newRefugee) {
+      this.showInfo(`${newRefugee.name} arrived at camp!`);
+    }
+
+    this.updateResourceDisplay();
+  }
+
+  /** Calculate total food production from farms */
+  private getFarmProduction(): number {
+    let total = 0;
+    for (const structure of this.gameState.base.structures) {
+      if (structure.structureId === 'farm') {
+        const data = this.buildingManager.getStructureData('farm');
+        if (data?.foodPerDay) {
+          total += data.foodPerDay;
+        }
+      }
+    }
+    return total;
+  }
+
+  /** Get current resource cap based on storage structures */
+  private getResourceCap(): number {
+    const storageCount = this.gameState.base.structures.filter(
+      s => s.structureId === 'storage'
+    ).length;
+    return DEFAULT_RESOURCE_CAP + storageCount * STORAGE_CAP_BONUS;
+  }
+
+  /** Enforce resource caps */
+  private enforceResourceCaps(): void {
+    const cap = this.getResourceCap();
+    const res = this.gameState.inventory.resources;
+    const keys: ResourceType[] = ['scrap', 'food', 'ammo', 'parts', 'meds'];
+    for (const key of keys) {
+      if (res[key] > cap) {
+        res[key] = cap;
+      }
+    }
+  }
+
+  /** Get current base level data from base-levels.json */
+  private getBaseLevelData(): typeof baseLevelsJson.baseLevels[number] {
+    const idx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
+    const data = baseLevelsJson.baseLevels[idx];
+    if (!data) throw new Error('No base levels defined');
+    return data;
+  }
+
+  /** Get next base level data, or null if at max */
+  private getNextBaseLevelData(): typeof baseLevelsJson.baseLevels[number] | null {
+    const nextLevel = this.gameState.base.level + 1;
+    return baseLevelsJson.baseLevels[nextLevel] ?? null;
+  }
+
+  /** Attempt to upgrade the base */
+  private upgradeBase(): void {
+    const next = this.getNextBaseLevelData();
+    if (!next || !next.cost) return;
+
+    // Check AP
+    const apCost = next.apCost ?? 0;
+    if (this.currentAP < apCost) {
+      this.showInfo('Not enough AP!');
+      return;
+    }
+
+    // Check resources
+    for (const [resource, amount] of Object.entries(next.cost)) {
+      const have = this.gameState.inventory.resources[resource as ResourceType] ?? 0;
+      if (have < (amount as number)) {
+        this.showInfo('Not enough resources!');
+        return;
+      }
+    }
+
+    // Deduct resources
+    for (const [resource, amount] of Object.entries(next.cost)) {
+      this.gameState.inventory.resources[resource as ResourceType] -= (amount as number);
+    }
+    this.currentAP -= apCost;
+
+    // Level up
+    this.gameState.base.level = next.level;
+
+    this.apBar.update(this.currentAP);
+    this.updateResourceDisplay();
+    this.updateBaseUpgradeUI();
+    this.showInfo(`Base upgraded to ${next.name}!`);
+  }
+
   private endDay(): void {
-    // Sync skill XP back to game state before saving
+    // Process refugee gathering before saving
+    const gathering = this.refugeeManager.processGathering();
+    if (gathering.food > 0 || gathering.scrap > 0 || gathering.repaired > 0) {
+      const parts: string[] = [];
+      if (gathering.food > 0) parts.push(`+${gathering.food} food`);
+      if (gathering.scrap > 0) parts.push(`+${gathering.scrap} scrap`);
+      if (gathering.repaired > 0) parts.push(`${gathering.repaired} HP repaired`);
+      console.log(`Refugee gathering: ${parts.join(', ')}`);
+    }
+
+    // Sync all systems back to game state before saving
+    this.refugeeManager.syncToState();
     this.skillManager.syncToState(this.gameState);
     SaveManager.save(this.gameState);
 

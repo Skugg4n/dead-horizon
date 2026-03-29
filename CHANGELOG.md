@@ -1,5 +1,38 @@
 # Dead Horizon -- Changelog
 
+## [0.4.0] - 2026-03-29
+
+### Added -- Fas 4: Refugees och loot
+- RefugeeManager (src/systems/RefugeeManager.ts) -- tracker refugees med HP, status, jobb-tilldelning
+- Refugees spawnar slumpmassigt (20% chans per dag), 35 unika namn
+- RefugeePanel (src/ui/RefugeePanel.ts) i DayScene for jobb-tilldelning (gather_food/scrap, repair, rest)
+- Refugees samlar resurser under dag: 2 food eller 3 scrap per gatherer, 10 HP reparation
+- Refugees i Pillboxes skjuter under natt (range 150, damage 5, cooldown 1500ms)
+- Refugees kan skadas under natt, injured refugees maste vila + 1 Meds for att hela
+- Food-forbrukning: 1 per refugee + 1 for spelare per dag, svalt skadar 10 HP
+- Max refugees begransat av shelters (2 per shelter, minimum 1)
+- LootManager (src/systems/LootManager.ts) -- loot run-logik med destinations fran loot-tables.json
+- LootRunPanel (src/ui/LootRunPanel.ts) -- valj destination, utrustning, sallskap
+- EncounterDialog (src/ui/EncounterDialog.ts) -- Fight or Flee-val vid encounters
+- Encounter-styrka = vapensskada + companions * 20 vs destination-troskel
+- Win encounter: 1.5x loot, 30% chans att radda ny refugee
+- Lose encounter: forlorar all loot, 40% skadechans per companion
+- Flee: forlorar 1 resurstyp, alla klarar sig
+- 50 XP per loot run for looting skill
+- Bas-nivaer: Tent -> Camp -> Outpost -> Settlement med okande kostnader
+- Varje niva laser upp nya strukturtyper (pillbox, shelter, storage, farm)
+- Shelter: husar 2 refugees per shelter
+- Storage: +50 resurskapacitet per storage (default 100)
+- Farm: producerar food passivt per dag (2 food/farm fran structures.json)
+- Bas-uppgradering UI i DayScene med kostnad och AP
+- Visuell bas som vaxer med niva (storlek och farg)
+- FogOfWar (src/systems/FogOfWar.ts) -- grid-baserad mork overlay i NightScene
+- Avslojad area runt basen (radius okar med bas-niva: 3/5/7/9 block)
+- Zombies osynliga utanfor avslojat omrade men fortfarande aktiva
+- Roda riktningspilar vid dimkanten for dolda zombies i narhet
+- Loot runs avslojar omraden (sparas i GameState.map.explored)
+- 205 vitest-tester (8 filer), alla passerar
+
 ## [0.3.0] - 2026-03-29
 
 ### Added -- Fas 3: Vapen och leveling

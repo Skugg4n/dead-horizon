@@ -44,6 +44,20 @@ export class BuildingManager {
     return Array.from(this.structureDataMap.values());
   }
 
+  /** Get structures available at the current base level */
+  getAvailableStructures(unlockedIds: string[]): StructureData[] {
+    return Array.from(this.structureDataMap.values()).filter(s =>
+      unlockedIds.includes(s.id)
+    );
+  }
+
+  /** Get structures locked at the current base level */
+  getLockedStructures(unlockedIds: string[]): StructureData[] {
+    return Array.from(this.structureDataMap.values()).filter(s =>
+      !unlockedIds.includes(s.id)
+    );
+  }
+
   /** Check if player can afford to build a structure */
   canAfford(structureId: string): boolean {
     const data = this.structureDataMap.get(structureId);

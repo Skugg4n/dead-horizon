@@ -18,4 +18,57 @@ export const STAMINA_REGEN_RATE = 10; // per second while not sprinting
 export const XP_PER_KILL = 10;
 export const XP_PER_BUILD = 25;
 
-export const GAME_VERSION = '0.3.0';
+// Refugee system
+export const REFUGEE_MAX_HP = 50;
+export const REFUGEE_ARRIVAL_CHANCE = 0.2;
+export const REFUGEES_PER_SHELTER = 2;
+export const REFUGEE_FOOD_PER_DAY = 1;
+export const REFUGEE_FOOD_STARVE_DAMAGE = 10;
+export const REFUGEE_HEAL_MEDS_COST = 1;
+export const REFUGEE_GATHER_FOOD_AMOUNT = 2;
+export const REFUGEE_GATHER_SCRAP_AMOUNT = 3;
+export const REFUGEE_REPAIR_AMOUNT = 10;
+export const REFUGEE_PILLBOX_RANGE = 150;
+export const REFUGEE_PILLBOX_DAMAGE = 5;
+export const REFUGEE_PILLBOX_COOLDOWN = 1500;
+
+export const REFUGEE_NAMES: string[] = [
+  'Ash', 'Raven', 'Flint', 'Ember', 'Slate',
+  'Thorn', 'Rust', 'Haze', 'Sable', 'Dusk',
+  'Pike', 'Crane', 'Wren', 'Bolt', 'Forge',
+  'Grit', 'Storm', 'Cinder', 'Drift', 'Vex',
+  'Nyx', 'Koda', 'Jett', 'Shard', 'Blaze',
+  'Reed', 'Moss', 'Lark', 'Sage', 'Knox',
+  'Vera', 'Axel', 'Rook', 'Faye', 'Zane',
+];
+
+export const REFUGEE_SKILL_BONUSES: string[] = [
+  'Good shot',
+  'Fast gatherer',
+  'Mechanic',
+  'Tough',
+  'Medic',
+];
+
+// Base expansion
+export const DEFAULT_RESOURCE_CAP = 100;
+export const STORAGE_CAP_BONUS = 50;
+
+// Fog of War
+export const FOG_BLOCK_SIZE = 128; // 4x4 tiles (32 * 4)
+export const FOG_ALPHA = 0.85;
+export const FOG_INDICATOR_RANGE = 3; // blocks from fog edge to show zombie indicators
+
+// Loot run constants
+export const XP_PER_LOOT_RUN = 50;
+export const COMPANION_STRENGTH = 20;
+export const REFUGEE_INJURY_CHANCE = 0.4;
+export const ENCOUNTER_LOOT_MULTIPLIER = 1.5;
+export const ENCOUNTER_RESCUE_CHANCE = 0.3;
+export const ENCOUNTER_THRESHOLDS: Record<string, number> = {
+  nearby_houses: 50,
+  abandoned_store: 70,
+  military_outpost: 100,
+};
+
+export const GAME_VERSION = '0.4.0';

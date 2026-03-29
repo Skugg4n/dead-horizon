@@ -13,11 +13,14 @@ import { HUD } from '../ui/HUD';
 import { ResourceBar } from '../ui/ResourceBar';
 import { WeaponManager } from '../systems/WeaponManager';
 import { SkillManager } from '../systems/SkillManager';
-import { TILE_SIZE, XP_PER_KILL } from '../config/constants';
+import { TILE_SIZE, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN } from '../config/constants';
+import { RefugeeManager } from '../systems/RefugeeManager';
+import { FogOfWar } from '../systems/FogOfWar';
 import { distanceBetween, angleBetween } from '../utils/math';
-import type { ResourceType, SkillType, WeaponClass } from '../config/types';
+import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance } from '../config/types';
 import zombieLootData from '../data/zombie-loot.json';
 import structuresData from '../data/structures.json';
+import baseLevelsJson from '../data/base-levels.json';
 
 const MAP_WIDTH = 40;  // tiles
 const MAP_HEIGHT = 30; // tiles
@@ -38,9 +41,11 @@ export class NightScene extends Phaser.Scene {
   private weaponManager!: WeaponManager;
   private soundMechanic!: SoundMechanic;
   private skillManager!: SkillManager;
+  private refugeeManager!: RefugeeManager;
   private hud!: HUD;
   // ResourceBar is constructed for its side effects (listens to events, renders UI)
   private shootCooldown: number = 0;
+  private pillboxAssignments: { structure: StructureInstance; refugee: RefugeeInstance; cooldown: number }[] = [];
   private kills: number = 0;
   private loadedAmmo: number = 0;
   private weaponUsedThisNight: Set<string> = new Set();
@@ -49,6 +54,8 @@ export class NightScene extends Phaser.Scene {
   private walls: Wall[] = [];
   private traps: Trap[] = [];
   private wallBodies!: Phaser.Physics.Arcade.StaticGroup;
+  private fogOfWar!: FogOfWar;
+  private fogIndicatorGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -63,6 +70,7 @@ export class NightScene extends Phaser.Scene {
 
     this.createMap();
     this.createStructures();
+    this.createFogOfWar();
     this.createPlayer();
     this.createGroups();
     this.setupWaveManager();
@@ -74,6 +82,8 @@ export class NightScene extends Phaser.Scene {
     this.weaponManager = new WeaponManager(this, this.gameState);
     this.soundMechanic = new SoundMechanic(this, this.zombieGroup);
     this.skillManager = new SkillManager(this, this.gameState);
+    this.refugeeManager = new RefugeeManager(this, this.gameState);
+    this.setupPillboxRefugees();
     this.hud = new HUD(this);
     this.hud.updateAmmo(this.loadedAmmo);
     this.updateWeaponHUD();
@@ -112,6 +122,14 @@ export class NightScene extends Phaser.Scene {
 
     // Check zombie-structure interactions
     this.checkZombieStructureInteractions();
+
+    // Update fog of war and zombie visibility
+    this.fogOfWar.update();
+    this.fogOfWar.updateZombieVisibility(this.zombieGroup, this.fogIndicatorGraphics);
+
+    // Pillbox refugee shooting
+    this.updatePillboxShooting(delta);
+
     // Auto-shoot
     this.shootCooldown = Math.max(0, this.shootCooldown - delta);
     if (this.shootCooldown <= 0) {
@@ -141,17 +159,32 @@ export class NightScene extends Phaser.Scene {
       markings.fillRect(x + 8, roadY - 2, TILE_SIZE - 8, 4);
     }
 
-    // Base tent in center
+    // Base in center -- visual depends on base level
     const centerX = mapPixelWidth / 2;
     const centerY = mapPixelHeight / 2;
+    const baseLevelIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
+    const baseLevelData = baseLevelsJson.baseLevels[baseLevelIdx];
+    if (!baseLevelData) throw new Error('No base levels defined');
+    const baseSize = baseLevelData.visual.size;
+    const halfSize = baseSize / 2;
+    const baseFillColor = parseInt(baseLevelData.visual.color.replace('0x', ''), 16);
+    const baseStrokeColor = parseInt(baseLevelData.visual.strokeColor.replace('0x', ''), 16);
+
     const tent = this.add.graphics();
-    tent.fillStyle(0x6B6B6B);
-    tent.fillRect(centerX - 24, centerY - 24, 48, 48);
-    tent.lineStyle(2, 0xE8DCC8);
-    tent.strokeRect(centerX - 24, centerY - 24, 48, 48);
+    tent.fillStyle(baseFillColor);
+    tent.fillRect(centerX - halfSize, centerY - halfSize, baseSize, baseSize);
+    tent.lineStyle(baseLevelData.visual.strokeWidth, baseStrokeColor);
+    tent.strokeRect(centerX - halfSize, centerY - halfSize, baseSize, baseSize);
+
+    // Inner wall detail for Camp and above
+    if (this.gameState.base.level >= 1) {
+      const inset = 4;
+      tent.lineStyle(1, baseStrokeColor, 0.4);
+      tent.strokeRect(centerX - halfSize + inset, centerY - halfSize + inset, baseSize - inset * 2, baseSize - inset * 2);
+    }
 
     // Label
-    this.add.text(centerX, centerY - 32, 'BASE', {
+    this.add.text(centerX, centerY - halfSize - 8, 'BASE', {
       fontFamily: 'monospace',
       fontSize: '8px',
       color: '#E8DCC8',
@@ -214,6 +247,27 @@ export class NightScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private createFogOfWar(): void {
+    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    const fogLevelIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
+    const fogLevelData = baseLevelsJson.baseLevels[fogLevelIdx];
+    if (!fogLevelData) throw new Error('No base levels defined');
+    const fogRadius = fogLevelData.fogRadius;
+
+    this.fogOfWar = new FogOfWar(
+      this,
+      this.gameState,
+      mapPixelWidth,
+      mapPixelHeight,
+      fogRadius
+    );
+
+    // Graphics for directional indicators at fog boundary
+    this.fogIndicatorGraphics = this.add.graphics();
+    this.fogIndicatorGraphics.setDepth(81);
   }
 
   private createPlayer(): void {
@@ -363,6 +417,8 @@ export class NightScene extends Phaser.Scene {
       this.decreaseUsedWeaponDurability();
       this.skillManager.syncToState(this.gameState);
       this.resourceManager.syncToState(this.gameState);
+      this.refugeeManager.syncToState();
+      this.fogOfWar.syncToState();
       SaveManager.save(this.gameState);
       this.scene.start('ResultScene', { kills: this.kills, wave: 5, survived: true });
     });
@@ -378,6 +434,8 @@ export class NightScene extends Phaser.Scene {
       this.decreaseUsedWeaponDurability();
       this.skillManager.syncToState(this.gameState);
       this.resourceManager.syncToState(this.gameState);
+      this.refugeeManager.syncToState();
+      this.fogOfWar.syncToState();
       SaveManager.save(this.gameState);
 
       this.time.delayedCall(500, () => {
@@ -555,6 +613,9 @@ export class NightScene extends Phaser.Scene {
         }
       }
 
+      // Pillbox interaction: zombies damage refugees in pillboxes
+      this.checkPillboxDamage();
+
       // Trap interaction: damage zombies walking over traps
       for (let i = this.traps.length - 1; i >= 0; i--) {
         const trap = this.traps[i];
@@ -579,6 +640,108 @@ export class NightScene extends Phaser.Scene {
         }
       }
     });
+  }
+
+  // Assign healthy refugees to pillbox structures for night defense
+  private setupPillboxRefugees(): void {
+    this.pillboxAssignments = [];
+    const pillboxes = this.gameState.base.structures.filter(s => s.structureId === 'pillbox');
+    const available = this.refugeeManager.getPillboxRefugees();
+
+    // Assign one refugee per pillbox
+    for (let i = 0; i < pillboxes.length && i < available.length; i++) {
+      const pillbox = pillboxes[i];
+      const refugee = available[i];
+      if (pillbox && refugee) {
+        this.pillboxAssignments.push({
+          structure: pillbox,
+          refugee,
+          cooldown: 0,
+        });
+      }
+    }
+  }
+
+  // Refugees in pillboxes auto-shoot nearby zombies
+  private updatePillboxShooting(delta: number): void {
+    for (const assignment of this.pillboxAssignments) {
+      assignment.cooldown = Math.max(0, assignment.cooldown - delta);
+      if (assignment.cooldown > 0) continue;
+
+      const px = assignment.structure.x + TILE_SIZE / 2;
+      const py = assignment.structure.y + TILE_SIZE / 2;
+
+      // "Good shot" skill bonus gives extra range
+      const range = assignment.refugee.skillBonus === 'Good shot'
+        ? REFUGEE_PILLBOX_RANGE + 50
+        : REFUGEE_PILLBOX_RANGE;
+
+      let nearestZombie: Zombie | null = null;
+      let nearestDist = range;
+
+      this.zombieGroup.getChildren().forEach(child => {
+        const zombie = child as Zombie;
+        if (!zombie.active) return;
+        const dist = distanceBetween(px, py, zombie.x, zombie.y);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestZombie = zombie;
+        }
+      });
+
+      if (nearestZombie) {
+        const zx = (nearestZombie as Zombie).x;
+        const zy = (nearestZombie as Zombie).y;
+        const angle = angleBetween(px, py, zx, zy);
+        const existing = this.projectileGroup.getFirstDead(false) as Projectile | null;
+        if (existing) {
+          existing.fire(px, py, angle, REFUGEE_PILLBOX_DAMAGE);
+        } else {
+          const proj = new Projectile(this, px, py);
+          this.projectileGroup.add(proj);
+          proj.fire(px, py, angle, REFUGEE_PILLBOX_DAMAGE);
+        }
+        assignment.cooldown = REFUGEE_PILLBOX_COOLDOWN;
+      }
+    }
+  }
+
+  // Check if zombies reach pillboxes and damage refugees inside
+  private checkPillboxDamage(): void {
+    for (let i = this.pillboxAssignments.length - 1; i >= 0; i--) {
+      const assignment = this.pillboxAssignments[i];
+      if (!assignment) continue;
+
+      const sx = assignment.structure.x;
+      const sy = assignment.structure.y;
+      let removed = false;
+
+      this.zombieGroup.getChildren().forEach(child => {
+        if (removed) return;
+        const zombie = child as Zombie;
+        if (!zombie.active || !zombie.canAttack()) return;
+
+        if (
+          zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
+          zombie.y >= sy && zombie.y <= sy + TILE_SIZE
+        ) {
+          // Structure takes damage
+          assignment.structure.hp -= zombie.damage;
+          zombie.resetAttackCooldown();
+
+          // Refugee takes proportional damage
+          const proportional = Math.round(zombie.damage * 0.5);
+          this.refugeeManager.damageRefugeeInPillbox(assignment.refugee.id, proportional);
+
+          // Check if refugee died/injured or structure destroyed
+          const updated = this.refugeeManager.getById(assignment.refugee.id);
+          if (!updated || updated.status === 'injured' || assignment.structure.hp <= 0) {
+            this.pillboxAssignments.splice(i, 1);
+            removed = true;
+          }
+        }
+      });
+    }
   }
 
   // Roll loot from zombie-loot.json and add to resources

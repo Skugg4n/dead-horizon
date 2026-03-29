@@ -1,0 +1,59 @@
+{
+  "baseLevels": [
+    {
+      "level": 0,
+      "name": "Tent",
+      "cost": null,
+      "unlockedStructures": ["barricade", "wall", "trap"],
+      "fogRadius": 3,
+      "visual": {
+        "size": 48,
+        "color": "0x7B7B7B",
+        "strokeColor": "0xE8DCC8",
+        "strokeWidth": 2
+      }
+    },
+    {
+      "level": 1,
+      "name": "Camp",
+      "cost": { "scrap": 30, "parts": 5 },
+      "apCost": 3,
+      "unlockedStructures": ["barricade", "wall", "trap", "pillbox", "shelter"],
+      "fogRadius": 5,
+      "visual": {
+        "size": 64,
+        "color": "0x8B6B3A",
+        "strokeColor": "0xE8DCC8",
+        "strokeWidth": 2
+      }
+    },
+    {
+      "level": 2,
+      "name": "Outpost",
+      "cost": { "scrap": 60, "parts": 10 },
+      "apCost": 5,
+      "unlockedStructures": ["barricade", "wall", "trap", "pillbox", "shelter", "storage", "farm"],
+      "fogRadius": 7,
+      "visual": {
+        "size": 80,
+        "color": "0x6B4A2A",
+        "strokeColor": "0xE8DCC8",
+        "strokeWidth": 3
+      }
+    },
+    {
+      "level": 3,
+      "name": "Settlement",
+      "cost": { "scrap": 100, "parts": 20 },
+      "apCost": 5,
+      "unlockedStructures": ["barricade", "wall", "trap", "pillbox", "shelter", "storage", "farm"],
+      "fogRadius": 9,
+      "visual": {
+        "size": 96,
+        "color": "0x9B9B9B",
+        "strokeColor": "0xE8DCC8",
+        "strokeWidth": 4
+      }
+    }
+  ]
+}
