@@ -6,6 +6,9 @@ import { FOG_BLOCK_SIZE } from '../../src/config/constants';
 function createMockGraphics() {
   return {
     setDepth: vi.fn().mockReturnThis(),
+    setVisible: vi.fn().mockReturnThis(),
+    setScrollFactor: vi.fn().mockReturnThis(),
+    setAlpha: vi.fn().mockReturnThis(),
     clear: vi.fn().mockReturnThis(),
     fillStyle: vi.fn().mockReturnThis(),
     fillRect: vi.fn().mockReturnThis(),
@@ -52,8 +55,12 @@ function createTestGameState(): GameState {
     base: { structures: [], level: 0 },
     refugees: [],
     progress: { currentWave: 1, highestWave: 1, totalRuns: 0, totalKills: 0 },
+    zone: 'forest',
+    achievements: [],
+    stats: { structuresPlaced: 0, lootRunsCompleted: 0, itemsCrafted: 0 },
+    zoneProgress: {},
     map: { fogOfWar: [], explored: [] },
-  };
+  } as GameState;
 }
 
 import { FogOfWar } from '../../src/systems/FogOfWar';
