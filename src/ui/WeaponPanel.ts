@@ -249,7 +249,7 @@ export class WeaponPanel {
           new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, 28),
           Phaser.Geom.Rectangle.Contains,
         );
-        bg.input!.cursor = 'pointer';
+        if (bg.input) bg.input.cursor = 'pointer';
         bg.on('pointerover', () => {
           bg.clear();
           bg.fillStyle(0x444444, 0.5);

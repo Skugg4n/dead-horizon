@@ -471,7 +471,7 @@ export class DayScene extends Phaser.Scene {
     const totalGaps = 2; // two null gaps
     const GAP_WIDTH = 16;
     const totalWidth = totalButtons * BUTTON_SIZE + (totalButtons - 1 - totalGaps) * 8 + totalGaps * GAP_WIDTH;
-    let startX = Math.floor((GAME_WIDTH - totalWidth) / 2);
+    const startX = Math.floor((GAME_WIDTH - totalWidth) / 2);
 
     // Shared tooltip text (reused, only one visible at a time)
     const tooltip = this.add.text(0, 0, '', {

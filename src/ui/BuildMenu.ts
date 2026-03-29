@@ -81,7 +81,7 @@ export class BuildMenu {
           new Phaser.Geom.Rectangle(-4, y - 2, CONTENT_WIDTH + 8, ENTRY_HEIGHT),
           Phaser.Geom.Rectangle.Contains,
         );
-        bg.input!.cursor = 'pointer';
+        if (bg.input) bg.input.cursor = 'pointer';
         bg.on('pointerover', () => {
           bg.clear();
           bg.fillStyle(HOVER_BG, 0.5);
