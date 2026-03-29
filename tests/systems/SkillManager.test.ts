@@ -212,9 +212,9 @@ describe('SkillManager', () => {
   });
 
   describe('getAllSkills', () => {
-    it('returns all 6 skills', () => {
+    it('returns all 10 skills', () => {
       const skills = manager.getAllSkills();
-      expect(skills).toHaveLength(6);
+      expect(skills).toHaveLength(10);
     });
 
     it('includes xp and level for each skill', () => {

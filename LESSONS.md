@@ -37,3 +37,7 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Dubbla event-emits vid wave-completion
 **Problem:** WaveManager.onEnemyKilled() emittar bade wave-complete och all-waves-complete for sista waven. Om wave-complete-handlern ocksa startar nasta wave emittas all-waves-complete igen fran startWave().
 **Losning:** Kontrollera wave-nummer i wave-complete-handlern och starta inte nasta wave om det var sista.
+
+### ResourceBar.setText kraschar efter scenovergang
+**Problem:** ResourceBar lyssnar pa resource-changed events. Nar scenen forstors (t.ex. vid overgang fran NightScene till DayScene) forstors Text-objektens WebGL-texturer, men event-lyssnaren lever kvar. Nasta resource-changed-emit orsakar "Cannot read properties of null (reading 'glTexture')".
+**Losning:** Lagg till `!text.active`-check i updateResource() innan setText() anropas.

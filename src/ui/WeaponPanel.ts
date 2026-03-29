@@ -74,7 +74,7 @@ export class WeaponPanel {
 
     // Title
     const title = this.scene.add.text(PANEL_WIDTH / 2, 6, 'WEAPONS', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '11px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
@@ -82,7 +82,7 @@ export class WeaponPanel {
 
     if (weapons.length === 0) {
       const noWeapons = this.scene.add.text(PANEL_WIDTH / 2, 40, 'No weapons', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#6B6B6B',
       }).setOrigin(0.5, 0);
@@ -110,7 +110,7 @@ export class WeaponPanel {
 
     // Name + class + rarity
     const nameText = this.scene.add.text(8, y, `${prefix}${stats.name} [${weapon.rarity}]`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: nameColor,
     });
@@ -120,7 +120,7 @@ export class WeaponPanel {
     const brokenTag = isBroken ? ' BROKEN' : '';
     const statsLine = `DMG:${stats.damage} RNG:${stats.range} Dur:${weapon.durability}/${weapon.maxDurability}${brokenTag}`;
     const statsText = this.scene.add.text(8, y + 13, statsLine, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: isBroken ? '#F44336' : '#AAAAAA',
     });
@@ -131,7 +131,7 @@ export class WeaponPanel {
       ? `Lv${weapon.level} MAX`
       : `Lv${weapon.level} XP:${weapon.xp}/${xpNeeded}`;
     const lvlText = this.scene.add.text(8, y + 25, lvlLine, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#AAAAAA',
     });
@@ -141,7 +141,7 @@ export class WeaponPanel {
     if (weapon.upgrades.length > 0) {
       const upgradeStr = weapon.upgrades.join(', ');
       const upgText = this.scene.add.text(8, y + 37, `Mods: ${upgradeStr}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: '#7B9FCF',
       });
@@ -153,7 +153,7 @@ export class WeaponPanel {
       const canRepair = this.currentAP() >= 1 && this.gameState.inventory.resources.parts >= 1;
       const repairColor = canRepair ? '#4CAF50' : '#6B6B6B';
       const repairBtn = this.scene.add.text(PANEL_WIDTH - 70, y, '[REPAIR]', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: repairColor,
       });
@@ -176,7 +176,7 @@ export class WeaponPanel {
     const availableUpgrades = this.getAvailableUpgrades(weapon);
     if (availableUpgrades.length > 0) {
       const upgradeBtn = this.scene.add.text(PANEL_WIDTH - 70, y + 13, '[UPGRADE]', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: '#4A90D9',
       }).setInteractive({ useHandCursor: true });
@@ -210,7 +210,7 @@ export class WeaponPanel {
     this.container.add(bg);
 
     const title = this.scene.add.text(PANEL_WIDTH / 2, 6, `Upgrade ${WeaponManager.getWeaponData(weapon.weaponId)?.name ?? weapon.weaponId}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
@@ -225,7 +225,7 @@ export class WeaponPanel {
       const color = canAfford ? '#E8DCC8' : '#6B6B6B';
 
       const entry = this.scene.add.text(8, y, `${upgradeData.name} (${upgradeData.partsCost}P) - ${upgradeData.description}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color,
       });
@@ -245,7 +245,7 @@ export class WeaponPanel {
 
     // Back button
     const backBtn = this.scene.add.text(8, totalHeight - 16, '[ BACK ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#D4620B',
     }).setInteractive({ useHandCursor: true });

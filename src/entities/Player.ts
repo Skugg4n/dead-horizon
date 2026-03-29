@@ -24,6 +24,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     D: Phaser.Input.Keyboard.Key;
   } | undefined;
   private shiftKey: Phaser.Input.Keyboard.Key | undefined;
+  // Walk bobbing animation state
+  private bobTimer: number = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'player');
@@ -79,6 +81,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.setVelocity(vx * speed, vy * speed);
+
+    // Walk bobbing animation
+    const isMoving = vx !== 0 || vy !== 0;
+    if (isMoving) {
+      this.bobTimer += dt * (isSprinting ? 14 : 10);
+      const bobOffset = Math.sin(this.bobTimer) * 1.5;
+      this.setOrigin(0.5, 0.5 - bobOffset / 32);
+    } else {
+      this.bobTimer = 0;
+      this.setOrigin(0.5, 0.5);
+    }
 
     // Stamina
     if (isSprinting && (vx !== 0 || vy !== 0)) {

@@ -25,7 +25,7 @@ export class ActionPointBar {
     this.container.setScrollFactor(0);
 
     this.label = scene.add.text(BAR_X, BAR_Y, '', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: TEXT_COLOR,
     });

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../systems/SaveManager';
+import { AchievementManager } from '../systems/AchievementManager';
 import { GAME_VERSION } from '../config/constants';
 import type { CharacterType, CharacterData, SkillType } from '../config/types';
 import { SkillManager } from '../systems/SkillManager';
@@ -12,6 +13,7 @@ export class MenuScene extends Phaser.Scene {
   private characterCards: Phaser.GameObjects.Container[] = [];
   private characterSelectContainer!: Phaser.GameObjects.Container;
   private mainMenuContainer!: Phaser.GameObjects.Container;
+  private achievementContainer: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -35,15 +37,15 @@ export class MenuScene extends Phaser.Scene {
 
     // Title
     const title = this.add.text(centerX, centerY - 80, 'DEAD HORIZON', {
-      fontFamily: 'monospace',
-      fontSize: '36px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '14px',
       color: '#E8DCC8',
     }).setOrigin(0.5);
     this.mainMenuContainer.add(title);
 
     // Subtitle
     const subtitle = this.add.text(centerX, centerY - 40, 'Survive. Build. Die. Repeat.', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '14px',
       color: '#6B6B6B',
     }).setOrigin(0.5);
@@ -53,7 +55,7 @@ export class MenuScene extends Phaser.Scene {
     if (SaveManager.hasSave()) {
       const state = SaveManager.load();
       const progressText = this.add.text(centerX, centerY - 5, `Runs: ${state.progress.totalRuns} -- Total kills: ${state.progress.totalKills}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color: '#C5A030',
       }).setOrigin(0.5);
@@ -61,8 +63,8 @@ export class MenuScene extends Phaser.Scene {
 
       // Continue button (loads existing save)
       const continueText = this.add.text(centerX, centerY + 30, '[ CONTINUE ]', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '14px',
         color: '#D4620B',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
@@ -73,7 +75,7 @@ export class MenuScene extends Phaser.Scene {
 
       // New Game button (clears save, shows character select)
       const newGameText = this.add.text(centerX, centerY + 65, '[ NEW GAME ]', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '14px',
         color: '#6B6B6B',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -88,8 +90,8 @@ export class MenuScene extends Phaser.Scene {
     } else {
       // No save -- show Start Game that goes to character select
       const startText = this.add.text(centerX, centerY + 30, '[ START GAME ]', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '14px',
         color: '#D4620B',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
@@ -99,13 +101,99 @@ export class MenuScene extends Phaser.Scene {
       this.mainMenuContainer.add(startText);
     }
 
+    // Achievements button
+    const achieveBtn = this.add.text(centerX, centerY + 95, '[ ACHIEVEMENTS ]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '11px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    achieveBtn.on('pointerover', () => achieveBtn.setColor('#C5A030'));
+    achieveBtn.on('pointerout', () => achieveBtn.setColor('#6B6B6B'));
+    achieveBtn.on('pointerdown', () => this.toggleAchievementPanel());
+    this.mainMenuContainer.add(achieveBtn);
+
     // Version
     const versionText = this.add.text(centerX, centerY + 120, `v${GAME_VERSION}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#3A3A3A',
     }).setOrigin(0.5);
     this.mainMenuContainer.add(versionText);
+  }
+
+  private toggleAchievementPanel(): void {
+    if (this.achievementContainer) {
+      this.achievementContainer.destroy();
+      this.achievementContainer = null;
+      return;
+    }
+
+    const centerX = this.cameras.main.centerX;
+    const centerY = this.cameras.main.centerY;
+    const panelWidth = 350;
+    const panelHeight = 400;
+
+    this.achievementContainer = this.add.container(centerX - panelWidth / 2, centerY - panelHeight / 2);
+    this.achievementContainer.setDepth(150);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1A1A2E, 0.95);
+    bg.fillRect(0, 0, panelWidth, panelHeight);
+    bg.lineStyle(1, 0xC5A030);
+    bg.strokeRect(0, 0, panelWidth, panelHeight);
+    this.achievementContainer.add(bg);
+
+    const title = this.add.text(panelWidth / 2, 12, 'ACHIEVEMENTS', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '12px',
+      color: '#C5A030',
+    }).setOrigin(0.5, 0);
+    this.achievementContainer.add(title);
+
+    const closeBtn = this.add.text(panelWidth - 10, 8, 'X', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '12px',
+      color: '#F44336',
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this.toggleAchievementPanel());
+    this.achievementContainer.add(closeBtn);
+
+    // Load achievement data
+    if (SaveManager.hasSave()) {
+      const state = SaveManager.load();
+      const mgr = new AchievementManager(this, state);
+      const all = mgr.getAllWithStatus();
+      let yPos = 38;
+
+      for (const entry of all) {
+        const icon = entry.unlocked ? '[*]' : '[ ]';
+        const color = entry.unlocked ? '#4CAF50' : '#6B6B6B';
+
+        const text = this.add.text(14, yPos, `${icon} ${entry.data.name}`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '10px',
+          color: color,
+        });
+        this.achievementContainer.add(text);
+
+        const desc = this.add.text(40, yPos + 14, entry.data.description, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#888888',
+        });
+        this.achievementContainer.add(desc);
+
+        yPos += 34;
+      }
+    } else {
+      const noSave = this.add.text(panelWidth / 2, 60, 'Start a game to track achievements', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#6B6B6B',
+      }).setOrigin(0.5, 0);
+      this.achievementContainer.add(noSave);
+    }
   }
 
   private createCharacterSelect(): void {
@@ -115,7 +203,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Title
     const title = this.add.text(centerX, 30, 'CHOOSE YOUR SURVIVOR', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '18px',
       color: '#E8DCC8',
     }).setOrigin(0.5);
@@ -136,8 +224,8 @@ export class MenuScene extends Phaser.Scene {
 
     // Start button
     const startBtn = this.add.text(centerX, 520, '[ BEGIN ]', {
-      fontFamily: 'monospace',
-      fontSize: '22px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '14px',
       color: '#D4620B',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
@@ -148,7 +236,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Back button
     const backBtn = this.add.text(centerX, 560, '[ BACK ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#6B6B6B',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -179,7 +267,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Name
     const name = this.add.text(width / 2, 16, char.name, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: isSelected ? '#C5A030' : '#E8DCC8',
     }).setOrigin(0.5, 0);
@@ -193,15 +281,15 @@ export class MenuScene extends Phaser.Scene {
       medic: '[M]',
     };
     const icon = this.add.text(width / 2, 50, iconMap[char.id] ?? '[?]', {
-      fontFamily: 'monospace',
-      fontSize: '28px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '20px',
       color: isSelected ? '#C5A030' : '#6B6B6B',
     }).setOrigin(0.5, 0);
     card.add(icon);
 
     // Description
     const desc = this.add.text(width / 2, 100, char.description, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#6B6B6B',
       wordWrap: { width: width - 16 },
@@ -212,7 +300,7 @@ export class MenuScene extends Phaser.Scene {
     // Skill bonuses
     let bonusY = 160;
     const bonusTitle = this.add.text(width / 2, bonusY, 'Starting Skills:', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#888888',
     }).setOrigin(0.5, 0);
@@ -222,7 +310,7 @@ export class MenuScene extends Phaser.Scene {
     for (const [skillId, level] of Object.entries(char.skillBonuses)) {
       if (level > 0) {
         const skillLabel = this.add.text(width / 2, bonusY, `${skillId}: Lv ${level}`, {
-          fontFamily: 'monospace',
+          fontFamily: '"Press Start 2P", monospace',
           fontSize: '9px',
           color: '#4CAF50',
         }).setOrigin(0.5, 0);
@@ -234,7 +322,7 @@ export class MenuScene extends Phaser.Scene {
     // If no bonuses, show "None"
     if (!Object.values(char.skillBonuses).some(v => v > 0)) {
       const noneLabel = this.add.text(width / 2, bonusY, '(none)', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: '#6B6B6B',
       }).setOrigin(0.5, 0);

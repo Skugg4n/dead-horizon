@@ -65,7 +65,7 @@ export class RefugeePanel {
 
     // Title
     const title = this.scene.add.text(PANEL_WIDTH / 2, PANEL_PADDING, 'REFUGEES', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '13px',
       color: '#E8DCC8',
     }).setOrigin(0.5, 0);
@@ -74,7 +74,7 @@ export class RefugeePanel {
     // Info line
     const infoStr = `${refugees.length}/${maxRefugees} refugees  |  Food needed: ${foodNeeded}/day`;
     const info = this.scene.add.text(PANEL_WIDTH / 2, PANEL_PADDING + 16, infoStr, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#AAAAAA',
     }).setOrigin(0.5, 0);
@@ -82,7 +82,7 @@ export class RefugeePanel {
 
     if (refugees.length === 0) {
       const empty = this.scene.add.text(PANEL_WIDTH / 2, headerHeight + 8, 'No refugees yet', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#6B6B6B',
       }).setOrigin(0.5, 0);
@@ -100,14 +100,14 @@ export class RefugeePanel {
       const jobStr = refugee.job ? JOB_LABELS[refugee.job] : 'Idle';
 
       const nameLine = this.scene.add.text(PANEL_PADDING, y, `${refugee.name}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#E8DCC8',
       });
       this.container.add(nameLine);
 
       const statsLine = this.scene.add.text(PANEL_PADDING, y + 13, `${hpStr}  [${refugee.status}]  Job: ${jobStr}  Skill: ${refugee.skillBonus}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: statusColor,
       });
@@ -123,7 +123,7 @@ export class RefugeePanel {
         const color = isCurrentJob ? '#FFD700' : (canAssign ? '#E8DCC8' : '#444444');
 
         const btn = this.scene.add.text(btnX, btnY, `[${JOB_LABELS[job]}]`, {
-          fontFamily: 'monospace',
+          fontFamily: '"Press Start 2P", monospace',
           fontSize: '9px',
           color,
         });

@@ -1,0 +1,36 @@
+{
+  "zones": [
+    {
+      "id": "forest",
+      "name": "Forest",
+      "description": "Dense woodland surrounding the base. Standard enemies.",
+      "waveFile": "waves",
+      "lootMultiplier": 1.0,
+      "unlockCondition": null
+    },
+    {
+      "id": "city",
+      "name": "City",
+      "description": "Urban ruins with more runners and spitters. Better loot.",
+      "waveFile": "waves-city",
+      "lootMultiplier": 1.5,
+      "unlockCondition": {
+        "type": "wave_cleared",
+        "zone": "forest",
+        "wave": 5
+      }
+    },
+    {
+      "id": "military",
+      "name": "Military Base",
+      "description": "Fortified compound. Brutes and a boss. Best loot.",
+      "waveFile": "waves-military",
+      "lootMultiplier": 2.0,
+      "unlockCondition": {
+        "type": "wave_cleared",
+        "zone": "city",
+        "wave": 5
+      }
+    }
+  ]
+}

@@ -51,7 +51,7 @@ export class SkillPanel {
 
     // Title
     const title = this.scene.add.text(PANEL_WIDTH / 2, PANEL_PADDING, 'SKILLS', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '13px',
       color: '#E8DCC8',
     }).setOrigin(0.5, 0);
@@ -63,7 +63,7 @@ export class SkillPanel {
 
       // Skill name and level
       const label = this.scene.add.text(PANEL_PADDING, y, `${entry.data.name}  Lv ${entry.level}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#E8DCC8',
       });
@@ -101,7 +101,7 @@ export class SkillPanel {
         ? 'MAX'
         : `${entry.xp - currentLevelXP} / ${nextLevelXP - currentLevelXP}`;
       const xpLabel = this.scene.add.text(PANEL_PADDING + BAR_WIDTH + 6, barY - 1, xpText, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: '#6B6B6B',
       });

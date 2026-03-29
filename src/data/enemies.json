@@ -38,6 +38,51 @@
       "tint": 4473924,
       "scale": 1.5,
       "structureDamage": 5
+    },
+    {
+      "id": "spitter",
+      "name": "Spitter",
+      "hp": 40,
+      "speed": 30,
+      "damage": 8,
+      "awarenessRadius": 300,
+      "spriteKey": "walker",
+      "behavior": "spitter",
+      "tint": 4521796,
+      "scale": 0.9,
+      "structureDamage": 0,
+      "range": 250,
+      "projectileCooldown": 3000
+    },
+    {
+      "id": "screamer",
+      "name": "Screamer",
+      "hp": 25,
+      "speed": 50,
+      "damage": 5,
+      "awarenessRadius": 200,
+      "spriteKey": "walker",
+      "behavior": "screamer",
+      "tint": 11174143,
+      "scale": 1.0,
+      "structureDamage": 0,
+      "screamRadius": 500,
+      "screamCooldown": 5000
+    },
+    {
+      "id": "brute_boss",
+      "name": "Brute Boss",
+      "hp": 500,
+      "speed": 20,
+      "damage": 50,
+      "awarenessRadius": 300,
+      "spriteKey": "brute",
+      "behavior": "boss",
+      "tint": 16719394,
+      "scale": 2.0,
+      "structureDamage": 10,
+      "spawnOnDeath": "brute",
+      "spawnCount": 3
     }
   ]
 }

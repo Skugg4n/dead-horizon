@@ -45,40 +45,40 @@ export class HUD {
 
     // Wave text
     this.waveText = scene.add.text(GAME_WIDTH / 2, 16, 'Wave 1/5', {
-      fontFamily: 'monospace',
-      fontSize: '16px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '12px',
       color: '#E8DCC8',
     }).setOrigin(0.5, 0);
     this.container.add(this.waveText);
 
     // Ammo counter
     this.ammoText = scene.add.text(GAME_WIDTH - 16, 16, 'Ammo: 0', {
-      fontFamily: 'monospace',
-      fontSize: '14px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#FFD700',
     }).setOrigin(1, 0);
     this.container.add(this.ammoText);
 
     // Weapon name
-    this.weaponText = scene.add.text(GAME_WIDTH - 16, 34, '', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
+    this.weaponText = scene.add.text(GAME_WIDTH - 16, 32, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
       color: '#E8DCC8',
     }).setOrigin(1, 0);
     this.container.add(this.weaponText);
 
     // Kill counter
-    this.killText = scene.add.text(GAME_WIDTH - 16, 50, 'Kills: 0', {
-      fontFamily: 'monospace',
-      fontSize: '14px',
+    this.killText = scene.add.text(GAME_WIDTH - 16, 44, 'Kills: 0', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#E8DCC8',
     }).setOrigin(1, 0);
     this.container.add(this.killText);
 
     // Wave announcement (centered, hidden by default)
     this.waveAnnouncementText = scene.add.text(GAME_WIDTH / 2, 200, '', {
-      fontFamily: 'monospace',
-      fontSize: '28px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '20px',
       color: '#D4620B',
     }).setOrigin(0.5).setAlpha(0);
     this.container.add(this.waveAnnouncementText);

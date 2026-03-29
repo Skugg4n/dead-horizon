@@ -58,7 +58,7 @@ export class BuildMenu {
       const color = available ? FONT_COLOR : DISABLED_COLOR;
 
       const entry = this.scene.add.text(8, y, `${s.name} (${s.apCost} AP)\n  ${costStr}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color,
       });

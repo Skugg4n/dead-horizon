@@ -12,7 +12,14 @@ import { LootManager } from '../systems/LootManager';
 import { TILE_SIZE, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS } from '../config/constants';
 import { SkillManager } from '../systems/SkillManager';
 import { SkillPanel } from '../ui/SkillPanel';
+import { ZoneManager } from '../systems/ZoneManager';
+import { CraftingManager } from '../systems/CraftingManager';
+import { CraftingPanel } from '../ui/CraftingPanel';
+import { AchievementManager } from '../systems/AchievementManager';
 import type { GameState, StructureInstance, ResourceType } from '../config/types';
+import { EventManager } from '../systems/EventManager';
+import { EventDialog } from '../ui/EventDialog';
+import type { EventChoice } from '../ui/EventDialog';
 import structuresJson from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 
@@ -41,6 +48,12 @@ export class DayScene extends Phaser.Scene {
   private refugeePanel!: RefugeePanel;
   private lootManager!: LootManager;
   private lootRunPanel!: LootRunPanel;
+  private zoneManager!: ZoneManager;
+  private craftingManager!: CraftingManager;
+  private craftingPanel!: CraftingPanel;
+  private achievementManager!: AchievementManager;
+  private eventManager!: EventManager;
+  private eventDialog!: EventDialog;
   private apBar!: ActionPointBar;
   private currentAP!: number;
   private mapContainer!: Phaser.GameObjects.Container;
@@ -146,6 +159,29 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(this.lootRunPanel.getContainer());
     this.addToUI(this.lootRunPanel.getEncounterContainer());
 
+    // Zone system
+    this.zoneManager = new ZoneManager(this, this.gameState);
+
+    // Crafting system
+    this.craftingManager = new CraftingManager(
+      this,
+      this.gameState,
+      () => this.currentAP,
+      (cost: number) => {
+        this.currentAP -= cost;
+        this.apBar.update(this.currentAP);
+      },
+    );
+    this.craftingPanel = new CraftingPanel(this, this.craftingManager, () => this.updateResourceDisplay());
+    this.addToUI(this.craftingPanel.getContainer());
+
+    // Achievement system
+    this.achievementManager = new AchievementManager(this, this.gameState);
+
+    // Create crafting and zone buttons
+    this.createCraftButton();
+    this.createZoneSelector();
+
     // Listen for looting XP awards
     this.events.on('award-looting-xp', (xp: number) => {
       this.skillManager.addXP('looting', xp);
@@ -159,8 +195,21 @@ export class DayScene extends Phaser.Scene {
       }
     });
 
-    // Day-start processing: food consumption, healing, random arrival
+    // Track loot run completions for achievements
+    this.events.on('loot-run-complete', () => {
+      this.gameState.stats.lootRunsCompleted++;
+    });
+
+    // Event system
+    this.eventManager = new EventManager(this, this.gameState);
+    this.eventDialog = new EventDialog(this);
+    this.addToUI(this.eventDialog.getContainer());
+
+    // Day-start processing: food consumption, healing, random arrival, leadership XP
     this.processDayStart();
+
+    // Roll for random event at day start
+    this.checkRandomEvent();
 
     this.setupInput();
 
@@ -226,7 +275,7 @@ export class DayScene extends Phaser.Scene {
 
     const baseLevelData = this.getBaseLevelData();
     this.add.text(centerX, centerY - (baseLevelData.visual.size / 2) - 8, 'BASE', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#E8DCC8',
     }).setOrigin(0.5);
@@ -259,7 +308,7 @@ export class DayScene extends Phaser.Scene {
         structure.x + TILE_SIZE / 2,
         structure.y + TILE_SIZE / 2,
         `${structure.level}`,
-        { fontFamily: 'monospace', fontSize: '10px', color: '#FFFFFF' }
+        { fontFamily: '"Press Start 2P", monospace', fontSize: '10px', color: '#FFFFFF' }
       ).setOrigin(0.5);
       lvlText.setDepth(5);
       this.addToWorld(lvlText);
@@ -288,7 +337,7 @@ export class DayScene extends Phaser.Scene {
 
     // Day indicator (UI element)
     const dayText = this.add.text(GAME_WIDTH / 2, 16, `DAY ${this.gameState.progress.currentWave}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
     }).setOrigin(0.5).setDepth(100);
@@ -314,7 +363,7 @@ export class DayScene extends Phaser.Scene {
     const cap = this.getResourceCap();
     const text = `Scrap: ${res.scrap}/${cap}  Food: ${res.food}/${cap}  Ammo: ${res.ammo}/${cap}  Parts: ${res.parts}/${cap}  Meds: ${res.meds}/${cap}`;
     this.resourceText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 16, text, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
     }).setOrigin(0.5).setDepth(100);
@@ -331,8 +380,8 @@ export class DayScene extends Phaser.Scene {
 
   private createEndDayButton(): void {
     const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 40, '[ END DAY ]', {
-      fontFamily: 'monospace',
-      fontSize: '16px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#D4620B',
     }).setOrigin(1, 1).setDepth(100).setInteractive({ useHandCursor: true });
 
@@ -344,8 +393,8 @@ export class DayScene extends Phaser.Scene {
 
   private createBuildButton(): void {
     const btn = this.add.text(16, GAME_HEIGHT - 40, '[ BUILD ]', {
-      fontFamily: 'monospace',
-      fontSize: '16px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#4CAF50',
     }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
 
@@ -357,8 +406,8 @@ export class DayScene extends Phaser.Scene {
 
   private createLoadAmmoButton(): void {
     const btn = this.add.text(130, GAME_HEIGHT - 40, '[ LOAD AMMO ]', {
-      fontFamily: 'monospace',
-      fontSize: '16px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#4A90D9',
     }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
 
@@ -384,8 +433,8 @@ export class DayScene extends Phaser.Scene {
 
   private createWeaponsButton(): void {
     const btn = this.add.text(290, GAME_HEIGHT - 40, '[ WEAPONS ]', {
-      fontFamily: 'monospace',
-      fontSize: '16px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#C5A030',
     }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
 
@@ -397,7 +446,7 @@ export class DayScene extends Phaser.Scene {
 
   private createSkillButton(): void {
     const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 40, '[ SKILLS ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#C5A030',
     }).setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
@@ -410,8 +459,8 @@ export class DayScene extends Phaser.Scene {
 
   private createRefugeesButton(): void {
     const btn = this.add.text(430, GAME_HEIGHT - 40, '[ REFUGEES ]', {
-      fontFamily: 'monospace',
-      fontSize: '16px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#8B6FC0',
     }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
 
@@ -423,8 +472,8 @@ export class DayScene extends Phaser.Scene {
 
   private createLootRunButton(): void {
     const btn = this.add.text(570, GAME_HEIGHT - 40, '[ LOOT RUN ]', {
-      fontFamily: 'monospace',
-      fontSize: '16px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
       color: '#D4A030',
     }).setOrigin(0, 1).setDepth(100).setInteractive({ useHandCursor: true });
 
@@ -432,6 +481,60 @@ export class DayScene extends Phaser.Scene {
     btn.on('pointerout', () => btn.setColor('#D4A030'));
     btn.on('pointerdown', () => this.lootRunPanel.toggle());
     this.addToUI(btn);
+  }
+
+  private createCraftButton(): void {
+    const btn = this.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 58, '[ CRAFT ]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '12px',
+      color: '#D4A030',
+    }).setOrigin(1, 0).setDepth(100).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#FFD700'));
+    btn.on('pointerout', () => btn.setColor('#D4A030'));
+    btn.on('pointerdown', () => this.craftingPanel.toggle());
+    this.addToUI(btn);
+  }
+
+  private createZoneSelector(): void {
+    const zones = this.zoneManager.getAllZones();
+    const current = this.zoneManager.getCurrentZone();
+    let yPos = 68;
+
+    for (const zone of zones) {
+      const unlocked = this.zoneManager.isUnlocked(zone.id);
+      const isCurrent = zone.id === current.id;
+      const color = isCurrent ? '#C5A030' : (unlocked ? '#E8DCC8' : '#4A4A4A');
+      const prefix = isCurrent ? '> ' : '  ';
+
+      const text = this.add.text(GAME_WIDTH - 16, yPos, `${prefix}${zone.name}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: color,
+      }).setOrigin(1, 0).setDepth(100);
+
+      if (unlocked && !isCurrent) {
+        text.setInteractive({ useHandCursor: true });
+        text.on('pointerover', () => text.setColor('#FFD700'));
+        text.on('pointerout', () => text.setColor('#E8DCC8'));
+        text.on('pointerdown', () => {
+          this.zoneManager.setZone(zone.id);
+          SaveManager.save(this.gameState);
+          this.showInfo(`Zone changed to ${zone.name}`);
+          this.scene.restart();
+        });
+      }
+
+      this.addToUI(text);
+      yPos += 14;
+    }
+
+    const label = this.add.text(GAME_WIDTH - 16, 56, 'ZONE:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#6B6B6B',
+    }).setOrigin(1, 0).setDepth(100);
+    this.addToUI(label);
   }
 
   private createBuildMenu(): void {
@@ -465,7 +568,7 @@ export class DayScene extends Phaser.Scene {
       const color = available ? '#E8DCC8' : '#6B6B6B';
 
       const entry = this.add.text(8, y, `${s.name} (${s.apCost} AP)\n  ${costStr}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color: color,
       });
@@ -491,7 +594,7 @@ export class DayScene extends Phaser.Scene {
       const requiredName = requiredLevel?.name ?? '???';
 
       const entry = this.add.text(8, y, `${s.name} [Requires ${requiredName}]`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color: '#4A4A4A',
       });
@@ -514,7 +617,7 @@ export class DayScene extends Phaser.Scene {
 
   private createInfoText(): void {
     this.infoText = this.add.text(GAME_WIDTH / 2, 50, '', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#C5A030',
     }).setOrigin(0.5).setDepth(100);
@@ -640,6 +743,9 @@ export class DayScene extends Phaser.Scene {
       // Award building XP
       this.skillManager.addXP('building', XP_PER_BUILD);
 
+      // Track for achievements
+      this.gameState.stats.structuresPlaced++;
+
       const data = this.buildingManager.getStructureData(structureId);
       this.showInfo(`${data?.name ?? 'Structure'} placed!`);
       this.cancelPlacement();
@@ -681,7 +787,7 @@ export class DayScene extends Phaser.Scene {
 
     // Structure info
     const info = this.add.text(8, 6, `${data.name} Lv${instance.level}\nHP: ${instance.hp}/${instance.maxHp}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
     });
@@ -694,7 +800,7 @@ export class DayScene extends Phaser.Scene {
       const upgradeColor = canUpgrade ? '#4CAF50' : '#6B6B6B';
 
       const upgradeBtn = this.add.text(8, 48, '[ UPGRADE ]', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color: upgradeColor,
       });
@@ -720,7 +826,7 @@ export class DayScene extends Phaser.Scene {
 
     // Sell button
     const sellBtn = this.add.text(8, 68, '[ SELL ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '11px',
       color: '#F44336',
     }).setInteractive({ useHandCursor: true });
@@ -788,7 +894,7 @@ export class DayScene extends Phaser.Scene {
     }
 
     this.baseUpgradeText = this.add.text(GAME_WIDTH / 2, 30, text, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: next ? '#4CAF50' : '#6B6B6B',
     }).setOrigin(0.5).setDepth(100);
@@ -826,7 +932,13 @@ export class DayScene extends Phaser.Scene {
       this.showInfo(`Farms produced +${farmFood} food`);
     }
 
-    // Food consumption
+    // Leadership XP: 10 XP per refugee per day
+    const refugeeCount = this.refugeeManager.getAll().length;
+    if (refugeeCount > 0) {
+      this.skillManager.addXP('leadership', refugeeCount * 10);
+    }
+
+    // Food consumption (survival skill reduces consumption)
     const foodResult = this.refugeeManager.consumeFood();
     if (foodResult.missing > 0) {
       this.showInfo(`Not enough food! ${foodResult.missing} refugees starving.`);
@@ -844,7 +956,32 @@ export class DayScene extends Phaser.Scene {
       this.showInfo(`${newRefugee.name} arrived at camp!`);
     }
 
+    // Check achievements
+    this.achievementManager.checkAll();
+
     this.updateResourceDisplay();
+  }
+
+  /** Roll for a random event and show dialog if one triggers */
+  private checkRandomEvent(): void {
+    const event = this.eventManager.rollEvent();
+    if (!event) return;
+
+    this.eventDialog.show(event, (choice: EventChoice) => {
+      const result = this.eventManager.applyChoice(event, choice);
+      this.showInfo(result);
+      this.updateResourceDisplay();
+    });
+  }
+
+  /** Get horde multiplier from today's event (if any) */
+  getHordeMultiplier(): number {
+    return this.eventManager.getHordeMultiplier();
+  }
+
+  /** Get fog penalty from today's event (if any) */
+  getFogPenalty(): number {
+    return this.eventManager.getFogPenalty();
   }
 
   /** Calculate total food production from farms */
@@ -942,6 +1079,18 @@ export class DayScene extends Phaser.Scene {
       console.log(`Refugee gathering: ${parts.join(', ')}`);
     }
 
+    // Apply leadership gathering efficiency bonus
+    const gatherBonus = this.skillManager.getBonus('leadership', 'gatherEfficiency');
+    if (gatherBonus > 0 && (gathering.food > 0 || gathering.scrap > 0)) {
+      const bonusFood = Math.floor(gathering.food * gatherBonus);
+      const bonusScrap = Math.floor(gathering.scrap * gatherBonus);
+      this.gameState.inventory.resources.food += bonusFood;
+      this.gameState.inventory.resources.scrap += bonusScrap;
+    }
+
+    // Check achievements before saving
+    this.achievementManager.checkAll();
+
     // Sync all systems back to game state before saving
     this.refugeeManager.syncToState();
     this.skillManager.syncToState(this.gameState);
@@ -950,7 +1099,10 @@ export class DayScene extends Phaser.Scene {
     // Fade out to night
     this.cameras.main.fadeOut(800, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('NightScene');
+      this.scene.start('NightScene', {
+        hordeMultiplier: this.eventManager.getHordeMultiplier(),
+        fogPenalty: this.eventManager.getFogPenalty(),
+      });
     });
   }
 }

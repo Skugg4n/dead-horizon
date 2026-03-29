@@ -45,7 +45,7 @@ export class ResourceBar {
         10,
         `${config.icon} ${config.label}: ${value}`,
         {
-          fontFamily: 'monospace',
+          fontFamily: '"Press Start 2P", monospace',
           fontSize: '11px',
           color: '#E8DCC8',
         }
@@ -62,7 +62,7 @@ export class ResourceBar {
 
   private updateResource(type: ResourceType, total: number): void {
     const text = this.texts.get(type);
-    if (!text) return;
+    if (!text || !text.active) return;
     const config = RESOURCE_CONFIG[type];
     text.setText(`${config.icon} ${config.label}: ${total}`);
   }

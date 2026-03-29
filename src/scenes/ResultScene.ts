@@ -18,20 +18,20 @@ export class ResultScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#1A1A2E');
 
     this.add.text(centerX, centerY - 60, 'ALL WAVES SURVIVED!', {
-      fontFamily: 'monospace',
-      fontSize: '24px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '16px',
       color: '#4CAF50',
     }).setOrigin(0.5);
 
     this.add.text(centerX, centerY, `Kills: ${data.kills ?? 0}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '16px',
       color: '#E8DCC8',
     }).setOrigin(0.5);
 
     const continueText = this.add.text(centerX, centerY + 60, '[ CONTINUE ]', {
-      fontFamily: 'monospace',
-      fontSize: '20px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '14px',
       color: '#D4620B',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 

@@ -41,6 +41,34 @@
       "maxLevel": 10,
       "xpPerLevel": [80, 200, 400, 650, 1000, 1400, 1900, 2500, 3200, 4200],
       "effectPerLevel": { "costReduction": 0.05, "structureHp": 0.05 }
+    },
+    {
+      "id": "speed_agility",
+      "name": "Speed & Agility",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "movementSpeed": 0.03 }
+    },
+    {
+      "id": "leadership",
+      "name": "Leadership",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "gatherEfficiency": 0.05 }
+    },
+    {
+      "id": "survival",
+      "name": "Survival",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "foodEfficiency": 0.05, "hpRegen": 1 }
+    },
+    {
+      "id": "stealth",
+      "name": "Stealth",
+      "maxLevel": 10,
+      "xpPerLevel": [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000],
+      "effectPerLevel": { "noiseReduction": 0.05 }
     }
   ]
 }

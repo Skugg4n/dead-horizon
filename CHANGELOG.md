@@ -1,5 +1,41 @@
 # Dead Horizon -- Changelog
 
+## [1.0.0] - 2026-03-29
+
+### Added -- Fas 5: Polish och balans
+- Programmatiska pixel art sprites for spelare, zombies, strukturer via spriteFactory.ts
+- Spelar-walkanimation (bobbing), zombie-dodsanimation (shrink+fade+rotation), attack-puls
+- Partikeleffekter: muzzle flash, blodsplatter, fallsparkar (Phaser particle emitter)
+- Nattljus: mork overlay med radial gradient runt spelare och pillboxes
+- Skarmeffekter: rod flash vid skada, guld flash vid wave complete
+- "Press Start 2P" pixel-font fran Google Fonts pa all text
+- Tutorial-overlay for nya spelare (forsvinner efter 6s)
+- Ombalanserade waves: W1 latt intro, W5 nastan omojlig utan forberedelse
+- Sprint stamina drain okad till 25/s for mer strategisk sprint
+- Zombie loot: scrap 40% (fran 50%), 5% parts-chans tillagd
+- FPS-counter i dev mode (top-right)
+- Zombie pathfinding-throttle: off-screen zombies uppdaterar 500ms istallet for varje frame
+- Vite type declarations (src/vite-env.d.ts)
+
+### Added -- Fas 6: Post-MVP Features
+- EventManager med 9 random events: traders, moraliska val, vader (regn/storm), supply caches, horde warnings
+- EventDialog modal for event-val med konsekvenser
+- Spitter-zombie: ranged attack, gronn tint, skjuter projektil var 3s
+- Screamer-zombie: lila pulsande, skriker vid skada, attraherar alla zombies inom 500px
+- Brute Boss: 2x skala, rod glod, 500 HP, spawnar 3 brutes vid dod
+- 4 nya skills: speed_agility, leadership, survival, stealth
+- ZoneManager: 3 zoner (Forest, City, Military Base) med unika waves
+- Zon-specifika wave-filer (waves-city.json, waves-military.json)
+- CraftingManager: 5 recept (weapon repair kit, rations, ammo pack, reinforced wall, medkit)
+- CraftingPanel i DayScene for crafting med AP-kostnad
+- AchievementManager: 10 achievements (First Blood, Wave Survivor, Builder, etc)
+- Achievement-popup och panel i MenuScene
+- Stats-tracking i GameState (structuresPlaced, lootRunsCompleted, itemsCrafted)
+- 283 vitest-tester (12 filer), alla passerar
+
+### Fixed
+- ResourceBar.setText crash efter scene-transition (null glTexture guard)
+
 ## [0.4.0] - 2026-03-29
 
 ### Added -- Fas 4: Refugees och loot

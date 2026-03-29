@@ -12,7 +12,40 @@ export type RefugeeJob = 'gather_food' | 'gather_scrap' | 'loot_run' | 'repair' 
 
 export type CharacterType = 'scavenger' | 'engineer' | 'soldier' | 'medic';
 
-export type SkillType = 'combat_melee' | 'combat_pistol' | 'combat_rifle' | 'combat_shotgun' | 'looting' | 'building';
+export type SkillType = 'combat_melee' | 'combat_pistol' | 'combat_rifle' | 'combat_shotgun' | 'looting' | 'building' | 'speed_agility' | 'leadership' | 'survival' | 'stealth';
+
+export type ZoneId = 'forest' | 'city' | 'military';
+
+export interface ZoneData {
+  id: ZoneId;
+  name: string;
+  description: string;
+  waveFile: string;
+  lootMultiplier: number;
+  unlockCondition: {
+    type: 'wave_cleared';
+    zone: ZoneId;
+    wave: number;
+  } | null;
+}
+
+export interface RecipeData {
+  id: string;
+  name: string;
+  ingredients: Partial<Record<ResourceType, number>>;
+  result: { type: string; amount: number };
+  apCost: number;
+}
+
+export interface AchievementData {
+  id: string;
+  name: string;
+  description: string;
+  condition: {
+    type: string;
+    target: number;
+  };
+}
 
 export type WeaponUpgradeType = 'damage_boost' | 'suppressor' | 'extended_mag' | 'scope' | 'reinforcement';
 
@@ -110,6 +143,14 @@ export interface GameState {
     totalRuns: number;
     totalKills: number;
   };
+  zone: ZoneId;
+  achievements: string[];
+  stats: {
+    structuresPlaced: number;
+    lootRunsCompleted: number;
+    itemsCrafted: number;
+  };
+  zoneProgress: Partial<Record<ZoneId, { highestWaveCleared: number }>>;
   map: {
     fogOfWar: boolean[][];
     explored: string[];

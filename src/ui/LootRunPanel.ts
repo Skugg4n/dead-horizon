@@ -108,7 +108,7 @@ export class LootRunPanel {
 
     // Title
     const title = this.scene.add.text(PANEL_WIDTH / 2, 8, 'LOOT RUNS', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '13px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
@@ -116,7 +116,7 @@ export class LootRunPanel {
 
     // Close button
     const closeBtn = this.scene.add.text(PANEL_WIDTH - 12, 8, 'X', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#F44336',
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
@@ -131,14 +131,14 @@ export class LootRunPanel {
 
       // Destination name and cost
       const nameText = this.scene.add.text(12, y, `${dest.name}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color,
       });
       this.container.add(nameText);
 
       const apText = this.scene.add.text(PANEL_WIDTH - 12, y, `${dest.apCost} AP`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color: hasAP ? '#4CAF50' : '#F44336',
       }).setOrigin(1, 0);
@@ -148,7 +148,7 @@ export class LootRunPanel {
       const encounterPct = Math.round(dest.encounterChance * 100);
       const lootNames = dest.loot.map(l => l.resource).join(', ');
       const detailText = this.scene.add.text(12, y + 16, `Encounter: ${encounterPct}%  |  Loot: ${lootNames}`, {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: '#6B6B6B',
       });
@@ -157,7 +157,7 @@ export class LootRunPanel {
       // Select button
       if (hasAP) {
         const selectBtn = this.scene.add.text(12, y + 32, '[ SELECT ]', {
-          fontFamily: 'monospace',
+          fontFamily: '"Press Start 2P", monospace',
           fontSize: '10px',
           color: '#4A90D9',
         }).setInteractive({ useHandCursor: true });
@@ -197,7 +197,7 @@ export class LootRunPanel {
 
     // Title
     const title = this.scene.add.text(PANEL_WIDTH / 2, 8, `PREPARE: ${this.selectedDestination.name}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '11px',
       color: '#FFD700',
     }).setOrigin(0.5, 0);
@@ -205,7 +205,7 @@ export class LootRunPanel {
 
     // Back button
     const backBtn = this.scene.add.text(12, 8, '< BACK', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#D4620B',
     }).setInteractive({ useHandCursor: true });
@@ -219,7 +219,7 @@ export class LootRunPanel {
 
     // Weapons section
     const weaponLabel = this.scene.add.text(12, yOffset, 'Weapons to bring:', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#C5A030',
     });
@@ -228,7 +228,7 @@ export class LootRunPanel {
 
     if (weapons.length === 0) {
       const noWeapons = this.scene.add.text(20, yOffset, '(no weapons)', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: '#6B6B6B',
       });
@@ -241,7 +241,7 @@ export class LootRunPanel {
         const color = isSelected ? '#4CAF50' : '#E8DCC8';
 
         const entry = this.scene.add.text(20, yOffset, `${marker} ${weapon.weaponId} (DMG: ${this.getWeaponDisplayDamage(weapon)})`, {
-          fontFamily: 'monospace',
+          fontFamily: '"Press Start 2P", monospace',
           fontSize: '9px',
           color,
         }).setInteractive({ useHandCursor: true });
@@ -263,7 +263,7 @@ export class LootRunPanel {
     // Companions section
     yOffset += 6;
     const companionLabel = this.scene.add.text(12, yOffset, 'Companions:', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#C5A030',
     });
@@ -272,7 +272,7 @@ export class LootRunPanel {
 
     if (healthyRefugees.length === 0) {
       const noRefugees = this.scene.add.text(20, yOffset, '(no healthy refugees available)', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: '#6B6B6B',
       });
@@ -285,7 +285,7 @@ export class LootRunPanel {
         const color = isSelected ? '#4CAF50' : '#E8DCC8';
 
         const entry = this.scene.add.text(20, yOffset, `${marker} ${refugee.name} (${refugee.skillBonus})`, {
-          fontFamily: 'monospace',
+          fontFamily: '"Press Start 2P", monospace',
           fontSize: '9px',
           color,
         }).setInteractive({ useHandCursor: true });
@@ -308,7 +308,7 @@ export class LootRunPanel {
     yOffset += 8;
     const strength = this.lootManager.calculateStrength(this.selectedWeapons, this.selectedCompanions.length);
     const strengthText = this.scene.add.text(12, yOffset, `Combat strength: ${strength}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
     });
@@ -317,7 +317,7 @@ export class LootRunPanel {
 
     // GO button
     const goBtn = this.scene.add.text(PANEL_WIDTH / 2, yOffset, '[ GO ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '16px',
       color: '#4CAF50',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
@@ -428,7 +428,7 @@ export class LootRunPanel {
 
     // Title
     const title = this.scene.add.text(PANEL_WIDTH / 2, 8, 'LOOT RUN COMPLETE', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '13px',
       color: '#4CAF50',
     }).setOrigin(0.5, 0);
@@ -436,7 +436,7 @@ export class LootRunPanel {
 
     // Destination
     const destText = this.scene.add.text(12, 30, `Location: ${result.destination.name}`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
     });
@@ -446,7 +446,7 @@ export class LootRunPanel {
     let yOffset = 48;
     if (lootEntries.length === 0) {
       const noLoot = this.scene.add.text(12, yOffset, 'No loot gained.', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#F44336',
       });
@@ -454,7 +454,7 @@ export class LootRunPanel {
       yOffset += 18;
     } else {
       const lootLabel = this.scene.add.text(12, yOffset, 'Loot gained:', {
-        fontFamily: 'monospace',
+        fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color: '#C5A030',
       });
@@ -464,7 +464,7 @@ export class LootRunPanel {
       for (const [resource, amount] of lootEntries) {
         if (amount > 0) {
           const lootLine = this.scene.add.text(20, yOffset, `+${amount} ${resource}`, {
-            fontFamily: 'monospace',
+            fontFamily: '"Press Start 2P", monospace',
             fontSize: '10px',
             color: '#4CAF50',
           });
@@ -477,7 +477,7 @@ export class LootRunPanel {
     // Close button
     yOffset += 8;
     const closeBtn = this.scene.add.text(PANEL_WIDTH / 2, yOffset, '[ CLOSE ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '14px',
       color: '#E8DCC8',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });

@@ -1,0 +1,91 @@
+{
+  "events": [
+    {
+      "id": "trader_ammo",
+      "name": "Wandering Trader",
+      "description": "A lone trader approaches your camp, offering ammunition in exchange for scrap.",
+      "type": "trader",
+      "choices": [
+        { "text": "Buy 5 Ammo (10 Scrap)", "effect": { "scrap": -10, "ammo": 5 } },
+        { "text": "Decline", "effect": {} }
+      ]
+    },
+    {
+      "id": "trader_food",
+      "name": "Wandering Trader",
+      "description": "A trader passes through with surplus food. Interested in scrap.",
+      "type": "trader",
+      "choices": [
+        { "text": "Buy 8 Food (12 Scrap)", "effect": { "scrap": -12, "food": 8 } },
+        { "text": "Sell 3 Food (8 Scrap)", "effect": { "food": -3, "scrap": 8 } },
+        { "text": "Decline", "effect": {} }
+      ]
+    },
+    {
+      "id": "trader_meds",
+      "name": "Wandering Trader",
+      "description": "A medic-turned-trader offers medical supplies.",
+      "type": "trader",
+      "choices": [
+        { "text": "Buy 3 Meds (15 Scrap)", "effect": { "scrap": -15, "meds": 3 } },
+        { "text": "Decline", "effect": {} }
+      ]
+    },
+    {
+      "id": "moral_refugee",
+      "name": "Desperate Refugee",
+      "description": "A refugee wants to leave with some food. They look desperate and afraid.",
+      "type": "moral",
+      "choices": [
+        { "text": "Let them go (lose 1 refugee + 3 food)", "effect": { "food": -3, "lose_refugee": true } },
+        { "text": "Force them to stay", "effect": {} }
+      ]
+    },
+    {
+      "id": "weather_rain",
+      "name": "Heavy Rain",
+      "description": "Dark clouds gather. Heavy rain is expected tonight, reducing visibility.",
+      "type": "weather_rain",
+      "choices": [
+        { "text": "Hunker down", "effect": { "fog_penalty": 2 } }
+      ]
+    },
+    {
+      "id": "weather_storm",
+      "name": "Violent Storm",
+      "description": "A violent storm sweeps through the area, damaging all structures.",
+      "type": "weather_storm",
+      "choices": [
+        { "text": "Brace for impact", "effect": { "structure_damage": 10 } }
+      ]
+    },
+    {
+      "id": "supply_cache_small",
+      "name": "Supply Cache Found",
+      "description": "Scouts found a hidden supply cache near the base!",
+      "type": "supply_cache",
+      "choices": [
+        { "text": "Collect supplies", "effect": { "random_resource_min": 5, "random_resource_max": 8 } }
+      ]
+    },
+    {
+      "id": "supply_cache_large",
+      "name": "Abandoned Stash",
+      "description": "An abandoned stash of supplies was discovered in a nearby building.",
+      "type": "supply_cache",
+      "choices": [
+        { "text": "Loot it", "effect": { "random_resource_min": 7, "random_resource_max": 10 } }
+      ]
+    },
+    {
+      "id": "horde_warning",
+      "name": "Horde Warning",
+      "description": "Scouts report a massive horde approaching. Tonight will be worse than usual.",
+      "type": "horde_warning",
+      "choices": [
+        { "text": "Prepare defenses", "effect": { "horde_multiplier": 1.25 } }
+      ]
+    }
+  ],
+  "eventChance": 0.3
+}

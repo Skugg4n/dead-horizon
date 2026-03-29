@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Zombie } from '../entities/Zombie';
 import type { ZombieConfig } from '../entities/Zombie';
 import enemiesData from '../data/enemies.json';
-import wavesData from '../data/waves.json';
+import defaultWavesData from '../data/waves.json';
 
 interface WaveEnemyDef {
   type: string;
@@ -13,6 +13,10 @@ interface WaveEnemyDef {
 interface WaveDef {
   wave: number;
   enemies: WaveEnemyDef[];
+}
+
+export interface WaveDataSource {
+  waves: WaveDef[];
 }
 
 export class WaveManager {
@@ -26,10 +30,17 @@ export class WaveManager {
   private waveActive: boolean = false;
   private spawnZones: { x: number; y: number }[] = [];
   private target: Phaser.GameObjects.Sprite | null = null;
+  private wavesData: WaveDataSource;
+  private hordeMultiplier: number = 1.0;
 
-  constructor(scene: Phaser.Scene, zombieGroup: Phaser.Physics.Arcade.Group) {
+  constructor(scene: Phaser.Scene, zombieGroup: Phaser.Physics.Arcade.Group, wavesData?: WaveDataSource) {
     this.scene = scene;
     this.zombieGroup = zombieGroup;
+    this.wavesData = wavesData ?? defaultWavesData;
+  }
+
+  setHordeMultiplier(multiplier: number): void {
+    this.hordeMultiplier = multiplier;
   }
 
   setTarget(target: Phaser.GameObjects.Sprite): void {
@@ -53,15 +64,17 @@ export class WaveManager {
     this.waveActive = true;
     this.enemiesSpawned = 0;
 
-    const waveDef = (wavesData.waves as WaveDef[]).find(w => w.wave === waveNumber);
+    const waveDef = (this.wavesData.waves as WaveDef[]).find(w => w.wave === waveNumber);
     if (!waveDef) {
       // No more waves defined -- victory
       this.scene.events.emit('all-waves-complete');
       return;
     }
 
-    // Count total enemies
-    this.totalEnemiesInWave = waveDef.enemies.reduce((sum, e) => sum + e.count, 0);
+    // Count total enemies (apply horde multiplier)
+    this.totalEnemiesInWave = waveDef.enemies.reduce((sum, e) => {
+      return sum + Math.round(e.count * this.hordeMultiplier);
+    }, 0);
     this.enemiesRemaining = this.totalEnemiesInWave;
 
     this.scene.events.emit('wave-started', waveNumber);
@@ -71,7 +84,8 @@ export class WaveManager {
       const enemyData = enemiesData.enemies.find(e => e.id === enemyDef.type);
       if (!enemyData) continue;
 
-      for (let i = 0; i < enemyDef.count; i++) {
+      const adjustedCount = Math.round(enemyDef.count * this.hordeMultiplier);
+      for (let i = 0; i < adjustedCount; i++) {
         const timer = this.scene.time.delayedCall(
           enemyDef.spawnDelay * (i + 1),
           () => this.spawnEnemy(enemyData as ZombieConfig),
@@ -79,6 +93,12 @@ export class WaveManager {
         this.spawnTimers.push(timer);
       }
     }
+  }
+
+  /** Add an extra enemy to the wave tracking (e.g. from screamer spawns) */
+  addExtraEnemy(): void {
+    this.enemiesRemaining++;
+    this.totalEnemiesInWave++;
   }
 
   onEnemyKilled(): void {

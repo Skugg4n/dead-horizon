@@ -241,34 +241,34 @@ Mål: Spelet känns bra, balansen fungerar, inga stora buggar.
 
 ### 5A: Visuell polish
 
-- [ ] 5A.1 Riktiga pixel art sprites (ersätt placeholders)
-- [ ] 5A.2 Animationer (walk, attack, death)
-- [ ] 5A.3 Partiklar (blod, explosion, muzzle flash)
-- [ ] 5A.4 Dag/natt-ljussättning
-- [ ] 5A.5 Skärmeffekter (damage flash, wave complete)
+- [x] 5A.1 Riktiga pixel art sprites (ersatt placeholders)
+- [x] 5A.2 Animationer (walk, attack, death)
+- [x] 5A.3 Partiklar (blod, explosion, muzzle flash)
+- [x] 5A.4 Dag/natt-ljussattning
+- [x] 5A.5 Skarmeffekter (damage flash, wave complete)
 
 ### 5B: UI-polish
 
-- [ ] 5B.1 Polished menyer med pixel-font
-- [ ] 5B.2 Tooltips och hjälptext
-- [ ] 5B.3 Tutorial/onboarding för nya spelare
-- [ ] 5B.4 Responsiv layout (olika skärmstorlekar)
+- [x] 5B.1 Polished menyer med pixel-font
+- [x] 5B.2 Tooltips och hjalptext
+- [x] 5B.3 Tutorial/onboarding for nya spelare
+- [x] 5B.4 Responsiv layout (olika skarmstorlekar)
 
 ### 5C: Balansering
 
-- [ ] 5C.1 Speltest av wave-svårighet
-- [ ] 5C.2 Resursekonomi-balansering
-- [ ] 5C.3 Vapenbalansering
-- [ ] 5C.4 Encounter-svårighet
+- [x] 5C.1 Speltest av wave-svarighet
+- [x] 5C.2 Resursekonomi-balansering
+- [x] 5C.3 Vapenbalansering
+- [x] 5C.4 Encounter-svarighet
 
 ### 5D: Performance
 
-- [ ] 5D.1 Object pooling implementerat
-- [ ] 5D.2 Performance-test med 100+ fiender
-- [ ] 5D.3 Optimera pathfinding
-- [ ] 5D.4 Load time under 3 sekunder
+- [x] 5D.1 Object pooling implementerat
+- [x] 5D.2 Performance-test med 100+ fiender
+- [x] 5D.3 Optimera pathfinding
+- [x] 5D.4 Load time under 3 sekunder
 
-### 5E: Ljud (om tid finns)
+### 5E: Ljud (skippat -- inga ljud-assets)
 
 - [ ] 5E.1 Skottljud per vapenklass
 - [ ] 5E.2 Zombie-ljud (groan, attack)
@@ -284,34 +284,34 @@ Mål: Spelet känns bra, balansen fungerar, inga stora buggar.
 Dessa features implementeras baserat på feedback och prioritet:
 
 ### 6A: Random Events
-- Traders som dyker upp mellan waves
-- Moraliska val (refugees som vill lämna, stöld av mat)
-- Väder (regn som minskar sikt, storm som skadar strukturer)
+- [x] Traders som dyker upp mellan waves
+- [x] Moraliska val (refugees som vill lamna, stold av mat)
+- [x] Vader (regn som minskar sikt, storm som skadar strukturer)
 
 ### 6B: Fler fiendetyper
-- Spitter (ranged)
-- Screamer (drar fler zombies)
-- Boss-varianter per wave 5
+- [x] Spitter (ranged)
+- [x] Screamer (drar fler zombies)
+- [x] Boss-varianter per wave 5
 
 ### 6C: Fler skills
-- Speed/Agility
-- Leadership
-- Survival
-- Stealth
+- [x] Speed/Agility
+- [x] Leadership
+- [x] Survival
+- [x] Stealth
 
 ### 6D: Expansion
-- Nya zoner med unika fiender
-- Zon-karta ("overworld")
-- Nya resurser per zon
+- [x] Nya zoner med unika fiender
+- [x] Zon-karta ("overworld")
+- [ ] Nya resurser per zon (framtida)
 
 ### 6E: Crafting
-- Kombinera resurser till nya items
-- Crafting-stationer i basen
+- [x] Kombinera resurser till nya items
+- [x] Crafting-stationer i basen
 
 ### 6F: Community
-- Leaderboards
-- Shared bases/screenshots
-- Achievements
+- [ ] Leaderboards (framtida)
+- [ ] Shared bases/screenshots (framtida)
+- [x] Achievements
 
 ---
 

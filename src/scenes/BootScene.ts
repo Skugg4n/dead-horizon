@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_VERSION } from '../config/constants';
+import { generateAllTextures } from '../utils/spriteFactory';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -7,8 +8,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Create placeholder graphics programmatically
-    this.createPlaceholderAssets();
+    // Generate all programmatic textures
+    generateAllTextures(this);
   }
 
   create(): void {
@@ -18,8 +19,8 @@ export class BootScene extends Phaser.Scene {
       this.cameras.main.centerY - 40,
       'DEAD HORIZON',
       {
-        fontFamily: 'monospace',
-        fontSize: '32px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '24px',
         color: '#E8DCC8',
       }
     ).setOrigin(0.5);
@@ -29,8 +30,8 @@ export class BootScene extends Phaser.Scene {
       this.cameras.main.centerY + 10,
       `v${GAME_VERSION} -- Loading...`,
       {
-        fontFamily: 'monospace',
-        fontSize: '14px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '10px',
         color: '#6B6B6B',
       }
     ).setOrigin(0.5);
@@ -39,30 +40,5 @@ export class BootScene extends Phaser.Scene {
     this.time.delayedCall(1500, () => {
       this.scene.start('MenuScene');
     });
-  }
-
-  private createPlaceholderAssets(): void {
-    // Player placeholder (green square)
-    const playerGraphics = this.make.graphics({ x: 0, y: 0 });
-    playerGraphics.fillStyle(0x4CAF50);
-    playerGraphics.fillRect(0, 0, 32, 32);
-    playerGraphics.lineStyle(2, 0x2D4A22);
-    playerGraphics.strokeRect(0, 0, 32, 32);
-    playerGraphics.generateTexture('player', 32, 32);
-    playerGraphics.destroy();
-
-    // Walker placeholder (dark red square)
-    const walkerGraphics = this.make.graphics({ x: 0, y: 0 });
-    walkerGraphics.fillStyle(0x8B0000);
-    walkerGraphics.fillRect(0, 0, 32, 32);
-    walkerGraphics.generateTexture('walker', 32, 32);
-    walkerGraphics.destroy();
-
-    // Bullet placeholder (yellow dot)
-    const bulletGraphics = this.make.graphics({ x: 0, y: 0 });
-    bulletGraphics.fillStyle(0xC5A030);
-    bulletGraphics.fillCircle(4, 4, 4);
-    bulletGraphics.generateTexture('bullet', 8, 8);
-    bulletGraphics.destroy();
   }
 }

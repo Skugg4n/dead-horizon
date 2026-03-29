@@ -48,7 +48,7 @@ export class EncounterDialog {
 
     // Title
     const title = this.scene.add.text(DIALOG_WIDTH / 2, 14, 'ENCOUNTER!', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '14px',
       color: '#D4620B',
     }).setOrigin(0.5, 0);
@@ -56,7 +56,7 @@ export class EncounterDialog {
 
     // Description
     const desc = this.scene.add.text(DIALOG_WIDTH / 2, 40, 'You encounter hostile survivors.\nThey block your path and demand your loot.', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
       align: 'center',
@@ -68,7 +68,7 @@ export class EncounterDialog {
     const chanceColor = strength >= threshold ? '#4CAF50' : '#F44336';
     const chanceText = strength >= threshold ? 'GOOD ODDS' : 'RISKY';
     const strengthInfo = this.scene.add.text(DIALOG_WIDTH / 2, 82, `Your strength: ${strength} vs ${threshold}  [${chanceText}]`, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: chanceColor,
     }).setOrigin(0.5, 0);
@@ -76,7 +76,7 @@ export class EncounterDialog {
 
     // Fight button
     const fightBtn = this.scene.add.text(DIALOG_WIDTH / 2 - 70, 120, '[ FIGHT ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '16px',
       color: '#D4620B',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
@@ -87,7 +87,7 @@ export class EncounterDialog {
 
     // Flee button
     const fleeBtn = this.scene.add.text(DIALOG_WIDTH / 2 + 70, 120, '[ FLEE ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '16px',
       color: '#4A90D9',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
@@ -98,7 +98,7 @@ export class EncounterDialog {
 
     // Hint
     const hint = this.scene.add.text(DIALOG_WIDTH / 2, DIALOG_HEIGHT - 16, 'Fight: win = 1.5x loot, lose = all loot lost. Flee: lose 1 resource type.', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#6B6B6B',
     }).setOrigin(0.5, 1);
@@ -134,7 +134,7 @@ export class EncounterDialog {
     const titleMap = { win: 'VICTORY!', lose: 'DEFEATED...', flee: 'ESCAPED!' };
     const titleColorMap = { win: '#4CAF50', lose: '#F44336', flee: '#4A90D9' };
     const title = this.scene.add.text(DIALOG_WIDTH / 2, 14, titleMap[outcome], {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '14px',
       color: titleColorMap[outcome],
     }).setOrigin(0.5, 0);
@@ -142,7 +142,7 @@ export class EncounterDialog {
 
     // Details
     const desc = this.scene.add.text(DIALOG_WIDTH / 2, 46, details, {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
       align: 'center',
@@ -152,7 +152,7 @@ export class EncounterDialog {
 
     // OK button
     const okBtn = this.scene.add.text(DIALOG_WIDTH / 2, DIALOG_HEIGHT - 30, '[ OK ]', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '16px',
       color: '#E8DCC8',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });

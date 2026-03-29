@@ -1,4 +1,4 @@
-import type { GameState, CharacterType, SkillType, ResourceType } from '../config/types';
+import type { GameState, CharacterType, SkillType, ResourceType, ZoneId } from '../config/types';
 import { GAME_VERSION, PLAYER_MAX_HP } from '../config/constants';
 
 const SAVE_KEY = 'dead-horizon-save';
@@ -15,6 +15,10 @@ function createDefaultState(): GameState {
         combat_shotgun: 0,
         looting: 0,
         building: 0,
+        speed_agility: 0,
+        leadership: 0,
+        survival: 0,
+        stealth: 0,
       } as Record<SkillType, number>,
       hp: PLAYER_MAX_HP,
       maxHp: PLAYER_MAX_HP,
@@ -62,6 +66,14 @@ function createDefaultState(): GameState {
       totalRuns: 0,
       totalKills: 0,
     },
+    zone: 'forest' as ZoneId,
+    achievements: [],
+    stats: {
+      structuresPlaced: 0,
+      lootRunsCompleted: 0,
+      itemsCrafted: 0,
+    },
+    zoneProgress: {},
     map: {
       fogOfWar: [],
       explored: [],

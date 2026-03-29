@@ -13,14 +13,18 @@ import { HUD } from '../ui/HUD';
 import { ResourceBar } from '../ui/ResourceBar';
 import { WeaponManager } from '../systems/WeaponManager';
 import { SkillManager } from '../systems/SkillManager';
+import { ZoneManager } from '../systems/ZoneManager';
+import { AchievementManager } from '../systems/AchievementManager';
 import { TILE_SIZE, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN } from '../config/constants';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
 import { distanceBetween, angleBetween } from '../utils/math';
 import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance } from '../config/types';
+import type { ZombieConfig } from '../entities/Zombie';
 import zombieLootData from '../data/zombie-loot.json';
 import structuresData from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
+import enemiesData from '../data/enemies.json';
 
 const MAP_WIDTH = 40;  // tiles
 const MAP_HEIGHT = 30; // tiles
@@ -41,6 +45,8 @@ export class NightScene extends Phaser.Scene {
   private weaponManager!: WeaponManager;
   private soundMechanic!: SoundMechanic;
   private skillManager!: SkillManager;
+  private zoneManager!: ZoneManager;
+  private achievementManager!: AchievementManager;
   private refugeeManager!: RefugeeManager;
   private hud!: HUD;
   // ResourceBar is constructed for its side effects (listens to events, renders UI)
@@ -56,17 +62,39 @@ export class NightScene extends Phaser.Scene {
   private wallBodies!: Phaser.Physics.Arcade.StaticGroup;
   private fogOfWar!: FogOfWar;
   private fogIndicatorGraphics!: Phaser.GameObjects.Graphics;
+  private fpsText: Phaser.GameObjects.Text | null = null;
+  // Visual effects
+  private lightingOverlay!: Phaser.GameObjects.Graphics;
+  private damageOverlay!: Phaser.GameObjects.Graphics;
+  private muzzleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private bloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private trapEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private isFirstGame: boolean = false;
+  // Movement tracking for speed_agility XP
+  private lastPlayerX: number = 0;
+  private lastPlayerY: number = 0;
+  private movementAccumulator: number = 0;
+  private playerTookDamage: boolean = false;
+  private meleeKillsThisNight: number = 0;
+  // Spitter projectile pool (enemy projectiles that damage the player)
+  private spitterProjectileGroup!: Phaser.Physics.Arcade.Group;
+  // Event effects from day phase
+  private fogPenalty: number = 0;
 
   constructor() {
     super({ key: 'NightScene' });
   }
 
-  create(): void {
+  create(data?: { hordeMultiplier?: number; fogPenalty?: number }): void {
     this.gameState = SaveManager.load();
     this.kills = 0;
     this.shootCooldown = 0;
     this.loadedAmmo = this.gameState.inventory.loadedAmmo;
     this.weaponUsedThisNight = new Set();
+    this.fogPenalty = data?.fogPenalty ?? 0;
+    this.playerTookDamage = false;
+    this.meleeKillsThisNight = 0;
+    this.movementAccumulator = 0;
 
     this.createMap();
     this.createStructures();
@@ -74,6 +102,10 @@ export class NightScene extends Phaser.Scene {
     this.createPlayer();
     this.createGroups();
     this.setupWaveManager();
+    // Apply horde multiplier from day events
+    if (data?.hordeMultiplier && data.hordeMultiplier > 1.0) {
+      this.waveManager.setHordeMultiplier(data.hordeMultiplier);
+    }
     this.setupCollisions();
     this.setupCamera();
     this.setupEvents();
@@ -82,6 +114,8 @@ export class NightScene extends Phaser.Scene {
     this.weaponManager = new WeaponManager(this, this.gameState);
     this.soundMechanic = new SoundMechanic(this, this.zombieGroup);
     this.skillManager = new SkillManager(this, this.gameState);
+    this.zoneManager = new ZoneManager(this, this.gameState);
+    this.achievementManager = new AchievementManager(this, this.gameState);
     this.refugeeManager = new RefugeeManager(this, this.gameState);
     this.setupPillboxRefugees();
     this.hud = new HUD(this);
@@ -90,6 +124,22 @@ export class NightScene extends Phaser.Scene {
     new ResourceBar(this, this.resourceManager.getAll());
 
     this.setupWeaponKeys();
+    this.setupParticles();
+    this.setupLighting();
+    this.setupDamageOverlay();
+    this.isFirstGame = this.gameState.progress.totalRuns === 0 && this.gameState.progress.currentWave <= 1;
+    if (this.isFirstGame) {
+      this.showTutorialOverlay();
+    }
+
+    // FPS counter in dev mode
+    if (import.meta.env.DEV) {
+      this.fpsText = this.add.text(this.cameras.main.width - 10, 10, 'FPS: 0', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '12px',
+        color: '#00FF00',
+      }).setOrigin(1, 0).setScrollFactor(0).setDepth(200);
+    }
 
     // Start wave 1 after a brief delay
     this.time.delayedCall(1500, () => {
@@ -101,16 +151,45 @@ export class NightScene extends Phaser.Scene {
     this.player.update(delta);
     this.hud.updateStaminaBar(this.player.stamina, this.player.maxStamina);
 
-    // Update zombies
+    // Track movement distance for speed_agility XP (1 XP per 100px)
+    const dx = this.player.x - this.lastPlayerX;
+    const dy = this.player.y - this.lastPlayerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    this.movementAccumulator += dist;
+    this.lastPlayerX = this.player.x;
+    this.lastPlayerY = this.player.y;
+    if (this.movementAccumulator >= 100) {
+      const xpToAward = Math.floor(this.movementAccumulator / 100);
+      this.skillManager.addXP('speed_agility', xpToAward);
+      this.movementAccumulator -= xpToAward * 100;
+    }
+
+    // Update zombies -- mark off-screen for pathfinding throttle
+    const cam = this.cameras.main;
+    const camLeft = cam.scrollX - 500;
+    const camRight = cam.scrollX + cam.width + 500;
+    const camTop = cam.scrollY - 500;
+    const camBottom = cam.scrollY + cam.height + 500;
+
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
       if (zombie.active) {
+        zombie.offScreen = zombie.x < camLeft || zombie.x > camRight ||
+                           zombie.y < camTop || zombie.y > camBottom;
         zombie.update(delta);
       }
     });
 
     // Update projectiles
     this.projectileGroup.getChildren().forEach(child => {
+      const proj = child as Projectile;
+      if (proj.active) {
+        proj.update(0, delta);
+      }
+    });
+
+    // Update spitter projectiles
+    this.spitterProjectileGroup.getChildren().forEach(child => {
       const proj = child as Projectile;
       if (proj.active) {
         proj.update(0, delta);
@@ -127,6 +206,9 @@ export class NightScene extends Phaser.Scene {
     this.fogOfWar.update();
     this.fogOfWar.updateZombieVisibility(this.zombieGroup, this.fogIndicatorGraphics);
 
+    // Update lighting overlay to follow player
+    this.updateLighting();
+
     // Pillbox refugee shooting
     this.updatePillboxShooting(delta);
 
@@ -134,6 +216,11 @@ export class NightScene extends Phaser.Scene {
     this.shootCooldown = Math.max(0, this.shootCooldown - delta);
     if (this.shootCooldown <= 0) {
       this.tryAutoShoot();
+    }
+
+    // Update FPS counter
+    if (this.fpsText) {
+      this.fpsText.setText(`FPS: ${Math.round(this.game.loop.actualFps)}`);
     }
   }
 
@@ -185,7 +272,7 @@ export class NightScene extends Phaser.Scene {
 
     // Label
     this.add.text(centerX, centerY - halfSize - 8, 'BASE', {
-      fontFamily: 'monospace',
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#E8DCC8',
     }).setOrigin(0.5);
@@ -255,7 +342,7 @@ export class NightScene extends Phaser.Scene {
     const fogLevelIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
     const fogLevelData = baseLevelsJson.baseLevels[fogLevelIdx];
     if (!fogLevelData) throw new Error('No base levels defined');
-    const fogRadius = fogLevelData.fogRadius;
+    const fogRadius = Math.max(1, fogLevelData.fogRadius - this.fogPenalty);
 
     this.fogOfWar = new FogOfWar(
       this,
@@ -274,6 +361,8 @@ export class NightScene extends Phaser.Scene {
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
     this.player = new Player(this, mapPixelWidth / 2, mapPixelHeight / 2);
+    this.lastPlayerX = this.player.x;
+    this.lastPlayerY = this.player.y;
   }
 
   private createGroups(): void {
@@ -288,10 +377,19 @@ export class NightScene extends Phaser.Scene {
     });
 
     this.wallBodies = this.physics.add.staticGroup();
+
+    // Spitter projectile pool (enemy projectiles)
+    this.spitterProjectileGroup = this.physics.add.group({
+      classType: Projectile,
+      runChildUpdate: false,
+    });
   }
 
   private setupWaveManager(): void {
-    this.waveManager = new WaveManager(this, this.zombieGroup);
+    // Zone manager not yet initialized during create() flow, load wave data directly
+    const zoneManager = new ZoneManager(this, this.gameState);
+    const waveData = zoneManager.getWaveData();
+    this.waveManager = new WaveManager(this, this.zombieGroup, waveData);
     this.waveManager.setTarget(this.player);
 
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
@@ -331,6 +429,8 @@ export class NightScene extends Phaser.Scene {
 
         this.player.takeDamage(zombie.damage);
         zombie.resetAttackCooldown();
+        zombie.playAttackPulse();
+        this.flashDamageOverlay();
       },
     );
 
@@ -359,6 +459,18 @@ export class NightScene extends Phaser.Scene {
 
     // Walls also block player
     this.physics.add.collider(this.player, this.wallBodies);
+
+    // Spitter projectile hits player
+    this.physics.add.overlap(
+      this.spitterProjectileGroup,
+      this.player,
+      (_proj) => {
+        const proj = _proj as Projectile;
+        if (!proj.active) return;
+        this.player.takeDamage(proj.damage);
+        proj.deactivate();
+      },
+    );
   }
 
   private setupCamera(): void {
@@ -377,6 +489,8 @@ export class NightScene extends Phaser.Scene {
       this.hud.updateKills(this.kills);
       this.waveManager.onEnemyKilled();
       this.rollLootDrops(zombie.x, zombie.y);
+      // Blood splatter particles
+      this.bloodEmitter.emitParticleAt(zombie.x, zombie.y, 6);
 
       // Add weapon XP and combat skill XP based on equipped weapon class
       const equipped = this.weaponManager.getEquipped();
@@ -386,6 +500,11 @@ export class NightScene extends Phaser.Scene {
         const skillType = this.weaponClassToSkill(stats.weaponClass);
         if (skillType) {
           this.skillManager.addXP(skillType, XP_PER_KILL);
+        }
+        // Stealth XP from melee kills (15 XP per melee kill)
+        if (stats.weaponClass === 'melee') {
+          this.meleeKillsThisNight++;
+          this.skillManager.addXP('stealth', 15);
         }
       }
     });
@@ -397,6 +516,14 @@ export class NightScene extends Phaser.Scene {
 
     this.events.on('wave-complete', (wave: number) => {
       this.hud.showMessage('WAVE CLEAR!');
+      // Golden screen flash
+      this.cameras.main.flash(400, 197, 160, 11);
+
+      // Survival XP: 100 XP per wave survived
+      this.skillManager.addXP('survival', 100);
+
+      // Record zone progress
+      this.zoneManager.recordWaveCleared(wave);
 
       // Only start next wave if there are more waves (5 total)
       if (wave < 5) {
@@ -419,12 +546,21 @@ export class NightScene extends Phaser.Scene {
       this.resourceManager.syncToState(this.gameState);
       this.refugeeManager.syncToState();
       this.fogOfWar.syncToState();
+
+      // Achievement: Untouchable (survived night without damage)
+      if (!this.playerTookDamage) {
+        this.achievementManager.unlockNoDamage();
+      }
+      // Check all other achievements
+      this.achievementManager.checkAll();
+
       SaveManager.save(this.gameState);
       this.scene.start('ResultScene', { kills: this.kills, wave: 5, survived: true });
     });
 
     this.events.on('player-damaged', (hp: number, maxHp: number) => {
       this.hud.updateHpBar(hp, maxHp);
+      this.playerTookDamage = true;
     });
 
     this.events.on('player-died', () => {
@@ -444,6 +580,72 @@ export class NightScene extends Phaser.Scene {
           wave: this.waveManager.getCurrentWave(),
         });
       });
+    });
+
+    // Spitter fires a projectile at the player
+    this.events.on('spitter-shoot', (zombie: Zombie, target: Phaser.GameObjects.Sprite) => {
+      if (!zombie.active) return;
+      const angle = angleBetween(zombie.x, zombie.y, target.x, target.y);
+      const existing = this.spitterProjectileGroup.getFirstDead(false) as Projectile | null;
+      if (existing) {
+        existing.fire(zombie.x, zombie.y, angle, zombie.damage);
+        existing.setTint(0x44FF44);
+      } else {
+        const proj = new Projectile(this, zombie.x, zombie.y);
+        this.spitterProjectileGroup.add(proj);
+        proj.fire(zombie.x, zombie.y, angle, zombie.damage);
+        proj.setTint(0x44FF44);
+      }
+    });
+
+    // Screamer attracts all zombies within radius
+    this.events.on('screamer-scream', (screamer: Zombie, radius: number) => {
+      if (!screamer.active) return;
+      this.zombieGroup.getChildren().forEach(child => {
+        const zombie = child as Zombie;
+        if (!zombie.active || zombie === screamer) return;
+        const dist = distanceBetween(screamer.x, screamer.y, zombie.x, zombie.y);
+        if (dist <= radius) {
+          zombie.attractTo(screamer.x, screamer.y);
+        }
+      });
+      // Visual: expanding purple ring
+      const ring = this.add.graphics();
+      ring.lineStyle(2, 0xAA44FF, 0.8);
+      ring.strokeCircle(screamer.x, screamer.y, 10);
+      ring.setDepth(10);
+      this.tweens.add({
+        targets: ring,
+        scaleX: radius / 10,
+        scaleY: radius / 10,
+        alpha: 0,
+        duration: 600,
+        ease: 'Power2',
+        onComplete: () => ring.destroy(),
+      });
+    });
+
+    // Boss spawns minions on death
+    this.events.on('boss-death-spawn', (boss: Zombie) => {
+      if (!boss.spawnOnDeath) return;
+      const spawnConfig = enemiesData.enemies.find(e => e.id === boss.spawnOnDeath);
+      if (!spawnConfig) return;
+      for (let i = 0; i < boss.spawnCount; i++) {
+        const offsetX = (Math.random() - 0.5) * 60;
+        const offsetY = (Math.random() - 0.5) * 60;
+        const existing = this.zombieGroup.getFirstDead(false) as Zombie | null;
+        const target = boss.getTarget();
+        if (existing) {
+          existing.reset(boss.x + offsetX, boss.y + offsetY, spawnConfig as ZombieConfig);
+          if (target) existing.setTarget(target);
+        } else {
+          const zombie = new Zombie(this, boss.x + offsetX, boss.y + offsetY, spawnConfig as ZombieConfig);
+          if (target) zombie.setTarget(target);
+          this.zombieGroup.add(zombie);
+        }
+        // Count the spawned enemy for wave tracking
+        this.waveManager.addExtraEnemy();
+      }
     });
   }
 
@@ -521,12 +723,21 @@ export class NightScene extends Phaser.Scene {
     // Track weapon usage for durability decrease at end of night
     this.weaponUsedThisNight.add(weapon.id);
 
+    // Apply stealth noise reduction from stealth skill
+    const noiseReduction = this.skillManager.getBonus('stealth', 'noiseReduction');
+    const adjustedNoise = Math.max(0, stats.noiseLevel * (1 - noiseReduction));
+
     // Emit weapon-fired event for SoundMechanic
     this.events.emit('weapon-fired', {
       x: this.player.x,
       y: this.player.y,
-      noiseLevel: stats.noiseLevel,
+      noiseLevel: adjustedNoise,
     });
+
+    // Muzzle flash particles for ranged weapons
+    if (!isMelee) {
+      this.muzzleEmitter.emitParticleAt(this.player.x, this.player.y, 4);
+    }
 
     const angle = angleBetween(
       this.player.x, this.player.y,
@@ -632,6 +843,12 @@ export class NightScene extends Phaser.Scene {
           zombie.y >= ty && zombie.y <= ty + TILE_SIZE
         ) {
           zombie.takeDamage(trap.getDamage());
+          // Trap trigger particles
+          this.trapEmitter.emitParticleAt(
+            trap.structureInstance.x + TILE_SIZE / 2,
+            trap.structureInstance.y + TILE_SIZE / 2,
+            6,
+          );
           // Trap is single-use (hp=1), destroy after triggering
           const destroyed = trap.takeDamage(trap.structureInstance.hp);
           if (destroyed) {
@@ -761,8 +978,8 @@ export class NightScene extends Phaser.Scene {
 
   private showFloatingText(x: number, y: number, message: string): void {
     const text = this.add.text(x, y, message, {
-      fontFamily: 'monospace',
-      fontSize: '10px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
       color: '#FFD700',
     }).setOrigin(0.5).setDepth(50);
 
@@ -773,6 +990,142 @@ export class NightScene extends Phaser.Scene {
       duration: 1200,
       ease: 'Power2',
       onComplete: () => text.destroy(),
+    });
+  }
+
+  // -- Visual effect setup methods --
+
+  private setupParticles(): void {
+    if (!this.textures.exists('particle_white')) {
+      const pg = this.make.graphics({ x: 0, y: 0 });
+      pg.fillStyle(0xFFFFFF);
+      pg.fillCircle(3, 3, 3);
+      pg.generateTexture('particle_white', 6, 6);
+      pg.destroy();
+    }
+    if (!this.textures.exists('particle_red')) {
+      const rg = this.make.graphics({ x: 0, y: 0 });
+      rg.fillStyle(0x8B0000);
+      rg.fillCircle(2, 2, 2);
+      rg.generateTexture('particle_red', 4, 4);
+      rg.destroy();
+    }
+    if (!this.textures.exists('particle_orange')) {
+      const og = this.make.graphics({ x: 0, y: 0 });
+      og.fillStyle(0xD4620B);
+      og.fillCircle(2, 2, 2);
+      og.generateTexture('particle_orange', 4, 4);
+      og.destroy();
+    }
+
+    this.muzzleEmitter = this.add.particles(0, 0, 'particle_white', {
+      speed: { min: 80, max: 200 },
+      lifespan: 100,
+      scale: { start: 1, end: 0 },
+      alpha: { start: 1, end: 0 },
+      emitting: false,
+    });
+    this.muzzleEmitter.setDepth(15);
+
+    this.bloodEmitter = this.add.particles(0, 0, 'particle_red', {
+      speed: { min: 40, max: 120 },
+      lifespan: 400,
+      scale: { start: 1.2, end: 0.3 },
+      alpha: { start: 1, end: 0 },
+      emitting: false,
+    });
+    this.bloodEmitter.setDepth(4);
+
+    this.trapEmitter = this.add.particles(0, 0, 'particle_orange', {
+      speed: { min: 60, max: 150 },
+      lifespan: 300,
+      scale: { start: 1, end: 0 },
+      alpha: { start: 1, end: 0 },
+      emitting: false,
+    });
+    this.trapEmitter.setDepth(6);
+  }
+
+  private setupLighting(): void {
+    this.lightingOverlay = this.add.graphics();
+    this.lightingOverlay.setDepth(75);
+  }
+
+  private updateLighting(): void {
+    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+
+    this.lightingOverlay.clear();
+    this.lightingOverlay.fillStyle(0x0A0A1E, 0.65);
+    this.lightingOverlay.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+
+    // Gradient light around player
+    const px = this.player.x;
+    const py = this.player.y;
+    const lightRadius = 120;
+    const steps = 8;
+    for (let i = steps; i > 0; i--) {
+      const r = lightRadius * (i / steps);
+      const darkness = 0.65 * (1 - Math.pow(1 - i / steps, 2));
+      this.lightingOverlay.fillStyle(0x0A0A1E, darkness);
+      this.lightingOverlay.fillCircle(px, py, r);
+    }
+
+    // Pillbox lights
+    for (const assignment of this.pillboxAssignments) {
+      const sx = assignment.structure.x + TILE_SIZE / 2;
+      const sy = assignment.structure.y + TILE_SIZE / 2;
+      const pillboxRadius = 60;
+      for (let i = 5; i > 0; i--) {
+        const r = pillboxRadius * (i / 5);
+        const darkness = 0.65 * (1 - Math.pow(1 - i / 5, 2));
+        this.lightingOverlay.fillStyle(0x0A0A1E, darkness);
+        this.lightingOverlay.fillCircle(sx, sy, r);
+      }
+    }
+  }
+
+  private setupDamageOverlay(): void {
+    this.damageOverlay = this.add.graphics();
+    this.damageOverlay.setDepth(99);
+    this.damageOverlay.setScrollFactor(0);
+    this.damageOverlay.setAlpha(0);
+  }
+
+  private flashDamageOverlay(): void {
+    this.damageOverlay.clear();
+    this.damageOverlay.fillStyle(0xFF0000, 0.2);
+    this.damageOverlay.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
+    this.damageOverlay.setAlpha(1);
+    this.tweens.add({
+      targets: this.damageOverlay,
+      alpha: 0,
+      duration: 150,
+      ease: 'Power2',
+    });
+  }
+
+  private showTutorialOverlay(): void {
+    const tutorialText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height - 60,
+      'WASD to move | Enemies auto-targeted | Shift to sprint | Survive the night!',
+      {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#E8DCC8',
+        backgroundColor: '#1A1A2E',
+        padding: { x: 8, y: 6 },
+      },
+    ).setOrigin(0.5).setScrollFactor(0).setDepth(110).setAlpha(1);
+
+    this.tweens.add({
+      targets: tutorialText,
+      alpha: 0,
+      delay: 6000,
+      duration: 2000,
+      ease: 'Power2',
+      onComplete: () => tutorialText.destroy(),
     });
   }
 }

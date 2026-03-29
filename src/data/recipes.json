@@ -1,0 +1,39 @@
+{
+  "recipes": [
+    {
+      "id": "weapon_repair_kit",
+      "name": "Weapon Repair Kit",
+      "ingredients": { "scrap": 5, "parts": 2 },
+      "result": { "type": "repair_weapon", "amount": 1 },
+      "apCost": 0
+    },
+    {
+      "id": "rations",
+      "name": "Rations",
+      "ingredients": { "food": 3, "meds": 1 },
+      "result": { "type": "food", "amount": 5 },
+      "apCost": 1
+    },
+    {
+      "id": "ammo_pack",
+      "name": "Ammo Pack",
+      "ingredients": { "scrap": 5, "parts": 1 },
+      "result": { "type": "ammo", "amount": 5 },
+      "apCost": 1
+    },
+    {
+      "id": "reinforced_wall",
+      "name": "Reinforced Wall",
+      "ingredients": { "scrap": 10, "parts": 3 },
+      "result": { "type": "wall_hp", "amount": 50 },
+      "apCost": 1
+    },
+    {
+      "id": "medkit",
+      "name": "Medkit",
+      "ingredients": { "meds": 2, "food": 1 },
+      "result": { "type": "heal_refugee", "amount": 1 },
+      "apCost": 1
+    }
+  ]
+}

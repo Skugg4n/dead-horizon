@@ -1,0 +1,64 @@
+{
+  "achievements": [
+    {
+      "id": "first_blood",
+      "name": "First Blood",
+      "description": "Kill 1 zombie",
+      "condition": { "type": "total_kills", "target": 1 }
+    },
+    {
+      "id": "wave_survivor",
+      "name": "Wave Survivor",
+      "description": "Survive wave 5",
+      "condition": { "type": "highest_wave", "target": 5 }
+    },
+    {
+      "id": "builder",
+      "name": "Builder",
+      "description": "Place 10 structures",
+      "condition": { "type": "structures_placed", "target": 10 }
+    },
+    {
+      "id": "scavenger",
+      "name": "Scavenger",
+      "description": "Complete 5 loot runs",
+      "condition": { "type": "loot_runs", "target": 5 }
+    },
+    {
+      "id": "community",
+      "name": "Community",
+      "description": "Have 5 refugees",
+      "condition": { "type": "refugees", "target": 5 }
+    },
+    {
+      "id": "arsenal",
+      "name": "Arsenal",
+      "description": "Own 4 different weapons",
+      "condition": { "type": "weapons", "target": 4 }
+    },
+    {
+      "id": "master_craftsman",
+      "name": "Master Craftsman",
+      "description": "Craft 10 items",
+      "condition": { "type": "items_crafted", "target": 10 }
+    },
+    {
+      "id": "fully_upgraded",
+      "name": "Fully Upgraded",
+      "description": "Reach Settlement base level",
+      "condition": { "type": "base_level", "target": 3 }
+    },
+    {
+      "id": "zombie_slayer",
+      "name": "Zombie Slayer",
+      "description": "Kill 100 zombies total",
+      "condition": { "type": "total_kills", "target": 100 }
+    },
+    {
+      "id": "untouchable",
+      "name": "Untouchable",
+      "description": "Survive a night without taking damage",
+      "condition": { "type": "no_damage_night", "target": 1 }
+    }
+  ]
+}
