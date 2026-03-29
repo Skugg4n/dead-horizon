@@ -26,6 +26,7 @@ import baseLevelsJson from '../data/base-levels.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 import { createUIButton } from '../ui/UIButton';
 import { CLOSE_ALL_PANELS } from '../ui/UIPanel';
+import { AudioManager } from '../systems/AudioManager';
 
 // Parse structure colors from JSON (string hex to number)
 const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
@@ -98,6 +99,9 @@ export class DayScene extends Phaser.Scene {
     // Fade in from black (night-to-day transition)
     this.cameras.main.setBackgroundColor('#3A5A2A');
     this.cameras.main.fadeIn(800, 0, 0, 0);
+
+    // Start day ambient sound
+    AudioManager.startAmbient('day');
 
     this.createMap();
     this.renderPlacedStructures();
@@ -930,6 +934,7 @@ export class DayScene extends Phaser.Scene {
 
       const data = this.buildingManager.getStructureData(structureId);
       this.showInfo(`${data?.name ?? 'Structure'} placed!`);
+      AudioManager.play('ui_build');
       this.cancelPlacement();
     } else {
       // Determine reason for failure
@@ -938,6 +943,7 @@ export class DayScene extends Phaser.Scene {
 
       if (!this.buildingManager.hasEnoughAP(structureId, this.currentAP)) {
         this.showInfo('Not enough AP!');
+        AudioManager.play('ui_error');
       } else if (!this.buildingManager.canAfford(structureId)) {
         this.showInfo('Not enough resources!');
       } else if (!this.buildingManager.isPositionFree(x, y)) {
@@ -1277,6 +1283,7 @@ export class DayScene extends Phaser.Scene {
   }
 
   private endDay(): void {
+    AudioManager.stopAmbient();
     // Process refugee gathering before saving
     const gathering = this.refugeeManager.processGathering();
     if (gathering.food > 0 || gathering.scrap > 0 || gathering.repaired > 0) {

@@ -6,6 +6,7 @@ import { NightScene } from './scenes/NightScene';
 import { ResultScene } from './scenes/ResultScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { GAME_WIDTH, GAME_HEIGHT } from './config/constants';
+import { AudioManager } from './systems/AudioManager';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -29,3 +30,6 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 new Phaser.Game(config);
+
+// Initialize audio context on first user interaction (browser requirement)
+AudioManager.initOnInteraction();

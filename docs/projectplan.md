@@ -268,12 +268,12 @@ Mål: Spelet känns bra, balansen fungerar, inga stora buggar.
 - [x] 5D.3 Optimera pathfinding
 - [x] 5D.4 Load time under 3 sekunder
 
-### 5E: Ljud (skippat -- inga ljud-assets)
+### 5E: Ljud (procedurellt genererat via Web Audio API)
 
-- [ ] 5E.1 Skottljud per vapenklass
-- [ ] 5E.2 Zombie-ljud (groan, attack)
-- [ ] 5E.3 Ambient sounds (vind, djur)
-- [ ] 5E.4 Bakgrundsmusik (dag och natt)
+- [x] 5E.1 Skottljud per vapenklass
+- [x] 5E.2 Zombie-ljud (groan, attack)
+- [x] 5E.3 Ambient sounds (vind, djur)
+- [x] 5E.4 Bakgrundsmusik (dag och natt)
 
 **Leverans:** v1.0 -- polished, balanserat, spelbart spel med alla kärnfunktioner.
 

@@ -19,6 +19,7 @@ import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
 import { distanceBetween, angleBetween } from '../utils/math';
+import { AudioManager } from '../systems/AudioManager';
 import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance } from '../config/types';
 import type { ZombieConfig } from '../entities/Zombie';
 import zombieLootData from '../data/zombie-loot.json';
@@ -145,6 +146,9 @@ export class NightScene extends Phaser.Scene {
         color: '#00FF00',
       }).setOrigin(1, 0).setScrollFactor(0).setDepth(200);
     }
+
+    // Start night ambient sound
+    AudioManager.startAmbient('night');
 
     // Start wave 1 after a brief delay
     this.time.delayedCall(1500, () => {
@@ -503,6 +507,7 @@ export class NightScene extends Phaser.Scene {
             const destroyed = wallRef.takeDamage(zombie.structureDamage);
             zombie.resetStructureAttackCooldown();
             if (destroyed) {
+              AudioManager.play('structure_break');
               wallBody.destroy();
             }
           }
@@ -542,6 +547,7 @@ export class NightScene extends Phaser.Scene {
       this.hud.updateKills(this.kills);
       this.waveManager.onEnemyKilled();
       this.rollLootDrops(zombie.x, zombie.y);
+      AudioManager.play('zombie_death');
       // Blood splatter particles
       this.bloodEmitter.emitParticleAt(zombie.x, zombie.y, 6);
 
@@ -565,10 +571,12 @@ export class NightScene extends Phaser.Scene {
     this.events.on('wave-started', (wave: number) => {
       this.hud.updateWave(wave);
       this.hud.showWaveAnnouncement(wave);
+      AudioManager.play('wave_start');
     });
 
     this.events.on('wave-complete', (wave: number) => {
       this.hud.showMessage('WAVE CLEAR!');
+      AudioManager.play('wave_clear');
       // Golden screen flash
       this.cameras.main.flash(400, 197, 160, 11);
 
@@ -608,15 +616,19 @@ export class NightScene extends Phaser.Scene {
       this.achievementManager.checkAll();
 
       SaveManager.save(this.gameState);
+      AudioManager.stopAmbient();
       this.scene.start('ResultScene', { kills: this.kills, wave: 5, survived: true });
     });
 
     this.events.on('player-damaged', (hp: number, maxHp: number) => {
       this.hud.updateHpBar(hp, maxHp);
       this.playerTookDamage = true;
+      AudioManager.play('player_hurt');
     });
 
     this.events.on('player-died', () => {
+      AudioManager.play('player_death');
+      AudioManager.stopAmbient();
       this.gameState.progress.totalKills += this.kills;
       this.gameState.progress.totalRuns++;
       this.gameState.inventory.loadedAmmo = this.loadedAmmo;
@@ -790,6 +802,9 @@ export class NightScene extends Phaser.Scene {
     // Apply stealth noise reduction from stealth skill
     const noiseReduction = this.skillManager.getBonus('stealth', 'noiseReduction');
     const adjustedNoise = Math.max(0, stats.noiseLevel * (1 - noiseReduction));
+
+    // Play weapon sound effect
+    AudioManager.playWeaponSound(stats.weaponClass);
 
     // Emit weapon-fired event for SoundMechanic
     this.events.emit('weapon-fired', {
@@ -1029,6 +1044,7 @@ export class NightScene extends Phaser.Scene {
         const amount = Math.floor(Math.random() * (drop.max - drop.min + 1)) + drop.min;
         this.resourceManager.add(drop.resource, amount);
         this.showFloatingText(x, y + yOffset, `+${amount} ${drop.resource}`);
+        AudioManager.play('loot_pickup');
         yOffset -= 16;
       }
     }

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SaveManager } from '../systems/SaveManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { GAME_VERSION } from '../config/constants';
+import { AudioManager } from '../systems/AudioManager';
 import type { CharacterType, CharacterData, SkillType } from '../config/types';
 import { SkillManager } from '../systems/SkillManager';
 import charactersJson from '../data/characters.json';
@@ -70,7 +71,7 @@ export class MenuScene extends Phaser.Scene {
 
       continueText.on('pointerover', () => continueText.setColor('#FFD700'));
       continueText.on('pointerout', () => continueText.setColor('#D4620B'));
-      continueText.on('pointerdown', () => this.scene.start('DayScene'));
+      continueText.on('pointerdown', () => { AudioManager.play('ui_click'); this.scene.start('DayScene'); });
       this.mainMenuContainer.add(continueText);
 
       // New Game button (clears save, shows character select)
@@ -113,8 +114,25 @@ export class MenuScene extends Phaser.Scene {
     achieveBtn.on('pointerdown', () => this.toggleAchievementPanel());
     this.mainMenuContainer.add(achieveBtn);
 
+    // Sound toggle
+    const soundLabel = () => AudioManager.isMuted() ? '[ SOUND: OFF ]' : '[ SOUND: ON ]';
+    const soundBtn = this.add.text(GAME_VERSION ? centerX + 120 : centerX, centerY + 120, soundLabel(), {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    soundBtn.on('pointerover', () => soundBtn.setColor('#E8DCC8'));
+    soundBtn.on('pointerout', () => soundBtn.setColor('#6B6B6B'));
+    soundBtn.on('pointerdown', () => {
+      AudioManager.setMuted(!AudioManager.isMuted());
+      soundBtn.setText(soundLabel());
+      AudioManager.play('ui_click');
+    });
+    this.mainMenuContainer.add(soundBtn);
+
     // Version
-    const versionText = this.add.text(centerX, centerY + 120, `v${GAME_VERSION}`, {
+    const versionText = this.add.text(centerX - 120, centerY + 120, `v${GAME_VERSION}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#3A3A3A',

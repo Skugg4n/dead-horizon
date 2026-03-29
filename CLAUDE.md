@@ -19,7 +19,7 @@ Las alltid relevanta docs INNAN du borjar arbeta:
 4. Kolla LESSONS.md innan debugging -- kanda problem och losningar finns dar
 5. Lagg till nya losningar i LESSONS.md
 6. Anvand ALDRIG EM dash
-7. Behall svenska tecken: a, a, o
+7. Behåll svenska tecken: å ä och
 8. All speldata i JSON-filer (src/data/), inte hardkodad i kod
 9. TypeScript strict mode
 10. Kommentera komplex logik pa engelska i koden

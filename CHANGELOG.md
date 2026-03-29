@@ -1,5 +1,23 @@
 # Dead Horizon -- Changelog
 
+## [1.4.0] - 2026-03-29
+
+### Added -- Procedural Audio System (Fas 5E)
+- AudioManager: komplett procedurellt ljudsystem via Web Audio API (inga externa filer)
+- Skottljud per vapenklass: pistol, rifle, shotgun, melee (whoosh), explosives (rumble)
+- Zombie-ljud: groan (varierat pitch), attack, death (fallande ton)
+- Spelarljud: hurt, death (ominous descending)
+- Wave-ljud: start (stigande alarm), clear (triumfackord C-E-G)
+- UI-ljud: click, build (metalliskt klang), error (dissonant buzz)
+- Loot pickup (stigande ping), structure break (krossande brus)
+- Ambient natt: brown noise-baserad vind med vindbyar
+- Ambient dag: mjuk vind + slumpmassiga fagel-chirps
+- Ljud-toggle i huvudmenyn (SOUND: ON/OFF)
+- Alla ljud har cooldown for att forhindra overlappning
+- Master volume-kontroll, mute-funktion
+- AudioContext initieras pa forsta anvandardinteraktion (browserkrav)
+- Ljud integrerat i NightScene (alla events), DayScene (bygg, fel, ambient), MenuScene (klick)
+
 ## [1.3.1] - 2026-03-29 10:30
 
 ### Fixed -- NightScene rendering bugs
