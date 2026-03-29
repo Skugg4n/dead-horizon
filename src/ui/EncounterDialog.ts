@@ -89,10 +89,10 @@ export class EncounterDialog {
     }).setOrigin(0.5, 0);
     this.container.add(strengthInfo);
 
-    // Fight button
+    // Fight button (10px)
     const fightBtn = this.scene.add.text(DIALOG_WIDTH / 2 - 70, 130, '[ FIGHT ]', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '16px',
+      fontSize: '10px',
       color: '#D4620B',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
     fightBtn.on('pointerover', () => fightBtn.setColor('#FFD700'));
@@ -100,10 +100,10 @@ export class EncounterDialog {
     fightBtn.on('pointerdown', () => this.resolve('fight'));
     this.container.add(fightBtn);
 
-    // Flee button
+    // Flee button (10px)
     const fleeBtn = this.scene.add.text(DIALOG_WIDTH / 2 + 70, 130, '[ FLEE ]', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '16px',
+      fontSize: '10px',
       color: '#4A90D9',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
     fleeBtn.on('pointerover', () => fleeBtn.setColor('#FFD700'));
@@ -171,10 +171,10 @@ export class EncounterDialog {
     }).setOrigin(0.5, 0);
     this.container.add(desc);
 
-    // OK button
+    // OK button (10px)
     const okBtn = this.scene.add.text(DIALOG_WIDTH / 2, DIALOG_HEIGHT - 30, '[ OK ]', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '16px',
+      fontSize: '10px',
       color: '#E8DCC8',
     }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
     okBtn.on('pointerover', () => okBtn.setColor('#FFD700'));

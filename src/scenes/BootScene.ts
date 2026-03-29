@@ -54,12 +54,23 @@ export class BootScene extends Phaser.Scene {
     this.load.image('refugee_injured', 'assets/sprites/refugee_injured.png');
 
     // UI and effect sprites
+    this.load.image('icon_heart', 'assets/sprites/icon_heart.png');
+    this.load.image('icon_skull', 'assets/sprites/icon_skull.png');
     this.load.image('loot_drop', 'assets/sprites/loot_drop.png');
     this.load.image('icon_scrap', 'assets/sprites/icon_scrap.png');
     this.load.image('icon_food', 'assets/sprites/icon_food.png');
     this.load.image('icon_ammo', 'assets/sprites/icon_ammo.png');
     this.load.image('icon_parts', 'assets/sprites/icon_parts.png');
     this.load.image('icon_meds', 'assets/sprites/icon_meds.png');
+
+    // Toolbar button icons (32x32)
+    this.load.image('icon_build', 'assets/sprites/icon_build.png');
+    this.load.image('icon_weapons', 'assets/sprites/icon_weapons.png');
+    this.load.image('icon_craft', 'assets/sprites/icon_craft.png');
+    this.load.image('icon_skills', 'assets/sprites/icon_skills.png');
+    this.load.image('icon_refugees', 'assets/sprites/icon_refugees.png');
+    this.load.image('icon_lootrun', 'assets/sprites/icon_lootrun.png');
+    this.load.image('icon_endday', 'assets/sprites/icon_endday.png');
 
     // Terrain tiles
     for (let i = 1; i <= 3; i++) {

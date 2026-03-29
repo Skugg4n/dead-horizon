@@ -2,9 +2,10 @@
 import Phaser from 'phaser';
 import { WeaponManager } from '../systems/WeaponManager';
 import { UIPanel } from './UIPanel';
+import { renderResourceCosts } from './resourceIcons';
 import type { WeaponInstance, WeaponUpgradeType, GameState } from '../config/types';
 
-const PANEL_WIDTH = 380;
+const PANEL_WIDTH = 360;
 
 export class WeaponPanel {
   private scene: Phaser.Scene;
@@ -30,7 +31,7 @@ export class WeaponPanel {
     this.spendAP = spendAP;
     this.onResourceChange = onResourceChange;
 
-    this.panel = new UIPanel(scene, 'WEAPONS', PANEL_WIDTH, 400);
+    this.panel = new UIPanel(scene, 'WEAPONS', 360, 400);
 
     this.rebuild();
   }
@@ -82,15 +83,21 @@ export class WeaponPanel {
     const data = WeaponManager.getWeaponData(weapon.weaponId);
     if (!data) return;
 
-    const contentWidth = PANEL_WIDTH - 24; // account for UIPanel padding
+    const contentWidth = PANEL_WIDTH - 24;
     const xpNeeded = this.weaponManager.getXPForNextLevel(weapon);
     const isBroken = this.weaponManager.isBroken(weapon);
+
+    // Hover background
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x333333, 0);
+    bg.fillRect(-4, y - 2, contentWidth + 8, 66);
+    content.add(bg);
 
     // Equipped indicator
     const prefix = isEquipped ? '> ' : '  ';
     const nameColor = isBroken ? '#F44336' : (isEquipped ? '#FFD700' : '#E8DCC8');
 
-    // Name + class + rarity
+    // Name + class + rarity (10px title)
     const nameText = this.scene.add.text(0, y, `${prefix}${stats.name} [${weapon.rarity}]`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -98,31 +105,31 @@ export class WeaponPanel {
     });
     content.add(nameText);
 
-    // Stats line
+    // Stats line (9px body)
     const brokenTag = isBroken ? ' BROKEN' : '';
     const statsLine = `DMG:${stats.damage} RNG:${stats.range} Dur:${weapon.durability}/${weapon.maxDurability}${brokenTag}`;
-    const statsText = this.scene.add.text(0, y + 13, statsLine, {
+    const statsText = this.scene.add.text(0, y + 14, statsLine, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
-      color: isBroken ? '#F44336' : '#AAAAAA',
+      color: isBroken ? '#F44336' : '#E8DCC8',
     });
     content.add(statsText);
 
-    // Level + XP
+    // Level + XP (8px label)
     const lvlLine = weapon.level >= 5
       ? `Lv${weapon.level} MAX`
       : `Lv${weapon.level} XP:${weapon.xp}/${xpNeeded}`;
-    const lvlText = this.scene.add.text(0, y + 25, lvlLine, {
+    const lvlText = this.scene.add.text(0, y + 28, lvlLine, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#AAAAAA',
+      fontSize: '8px',
+      color: '#6B6B6B',
     });
     content.add(lvlText);
 
-    // Upgrades display
+    // Upgrades display (8px label)
     if (weapon.upgrades.length > 0) {
       const upgradeStr = weapon.upgrades.join(', ');
-      const upgText = this.scene.add.text(0, y + 37, `Mods: ${upgradeStr}`, {
+      const upgText = this.scene.add.text(0, y + 40, `Mods: ${upgradeStr}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: '#7B9FCF',
@@ -130,7 +137,7 @@ export class WeaponPanel {
       content.add(upgText);
     }
 
-    // Repair button (costs 1 AP, 1 Parts)
+    // Repair button with resource icon (costs 1 AP, 1 Parts)
     if (weapon.durability < weapon.maxDurability) {
       const canRepair = this.currentAP() >= 1 && this.gameState.inventory.resources.parts >= 1;
       const repairColor = canRepair ? '#4CAF50' : '#6B6B6B';
@@ -139,6 +146,8 @@ export class WeaponPanel {
         fontSize: '9px',
         color: repairColor,
       });
+      // Show cost with icon
+      renderResourceCosts(this.scene, content, { parts: 1 }, contentWidth - 70, y + 12, repairColor);
       if (canRepair) {
         repairBtn.setInteractive({ useHandCursor: true });
         repairBtn.on('pointerover', () => repairBtn.setColor('#FFD700'));
@@ -157,7 +166,8 @@ export class WeaponPanel {
     // Upgrade button (opens inline upgrade list)
     const availableUpgrades = this.getAvailableUpgrades(weapon);
     if (availableUpgrades.length > 0) {
-      const upgradeBtn = this.scene.add.text(contentWidth - 70, y + 13, '[UPGRADE]', {
+      const btnY = weapon.durability < weapon.maxDurability ? y + 26 : y + 14;
+      const upgradeBtn = this.scene.add.text(contentWidth - 70, btnY, '[UPGRADE]', {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: '#4A90D9',
@@ -170,6 +180,22 @@ export class WeaponPanel {
       });
       content.add(upgradeBtn);
     }
+
+    // Make the whole entry hoverable
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, 66),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    bg.on('pointerover', () => {
+      bg.clear();
+      bg.fillStyle(0x444444, 0.5);
+      bg.fillRect(-4, y - 2, contentWidth + 8, 66);
+    });
+    bg.on('pointerout', () => {
+      bg.clear();
+      bg.fillStyle(0x333333, 0);
+      bg.fillRect(-4, y - 2, contentWidth + 8, 66);
+    });
   }
 
   private getAvailableUpgrades(weapon: WeaponInstance): WeaponUpgradeType[] {
@@ -184,7 +210,7 @@ export class WeaponPanel {
     const contentWidth = PANEL_WIDTH - 24;
     const available = this.getAvailableUpgrades(weapon);
 
-    // Title for upgrade mode
+    // Title for upgrade mode (10px)
     const title = this.scene.add.text(0, 0, `Upgrade ${WeaponManager.getWeaponData(weapon.weaponId)?.name ?? weapon.weaponId}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -193,35 +219,59 @@ export class WeaponPanel {
     content.add(title);
 
     available.forEach((upgradeType, i) => {
-      const y = 20 + i * 24;
+      const y = 20 + i * 32;
       const upgradeData = WeaponManager.getUpgradeData(upgradeType);
       if (!upgradeData) return;
 
       const canAfford = this.gameState.inventory.resources.parts >= upgradeData.partsCost;
       const color = canAfford ? '#E8DCC8' : '#6B6B6B';
 
-      const entry = this.scene.add.text(0, y, `${upgradeData.name} (${upgradeData.partsCost}P) - ${upgradeData.description}`, {
+      // Hover background
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(0x333333, 0);
+      bg.fillRect(-4, y - 2, contentWidth + 8, 28);
+      content.add(bg);
+
+      // Upgrade name (9px body)
+      const entry = this.scene.add.text(0, y, `${upgradeData.name} - ${upgradeData.description}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color,
-        wordWrap: { width: contentWidth },
+        wordWrap: { width: contentWidth - 40 },
       });
+      content.add(entry);
+
+      // Cost with resource icon (8px label)
+      renderResourceCosts(this.scene, content, { parts: upgradeData.partsCost }, 0, y + 14, color);
 
       if (canAfford) {
-        entry.setInteractive({ useHandCursor: true });
-        entry.on('pointerover', () => entry.setColor('#FFD700'));
-        entry.on('pointerout', () => entry.setColor('#E8DCC8'));
-        entry.on('pointerdown', () => {
+        bg.setInteractive(
+          new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, 28),
+          Phaser.Geom.Rectangle.Contains,
+        );
+        bg.input!.cursor = 'pointer';
+        bg.on('pointerover', () => {
+          bg.clear();
+          bg.fillStyle(0x444444, 0.5);
+          bg.fillRect(-4, y - 2, contentWidth + 8, 28);
+          entry.setColor('#FFD700');
+        });
+        bg.on('pointerout', () => {
+          bg.clear();
+          bg.fillStyle(0x333333, 0);
+          bg.fillRect(-4, y - 2, contentWidth + 8, 28);
+          entry.setColor('#E8DCC8');
+        });
+        bg.on('pointerdown', () => {
           this.weaponManager.upgrade(weapon.id, upgradeType);
           this.onResourceChange();
           this.rebuild();
         });
       }
-      content.add(entry);
     });
 
-    // Back button
-    const backY = 20 + available.length * 24 + 8;
+    // Back button (9px body)
+    const backY = 20 + available.length * 32 + 8;
     const backBtn = this.scene.add.text(0, backY, '[ BACK ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',

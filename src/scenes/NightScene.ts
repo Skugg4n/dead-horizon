@@ -141,7 +141,7 @@ export class NightScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       this.fpsText = this.add.text(this.cameras.main.width - 10, 10, 'FPS: 0', {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '12px',
+        fontSize: '8px',
         color: '#00FF00',
       }).setOrigin(1, 0).setScrollFactor(0).setDepth(200);
     }

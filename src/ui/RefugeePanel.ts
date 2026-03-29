@@ -7,7 +7,6 @@ import { REFUGEE_FOOD_PER_DAY } from '../config/constants';
 import { UIPanel } from './UIPanel';
 import type { RefugeeJob } from '../config/types';
 
-const PANEL_WIDTH = 400;
 const ROW_HEIGHT = 52;
 
 const JOB_LABELS: Record<RefugeeJob, string> = {
@@ -29,7 +28,7 @@ export class RefugeePanel {
     this.scene = scene;
     this.refugeeManager = refugeeManager;
 
-    this.panel = new UIPanel(scene, 'REFUGEES', PANEL_WIDTH, 400);
+    this.panel = new UIPanel(scene, 'REFUGEES', 360, 400);
 
     this.buildPanel();
 
@@ -51,8 +50,8 @@ export class RefugeePanel {
     const infoStr = `${refugees.length}/${maxRefugees} refugees  |  Food needed: ${foodNeeded}/day`;
     const info = this.scene.add.text(0, 0, infoStr, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#AAAAAA',
+      fontSize: '8px',
+      color: '#6B6B6B',
     });
     content.add(info);
 
@@ -122,7 +121,7 @@ export class RefugeePanel {
       if (i < refugees.length - 1) {
         const sep = this.scene.add.graphics();
         sep.lineStyle(1, 0x6B6B6B, 0.3);
-        sep.lineBetween(0, y + ROW_HEIGHT - 2, PANEL_WIDTH - 24, y + ROW_HEIGHT - 2);
+        sep.lineBetween(0, y + ROW_HEIGHT - 2, 360 - 24, y + ROW_HEIGHT - 2);
         content.add(sep);
       }
     });

@@ -29,7 +29,7 @@ export class UIPanel {
     height: number,
   ) {
     this.scene = scene;
-    this.panelWidth = Math.min(width, 400);
+    this.panelWidth = Math.min(width, 360);
     this.panelHeight = Math.min(height, MAX_PANEL_HEIGHT);
 
     const panelX = Math.floor((GAME_WIDTH - this.panelWidth) / 2);

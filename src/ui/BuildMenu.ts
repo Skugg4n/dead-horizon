@@ -1,10 +1,15 @@
 import Phaser from 'phaser';
 import { BuildingManager } from '../systems/BuildingManager';
 import { UIPanel } from './UIPanel';
+import { renderResourceCosts } from './resourceIcons';
 
-const ENTRY_HEIGHT = 40;
+const ENTRY_HEIGHT = 44;
+const ENTRY_GAP = 8;
 const FONT_COLOR = '#E8DCC8';
 const DISABLED_COLOR = '#6B6B6B';
+const HOVER_BG = 0x444444;
+const NORMAL_BG = 0x333333;
+const CONTENT_WIDTH = 360 - 24;
 
 export class BuildMenu {
   private scene: Phaser.Scene;
@@ -25,8 +30,8 @@ export class BuildMenu {
     this.onSelect = onSelect;
 
     const structures = this.buildingManager.getAllStructureData();
-    const panelHeight = structures.length * ENTRY_HEIGHT + 48;
-    this.panel = new UIPanel(scene, 'BUILD', 400, panelHeight);
+    const panelHeight = structures.length * (ENTRY_HEIGHT + ENTRY_GAP) + 48;
+    this.panel = new UIPanel(scene, 'BUILD', 360, panelHeight);
 
     this.rebuild();
   }
@@ -40,30 +45,61 @@ export class BuildMenu {
     const currentAP = this.getCurrentAP();
 
     structures.forEach((s, i) => {
-      const y = i * ENTRY_HEIGHT;
+      const y = i * (ENTRY_HEIGHT + ENTRY_GAP);
       const canAfford = this.buildingManager.canAfford(s.id);
       const hasAP = currentAP >= s.apCost;
       const available = canAfford && hasAP;
-
-      const costStr = Object.entries(s.cost).map(([r, n]) => `${n} ${r}`).join(', ');
       const color = available ? FONT_COLOR : DISABLED_COLOR;
 
-      const entry = this.scene.add.text(0, y, `${s.name} (${s.apCost} AP)\n  ${costStr}`, {
+      // Hover background
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(NORMAL_BG, 0);
+      bg.fillRect(-4, y - 2, CONTENT_WIDTH + 8, ENTRY_HEIGHT);
+      content.add(bg);
+
+      // Structure name (10px title)
+      const nameText = this.scene.add.text(0, y, s.name, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '11px',
+        fontSize: '10px',
         color,
       });
+      content.add(nameText);
+
+      // AP cost (8px label, right-aligned)
+      const apText = this.scene.add.text(CONTENT_WIDTH, y + 2, `${s.apCost} AP`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: available ? '#FFD700' : DISABLED_COLOR,
+      }).setOrigin(1, 0);
+      content.add(apText);
+
+      // Resource cost with icons (8px)
+      renderResourceCosts(this.scene, content, s.cost, 0, y + 16, color);
 
       if (available) {
-        entry.setInteractive({ useHandCursor: true });
-        entry.on('pointerover', () => entry.setColor('#FFD700'));
-        entry.on('pointerout', () => entry.setColor(FONT_COLOR));
-        entry.on('pointerdown', () => {
+        bg.setInteractive(
+          new Phaser.Geom.Rectangle(-4, y - 2, CONTENT_WIDTH + 8, ENTRY_HEIGHT),
+          Phaser.Geom.Rectangle.Contains,
+        );
+        bg.input!.cursor = 'pointer';
+        bg.on('pointerover', () => {
+          bg.clear();
+          bg.fillStyle(HOVER_BG, 0.5);
+          bg.fillRect(-4, y - 2, CONTENT_WIDTH + 8, ENTRY_HEIGHT);
+          nameText.setColor('#FFD700');
+        });
+        bg.on('pointerout', () => {
+          bg.clear();
+          bg.fillStyle(NORMAL_BG, 0);
+          bg.fillRect(-4, y - 2, CONTENT_WIDTH + 8, ENTRY_HEIGHT);
+          nameText.setColor(FONT_COLOR);
+        });
+        bg.on('pointerdown', () => {
           this.onSelect(s.id);
         });
       }
 
-      content.add(entry);
+      content.add(nameText);
     });
   }
 

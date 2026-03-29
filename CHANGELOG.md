@@ -1,5 +1,43 @@
 # Dead Horizon -- Changelog
 
+## [1.3.0] - 2026-03-29
+
+### Added -- Toolbar icons (pixel art)
+- icon_build.png: hammer, green (#4CAF50), construction
+- icon_weapons.png: crossed swords, gold (#C5A030), weapon management
+- icon_craft.png: wrench, brown (#8B6914), crafting
+- icon_skills.png: star, gold (#C5A030), skill progression
+- icon_refugees.png: person silhouette, purple (#8B6FC0), refugee management
+- icon_lootrun.png: compass, orange-gold (#D4A030), expeditions
+- icon_endday.png: crescent moon + arrow, orange-red (#D4620B), end day
+- icon_heart.png: heart shape, red (#F44336), HP display
+- icon_skull.png: skull, bone white (#E8DCC8), kill counter
+- All icons: 32x32 RGBA PNG with 8x upscaled _preview.png
+- Generator script: sprite_gen_toolbar_icons.py
+
+### Changed -- DayScene icon toolbar + resource bar overhaul
+- Replaced two-row text action bar with single-row icon toolbar (h=48, y=552)
+- 8 icon buttons (36x36) with 32x32 icons, dark bg, colored borders, hover gold + 1.05x scale
+- Button order: BUILD | AMMO | WEAPONS | CRAFT | gap | REFUGEES | LOOT RUN | gap | SKILLS | END DAY
+- Tooltip on hover: label text 6px above icon (8px font, dark bg)
+- Falls back to 3-char text abbreviation if icon not loaded
+- Resource bar (h=24, y=528) now shows 16x16 resource icons left of "value/cap" numbers
+- Top bar reduced to h=36 with smaller AP pips (12x8) and "AP" label (9px)
+- Toolbar icons loaded in BootScene with loaderror fallback
+- Zone selector and info text repositioned for new top bar height
+
+### Changed -- NightScene HUD icons
+- Heart icon (icon_heart) next to HP bar in top HUD
+- Skull icon (icon_skull) next to kill counter in bottom HUD
+- Bullet icon (icon_ammo) next to ammo counter in bottom HUD
+
+### Changed -- Panel standardization
+- Consistent 10/9/8px typography across all panels (headers 10px, body 9px, details 8px)
+- Resource costs shown with 12x12 resource icons in CraftingPanel, WeaponPanel, BuildMenu, LootRunPanel
+- WeaponPanel upgrade costs display resource icons instead of text labels
+- BuildMenu structure costs shown with resource icons
+- All panels use UIPanel component for consistent layout
+
 ## [1.2.1] - 2026-03-29
 
 ### Fixed

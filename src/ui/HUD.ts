@@ -12,6 +12,7 @@ export class HUD {
   private ammoText: Phaser.GameObjects.Text;
   private weaponText: Phaser.GameObjects.Text;
   private waveAnnouncementText: Phaser.GameObjects.Text;
+  private waveAnnouncementBg: Phaser.GameObjects.Graphics;
   private container: Phaser.GameObjects.Container;
 
   constructor(scene: Phaser.Scene) {
@@ -27,10 +28,19 @@ export class HUD {
     topBg.fillRect(0, 0, GAME_WIDTH, 32);
     this.container.add(topBg);
 
+    // Heart icon before HP bar (if texture exists)
+    const hpBarX = 16;
+    if (scene.textures.exists('icon_heart')) {
+      const heartIcon = scene.add.image(hpBarX - 2, 14, 'icon_heart')
+        .setOrigin(1, 0.5)
+        .setDisplaySize(10, 10);
+      this.container.add(heartIcon);
+    }
+
     // HP bar background (x=16, y=8, w=180, h=12)
     this.hpBarBg = scene.add.graphics();
     this.hpBarBg.fillStyle(0x333333);
-    this.hpBarBg.fillRect(16, 8, 180, 12);
+    this.hpBarBg.fillRect(hpBarX, 8, 180, 12);
     this.container.add(this.hpBarBg);
 
     // HP bar
@@ -41,7 +51,7 @@ export class HUD {
     // Stamina bar background (x=16, y=22, w=100, h=6)
     this.staminaBarBg = scene.add.graphics();
     this.staminaBarBg.fillStyle(0x333333);
-    this.staminaBarBg.fillRect(16, 22, 100, 6);
+    this.staminaBarBg.fillRect(hpBarX, 22, 100, 6);
     this.container.add(this.staminaBarBg);
 
     // Stamina bar
@@ -49,11 +59,11 @@ export class HUD {
     this.container.add(this.staminaBar);
     this.updateStaminaBar(100, 100);
 
-    // Wave text (centered, y=10, 12px)
+    // Wave text (centered, 10px, brighter color)
     this.waveText = scene.add.text(GAME_WIDTH / 2, 10, 'Wave 1/5', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '12px',
-      color: '#E8DCC8',
+      fontSize: '10px',
+      color: '#FFFFFF',
     }).setOrigin(0.5, 0);
     this.container.add(this.waveText);
 
@@ -63,34 +73,60 @@ export class HUD {
     bottomBg.fillRect(0, GAME_HEIGHT - 24, GAME_WIDTH, 24);
     this.container.add(bottomBg);
 
-    // Weapon name + durability (left, x=16)
+    // Weapon name (left, 9px)
     this.weaponText = scene.add.text(16, GAME_HEIGHT - 18, '', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
+      fontSize: '9px',
       color: '#E8DCC8',
     }).setOrigin(0, 0.5);
     this.container.add(this.weaponText);
 
-    // Ammo counter (center-right, x=GAME_WIDTH-200)
-    this.ammoText = scene.add.text(GAME_WIDTH - 200, GAME_HEIGHT - 18, 'Ammo: 0', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: '#FFD700',
-    }).setOrigin(0, 0.5);
+    // Ammo counter with bullet icon (center-right, 9px)
+    const ammoX = GAME_WIDTH - 200;
+    if (scene.textures.exists('bullet')) {
+      const bulletIcon = scene.add.image(ammoX, GAME_HEIGHT - 18, 'bullet')
+        .setOrigin(0, 0.5)
+        .setDisplaySize(8, 8);
+      this.container.add(bulletIcon);
+    }
+    this.ammoText = scene.add.text(
+      scene.textures.exists('bullet') ? ammoX + 12 : ammoX,
+      GAME_HEIGHT - 18,
+      '0',
+      {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#FFD700',
+      }
+    ).setOrigin(0, 0.5);
     this.container.add(this.ammoText);
 
-    // Kill counter (far right, x=GAME_WIDTH-16, origin right)
-    this.killText = scene.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 18, 'Kills: 0', {
+    // Kill counter with skull icon (far right, 9px)
+    const killX = GAME_WIDTH - 16;
+    this.killText = scene.add.text(killX, GAME_HEIGHT - 18, '0', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
+      fontSize: '9px',
       color: '#E8DCC8',
     }).setOrigin(1, 0.5);
     this.container.add(this.killText);
 
-    // Wave announcement (centered, hidden by default)
+    // Skull icon before kill text
+    if (scene.textures.exists('icon_skull')) {
+      const skullIcon = scene.add.image(killX - 40, GAME_HEIGHT - 18, 'icon_skull')
+        .setOrigin(1, 0.5)
+        .setDisplaySize(8, 8);
+      this.container.add(skullIcon);
+    }
+
+    // Wave announcement background (hidden by default)
+    this.waveAnnouncementBg = scene.add.graphics();
+    this.waveAnnouncementBg.setAlpha(0);
+    this.container.add(this.waveAnnouncementBg);
+
+    // Wave announcement text (centered, 16px, hidden by default)
     this.waveAnnouncementText = scene.add.text(GAME_WIDTH / 2, 200, '', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '20px',
+      fontSize: '16px',
       color: '#D4620B',
     }).setOrigin(0.5).setAlpha(0);
     this.container.add(this.waveAnnouncementText);
@@ -117,16 +153,42 @@ export class HUD {
   }
 
   updateKills(kills: number): void {
-    this.killText.setText(`Kills: ${kills}`);
+    this.killText.setText(`${kills}`);
   }
 
   showWaveAnnouncement(wave: number): void {
-    this.waveAnnouncementText.setText(`WAVE ${wave}`);
+    const text = `WAVE ${wave}`;
+    this.waveAnnouncementText.setText(text);
     this.waveAnnouncementText.setAlpha(1);
+    this.waveAnnouncementText.setScale(1);
 
+    // Draw dark background behind text
+    this.waveAnnouncementBg.clear();
+    const bounds = this.waveAnnouncementText.getBounds();
+    const pad = 8;
+    this.waveAnnouncementBg.fillStyle(0x000000, 0.6);
+    this.waveAnnouncementBg.fillRoundedRect(
+      bounds.x - pad, bounds.y - pad,
+      bounds.width + pad * 2, bounds.height + pad * 2,
+      4
+    );
+    this.waveAnnouncementBg.setAlpha(1);
+
+    // Scale-up animation: 1.0 -> 1.1 -> 1.0 over 300ms
     this.scene.tweens.add({
       targets: this.waveAnnouncementText,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 150,
+      ease: 'Quad.easeOut',
+      yoyo: true,
+    });
+
+    // Fade out after scale animation
+    this.scene.tweens.add({
+      targets: [this.waveAnnouncementText, this.waveAnnouncementBg],
       alpha: 0,
+      delay: 300,
       duration: 2000,
       ease: 'Power2',
     });
@@ -143,7 +205,7 @@ export class HUD {
   }
 
   updateAmmo(ammo: number): void {
-    this.ammoText.setText(`Ammo: ${ammo}`);
+    this.ammoText.setText(`${ammo}`);
     if (ammo <= 0) {
       this.ammoText.setColor('#F44336');
     } else if (ammo <= 5) {
@@ -156,9 +218,22 @@ export class HUD {
   showMessage(text: string): void {
     this.waveAnnouncementText.setText(text);
     this.waveAnnouncementText.setAlpha(1);
+    this.waveAnnouncementText.setScale(1);
+
+    // Draw dark background behind message text
+    this.waveAnnouncementBg.clear();
+    const bounds = this.waveAnnouncementText.getBounds();
+    const pad = 8;
+    this.waveAnnouncementBg.fillStyle(0x000000, 0.6);
+    this.waveAnnouncementBg.fillRoundedRect(
+      bounds.x - pad, bounds.y - pad,
+      bounds.width + pad * 2, bounds.height + pad * 2,
+      4
+    );
+    this.waveAnnouncementBg.setAlpha(1);
 
     this.scene.tweens.add({
-      targets: this.waveAnnouncementText,
+      targets: [this.waveAnnouncementText, this.waveAnnouncementBg],
       alpha: 0,
       duration: 2500,
       ease: 'Power2',

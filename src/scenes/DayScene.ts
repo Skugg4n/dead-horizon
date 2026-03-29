@@ -397,22 +397,22 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
-  // -- Top Bar: AP pips left, DAY centered, base info + upgrade right --
+  // -- Top Bar (h=36): AP pips left, DAY centered, base info + upgrade right --
   private createTopBar(): void {
     const topBg = this.add.graphics();
     topBg.fillStyle(0x1A1A1A, 0.85);
-    topBg.fillRect(0, 0, GAME_WIDTH, 48);
+    topBg.fillRect(0, 0, GAME_WIDTH, 36);
     topBg.setDepth(100).setScrollFactor(0);
     this.addToUI(topBg);
 
-    // AP bar (left side)
+    // AP bar (left side) -- smaller pips via updated ActionPointBar
     this.apBar = new ActionPointBar(this, this.currentAP);
     this.addToUI(this.apBar.getContainer());
 
     // DAY counter (centered)
-    const dayText = this.add.text(GAME_WIDTH / 2, 20, `DAY ${this.gameState.progress.currentWave}`, {
+    const dayText = this.add.text(GAME_WIDTH / 2, 18, `DAY ${this.gameState.progress.currentWave}`, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '14px',
+      fontSize: '10px',
       color: '#E8DCC8',
     }).setOrigin(0.5).setDepth(100);
     this.addToUI(dayText);
@@ -421,71 +421,163 @@ export class DayScene extends Phaser.Scene {
     this.createBaseUpgradeUI();
   }
 
-  // -- Two-row action bar at bottom --
+  // -- Icon toolbar at bottom (y=GAME_HEIGHT-48, h=48) --
   private createActionBar(): void {
+    const TOOLBAR_Y = GAME_HEIGHT - 48;
+    const TOOLBAR_H = 48;
+
+    // Dark background strip
     const barBg = this.add.graphics();
-    barBg.fillStyle(0x1A1A1A, 0.85);
-    barBg.fillRect(0, GAME_HEIGHT - 88, GAME_WIDTH, 64);
+    barBg.fillStyle(0x1A1A1A, 0.70);
+    barBg.fillRect(0, TOOLBAR_Y, GAME_WIDTH, TOOLBAR_H);
     barBg.setDepth(100).setScrollFactor(0);
     this.addToUI(barBg);
 
-    const ROW1_Y = GAME_HEIGHT - 64;
-    const ROW2_Y = GAME_HEIGHT - 42;
+    // Button definitions: label, icon key, theme color, callback
+    // Order: BUILD | AMMO | WEAPONS | CRAFT | gap | REFUGEES | LOOT RUN | gap | SKILLS | END DAY
+    interface ToolbarButton {
+      label: string;
+      iconKey: string;
+      color: number;
+      onClick: () => void;
+    }
 
-    // Row 1: Primary actions
-    const buildBtn = createUIButton(this, 16, ROW1_Y, 'BUILD', '#4CAF50', () => this.toggleBuildMenu());
-    buildBtn.setDepth(100);
-    this.addToUI(buildBtn);
-
-    const ammoBtn = createUIButton(this, 120, ROW1_Y, 'AMMO', '#4A90D9', () => {
-      if (this.currentAP < 1) {
-        this.showInfo('Not enough AP!');
-        return;
-      }
-      const result = loadAmmo(this.gameState, 1);
-      if (result.success) {
-        this.currentAP -= 1;
-        this.apBar.update(this.currentAP);
-        this.updateResourceDisplay();
+    const buttons: (ToolbarButton | null)[] = [
+      { label: 'BUILD', iconKey: 'icon_build', color: 0x4CAF50, onClick: () => this.toggleBuildMenu() },
+      { label: 'AMMO', iconKey: 'icon_ammo', color: 0x4A90D9, onClick: () => {
+        if (this.currentAP < 1) { this.showInfo('Not enough AP!'); return; }
+        const result = loadAmmo(this.gameState, 1);
+        if (result.success) {
+          this.currentAP -= 1;
+          this.apBar.update(this.currentAP);
+          this.updateResourceDisplay();
+        }
         this.showInfo(result.message);
-      } else {
-        this.showInfo(result.message);
+      }},
+      { label: 'WEAPONS', iconKey: 'icon_weapons', color: 0xC5A030, onClick: () => this.weaponPanel.toggle() },
+      { label: 'CRAFT', iconKey: 'icon_craft', color: 0xD4A030, onClick: () => this.craftingPanel.toggle() },
+      null, // gap
+      { label: 'REFUGEES', iconKey: 'icon_refugees', color: 0x8B6FC0, onClick: () => this.refugeePanel.toggle() },
+      { label: 'LOOT RUN', iconKey: 'icon_lootrun', color: 0xD4A030, onClick: () => this.lootRunPanel.toggle() },
+      null, // gap
+      { label: 'SKILLS', iconKey: 'icon_skills', color: 0xC5A030, onClick: () => this.skillPanel.toggle() },
+      { label: 'END DAY', iconKey: 'icon_endday', color: 0xD4620B, onClick: () => this.endDay() },
+    ];
+
+    // Calculate positions: real buttons get evenly distributed, nulls are gaps
+    const realButtons = buttons.filter(b => b !== null) as ToolbarButton[];
+    const BUTTON_SIZE = 36;
+    const totalButtons = realButtons.length; // 8
+    const totalGaps = 2; // two null gaps
+    const GAP_WIDTH = 16;
+    const totalWidth = totalButtons * BUTTON_SIZE + (totalButtons - 1 - totalGaps) * 8 + totalGaps * GAP_WIDTH;
+    let startX = Math.floor((GAME_WIDTH - totalWidth) / 2);
+
+    // Shared tooltip text (reused, only one visible at a time)
+    const tooltip = this.add.text(0, 0, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#E8DCC8',
+      backgroundColor: '#1A1A1A',
+      padding: { x: 4, y: 2 },
+    }).setOrigin(0.5, 1).setDepth(120).setVisible(false);
+    this.addToUI(tooltip);
+
+    let curX = startX;
+    for (const entry of buttons) {
+      if (entry === null) {
+        curX += GAP_WIDTH;
+        continue;
       }
-    });
-    ammoBtn.setDepth(100);
-    this.addToUI(ammoBtn);
-
-    const weaponsBtn = createUIButton(this, 220, ROW1_Y, 'WEAPONS', '#C5A030', () => this.weaponPanel.toggle());
-    weaponsBtn.setDepth(100);
-    this.addToUI(weaponsBtn);
-
-    const craftBtn = createUIButton(this, 340, ROW1_Y, 'CRAFT', '#D4A030', () => this.craftingPanel.toggle());
-    craftBtn.setDepth(100);
-    this.addToUI(craftBtn);
-
-    const skillsBtn = createUIButton(this, 560, ROW1_Y, 'SKILLS', '#C5A030', () => this.skillPanel.toggle());
-    skillsBtn.setDepth(100);
-    this.addToUI(skillsBtn);
-
-    const endDayBtn = createUIButton(this, GAME_WIDTH - 16, ROW1_Y, 'END DAY', '#D4620B', () => this.endDay(), 1);
-    endDayBtn.setDepth(100);
-    this.addToUI(endDayBtn);
-
-    // Row 2: Secondary actions
-    const refugeesBtn = createUIButton(this, 16, ROW2_Y, 'REFUGEES', '#8B6FC0', () => this.refugeePanel.toggle());
-    refugeesBtn.setDepth(100);
-    this.addToUI(refugeesBtn);
-
-    const lootBtn = createUIButton(this, 150, ROW2_Y, 'LOOT RUN', '#D4A030', () => this.lootRunPanel.toggle());
-    lootBtn.setDepth(100);
-    this.addToUI(lootBtn);
+      this.createIconButton(entry.iconKey, entry.label, entry.color, curX, TOOLBAR_Y + 6, BUTTON_SIZE, entry.onClick, tooltip);
+      curX += BUTTON_SIZE + 8;
+    }
   }
 
-  // -- Resource bar at very bottom --
+  /** Create a single icon toolbar button with hover tooltip and fallback to text label */
+  private createIconButton(
+    iconKey: string,
+    label: string,
+    themeColor: number,
+    x: number,
+    y: number,
+    size: number,
+    onClick: () => void,
+    tooltip: Phaser.GameObjects.Text,
+  ): void {
+    const ICON_SIZE = 32;
+    const container = this.add.container(x, y);
+    container.setSize(size, size);
+    container.setDepth(100);
+
+    // Background square
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1A1A1A, 0.70);
+    bg.fillRoundedRect(0, 0, size, size, 2);
+    bg.lineStyle(2, themeColor, 0.6);
+    bg.strokeRoundedRect(0, 0, size, size, 2);
+    container.add(bg);
+
+    const hasIcon = this.textures.exists(iconKey) && this.textures.get(iconKey).key !== '__MISSING';
+
+    if (hasIcon) {
+      const icon = this.add.image(size / 2, size / 2, iconKey);
+      icon.setDisplaySize(ICON_SIZE, ICON_SIZE);
+      container.add(icon);
+    } else {
+      // Text fallback: abbreviation (first 3 chars) in theme color
+      const abbr = label.substring(0, 3);
+      const colorStr = '#' + themeColor.toString(16).padStart(6, '0');
+      const fallbackText = this.add.text(size / 2, size / 2, abbr, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: colorStr,
+      }).setOrigin(0.5);
+      container.add(fallbackText);
+    }
+
+    // Hit zone for interaction
+    const hitZone = this.add.zone(size / 2, size / 2, size, size);
+    hitZone.setInteractive({ useHandCursor: true });
+    container.add(hitZone);
+
+    hitZone.on('pointerover', () => {
+      bg.clear();
+      bg.fillStyle(0x333333, 0.80);
+      bg.fillRoundedRect(0, 0, size, size, 2);
+      bg.lineStyle(2, 0xFFD700, 0.8);
+      bg.strokeRoundedRect(0, 0, size, size, 2);
+      container.setScale(1.05);
+
+      // Show tooltip above icon
+      tooltip.setText(label);
+      tooltip.setPosition(x + size / 2, y - 6);
+      tooltip.setVisible(true);
+    });
+
+    hitZone.on('pointerout', () => {
+      bg.clear();
+      bg.fillStyle(0x1A1A1A, 0.70);
+      bg.fillRoundedRect(0, 0, size, size, 2);
+      bg.lineStyle(2, themeColor, 0.6);
+      bg.strokeRoundedRect(0, 0, size, size, 2);
+      container.setScale(1.0);
+      tooltip.setVisible(false);
+    });
+
+    hitZone.on('pointerdown', onClick);
+
+    this.addToUI(container);
+  }
+
+  // -- Resource bar with icons (y=GAME_HEIGHT-72, h=24) --
   private createResourceBar(): void {
+    const RES_BAR_Y = GAME_HEIGHT - 72;
+    const RES_BAR_H = 24;
+
     const resBg = this.add.graphics();
-    resBg.fillStyle(0x1A1A1A, 0.9);
-    resBg.fillRect(0, GAME_HEIGHT - 24, GAME_WIDTH, 24);
+    resBg.fillStyle(0x1A1A1A, 0.85);
+    resBg.fillRect(0, RES_BAR_Y, GAME_WIDTH, RES_BAR_H);
     resBg.setDepth(100).setScrollFactor(0);
     this.addToUI(resBg);
 
@@ -495,6 +587,13 @@ export class DayScene extends Phaser.Scene {
       ammo: '#4A90D9',
       parts: '#E8DCC8',
       meds: '#F44336',
+    };
+    const RESOURCE_ICONS: Record<ResourceType, string> = {
+      scrap: 'icon_scrap',
+      food: 'icon_food',
+      ammo: 'icon_ammo',
+      parts: 'icon_parts',
+      meds: 'icon_meds',
     };
     const RESOURCE_ORDER: ResourceType[] = ['scrap', 'food', 'ammo', 'parts', 'meds'];
     const sectionWidth = GAME_WIDTH / RESOURCE_ORDER.length;
@@ -506,7 +605,7 @@ export class DayScene extends Phaser.Scene {
     sep.lineStyle(1, 0x333333, 1);
     for (let i = 1; i < RESOURCE_ORDER.length; i++) {
       const sx = sectionWidth * i;
-      sep.lineBetween(sx, GAME_HEIGHT - 24, sx, GAME_HEIGHT);
+      sep.lineBetween(sx, RES_BAR_Y, sx, RES_BAR_Y + RES_BAR_H);
     }
     sep.setDepth(100).setScrollFactor(0);
     this.addToUI(sep);
@@ -514,19 +613,31 @@ export class DayScene extends Phaser.Scene {
     for (let i = 0; i < RESOURCE_ORDER.length; i++) {
       const type = RESOURCE_ORDER[i] as ResourceType;
       const color = RESOURCE_COLORS[type];
-      const label = type.charAt(0).toUpperCase() + type.slice(1);
+      const iconKey = RESOURCE_ICONS[type];
       const value = res[type];
+      const centerX = sectionWidth * i + sectionWidth / 2;
+      const centerY = RES_BAR_Y + RES_BAR_H / 2;
 
+      // Try to show 16x16 icon left of number
+      const hasIcon = this.textures.exists(iconKey) && this.textures.get(iconKey).key !== '__MISSING';
+      if (hasIcon) {
+        const icon = this.add.image(centerX - 28, centerY, iconKey);
+        icon.setDisplaySize(16, 16);
+        icon.setDepth(100);
+        this.addToUI(icon);
+      }
+
+      const textX = hasIcon ? centerX - 8 : centerX;
       const text = this.add.text(
-        sectionWidth * i + sectionWidth / 2,
-        GAME_HEIGHT - 12,
-        `${label}: ${value}/${cap}`,
+        textX,
+        centerY,
+        `${value}/${cap}`,
         {
           fontFamily: '"Press Start 2P", monospace',
-          fontSize: '8px',
+          fontSize: '9px',
           color: color,
         },
-      ).setOrigin(0.5).setDepth(100);
+      ).setOrigin(hasIcon ? 0 : 0.5, 0.5).setDepth(100);
       this.addToUI(text);
       this.resourceTexts.set(type, text);
     }
@@ -540,15 +651,14 @@ export class DayScene extends Phaser.Scene {
     for (const type of RESOURCE_ORDER) {
       const text = this.resourceTexts.get(type);
       if (!text || !text.active) continue;
-      const label = type.charAt(0).toUpperCase() + type.slice(1);
-      text.setText(`${label}: ${res[type]}/${cap}`);
+      text.setText(`${res[type]}/${cap}`);
     }
   }
 
   private createZoneSelector(): void {
     const zones = this.zoneManager.getAllZones();
     const current = this.zoneManager.getCurrentZone();
-    let yPos = 68;
+    let yPos = 54;
 
     for (const zone of zones) {
       const unlocked = this.zoneManager.isUnlocked(zone.id);
@@ -578,7 +688,7 @@ export class DayScene extends Phaser.Scene {
       yPos += 14;
     }
 
-    const label = this.add.text(GAME_WIDTH - 16, 56, 'ZONE:', {
+    const label = this.add.text(GAME_WIDTH - 16, 42, 'ZONE:', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#6B6B6B',
@@ -684,7 +794,7 @@ export class DayScene extends Phaser.Scene {
   }
 
   private createInfoText(): void {
-    this.infoText = this.add.text(GAME_WIDTH / 2, 56, '', {
+    this.infoText = this.add.text(GAME_WIDTH / 2, 42, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#C5A030',
@@ -973,7 +1083,7 @@ export class DayScene extends Phaser.Scene {
     const next = this.getNextBaseLevelData();
 
     // Base name label
-    const baseLabel = this.add.text(GAME_WIDTH - 16, 10, levelData.name, {
+    const baseLabel = this.add.text(GAME_WIDTH - 16, 6, levelData.name, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#E8DCC8',
@@ -986,7 +1096,7 @@ export class DayScene extends Phaser.Scene {
       this.baseUpgradeBtn = createUIButton(
         this,
         GAME_WIDTH - 16,
-        26,
+        20,
         `UPGRADE (${costStr})`,
         '#4CAF50',
         () => this.upgradeBase(),
@@ -995,7 +1105,7 @@ export class DayScene extends Phaser.Scene {
       this.baseUpgradeBtn.setDepth(100);
       this.addToUI(this.baseUpgradeBtn);
     } else {
-      const maxText = this.add.text(GAME_WIDTH - 16, 26, 'MAX', {
+      const maxText = this.add.text(GAME_WIDTH - 16, 20, 'MAX', {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: '#6B6B6B',

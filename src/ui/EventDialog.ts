@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 
-const DIALOG_WIDTH = 400;
+const DIALOG_WIDTH = 360;
 const DIALOG_HEIGHT = 260;
 const DIALOG_X = Math.floor((GAME_WIDTH - DIALOG_WIDTH) / 2);
 const DIALOG_Y = Math.floor((GAME_HEIGHT - DIALOG_HEIGHT) / 2);
@@ -96,7 +96,7 @@ export class EventDialog {
       const y = startY + index * spacing;
       const btn = this.scene.add.text(DIALOG_WIDTH / 2, y, `[ ${choice.text} ]`, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '12px',
+        fontSize: '10px',
         color: '#D4920B',
       }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
 

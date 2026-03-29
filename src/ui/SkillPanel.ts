@@ -5,9 +5,8 @@ import Phaser from 'phaser';
 import { SkillManager } from '../systems/SkillManager';
 import { UIPanel } from './UIPanel';
 
-const PANEL_WIDTH = 380;
 const ROW_HEIGHT = 44;
-const BAR_WIDTH = 180;
+const BAR_WIDTH = 160;
 const BAR_HEIGHT = 8;
 
 export class SkillPanel {
@@ -21,7 +20,7 @@ export class SkillPanel {
 
     const skills = this.skillManager.getAllSkills();
     const panelHeight = skills.length * ROW_HEIGHT + 48;
-    this.panel = new UIPanel(scene, 'SKILLS', PANEL_WIDTH, panelHeight);
+    this.panel = new UIPanel(scene, 'SKILLS', 360, panelHeight);
 
     this.buildPanel();
 
