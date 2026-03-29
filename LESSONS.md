@@ -6,6 +6,10 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ## Projektsetup
 
+### Vite static assets maste ligga i public/
+**Problem:** Sprite-PNGs i assets/ (projektroten) serverades korrekt i dev-servern men kopierades INTE till dist/ vid build. Alla sprites saknades i produktion (GitHub Pages), vilket orsakade fallback-texturer overallt -- gra rektangel for basen, gron blob for spelaren, enfargad bakgrund istallet for terrain-tiles.
+**Losning:** Flytta assets/ till public/assets/. Vite kopierar allt i public/ till dist/ vid build. Samma relativa sokvagar ('assets/sprites/player.png') fungerar bade i dev och produktion.
+
 ### Google Drive och npm
 **Problem:** node_modules i Google Drive orsakar synkproblem (tusentals filer).
 **Losning:** Projektet ligger i ~/Projects/dead-horizon, INTE i Google Drive. Docs kopierades dit fran Drive.

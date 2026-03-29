@@ -74,4 +74,4 @@ export const ENCOUNTER_THRESHOLDS: Record<string, number> = {
   military_outpost: 100,
 };
 
-export const GAME_VERSION = '1.3.0';
+export const GAME_VERSION = '1.3.1';

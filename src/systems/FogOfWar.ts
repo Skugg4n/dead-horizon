@@ -65,11 +65,11 @@ export class FogOfWar {
     // Reveal area around base
     this.revealAroundBase();
 
-    // Create graphics object for fog rendering
+    // Create graphics object for fog rendering (kept for API compatibility).
+    // Visual fog is disabled -- lighting overlay handles darkness.
     this.graphics = scene.add.graphics();
     this.graphics.setDepth(80);
-
-    this.redraw();
+    this.graphics.setVisible(false);
   }
 
   /** Reveal cells in a circle around the base */

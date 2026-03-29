@@ -1,5 +1,14 @@
 # Dead Horizon -- Changelog
 
+## [1.3.1] - 2026-03-29 10:30
+
+### Fixed -- NightScene rendering bugs
+- Moved assets/ into public/ so Vite copies sprites to dist/ during build. All sprites (player, base, terrain, structures, UI icons) were missing in production builds, causing fallback textures everywhere.
+- Set FogOfWar graphics (depth 80) to invisible since visual fog is disabled. The empty Graphics object at high depth could interfere with rendering.
+- Base now renders as base_tent.png sprite instead of grey Graphics rectangle in production.
+- Player now renders as player.png sprite instead of programmatic green blob in production.
+- Terrain now renders with tile sprites instead of solid color fill in production.
+
 ## [1.3.0] - 2026-03-29
 
 ### Added -- Toolbar icons (pixel art)
