@@ -319,48 +319,20 @@ export class NightScene extends Phaser.Scene {
     // GROUND LAYER
     // ------------------------------------------------------------------
     const hasGrassTiles = this.textures.exists('terrain_grass_1');
-    const hasDirtTile   = this.textures.exists('terrain_dirt_1');
-    const hasPathTile   = this.textures.exists('terrain_path_1');
-    const hasLeaves     = this.textures.exists('terrain_leaves');
-
     if (hasGrassTiles) {
-      // --- Sprite-based tiles with rich variation ---
-      const baseCX = Math.floor(MAP_WIDTH / 2);
-      const baseCY = Math.floor(MAP_HEIGHT / 2);
-      const baseRadius = 7; // tiles from center that count as base area
-
+      // --- Sprite-based grass tiles only; road/base use Graphics overlay ---
       for (let ty = 0; ty < MAP_HEIGHT; ty++) {
         for (let tx = 0; tx < MAP_WIDTH; tx++) {
           const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
           const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
-          const isRoad = (ty === roadRow || ty === roadRow - 1);
-          const distToBase = Math.sqrt((tx - baseCX) ** 2 + (ty - baseCY) ** 2);
           const hash = (tx * 1619 + ty * 3571) | 0;
 
-          if (isRoad) {
-            // Road: use dirt/path tiles
-            if (hasPathTile && (hash & 1)) {
-              this.add.image(tileX, tileY, 'terrain_path_1');
-            } else if (hasDirtTile) {
-              this.add.image(tileX, tileY, (hash & 2) ? 'terrain_dirt_1' : 'terrain_dirt_2');
-            } else {
-              this.add.image(tileX, tileY, 'terrain_grass_1');
-            }
-          } else if (distToBase < baseRadius && hasDirtTile) {
-            // Base area: cleared dirt
-            const dirtKey = (hash & 1) ? 'terrain_dirt_1' : 'terrain_dirt_2';
-            this.add.image(tileX, tileY, dirtKey);
-          } else if (distToBase < baseRadius + 2 && hasLeaves) {
-            // Transition: leaves around base edge
-            this.add.image(tileX, tileY, (hash & 1) ? 'terrain_leaves' : 'terrain_grass_3');
-          } else {
-            // Normal grass with variation
-            const variant = ((hash >>> 0) % 3) + 1;
-            const img = this.add.image(tileX, tileY, `terrain_grass_${variant}`);
-            // Edge tiles slightly darker
-            if (tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2) {
-              img.setTint(0xBBBBBB);
-            }
+          // All tiles use grass -- road and base drawn as Graphics overlay
+          const tileKey = ((hash >>> 0) % 10 === 0) ? 'terrain_grass_2' : 'terrain_grass_1';
+          const img = this.add.image(tileX, tileY, tileKey);
+          // Edge tiles slightly darker
+          if (tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2) {
+            img.setTint(0xBBBBBB);
           }
         }
       }
@@ -493,7 +465,7 @@ export class NightScene extends Phaser.Scene {
     }
 
     // Road markings -- only for the Graphics path (no tile sprites)
-    if (!hasPathTile) {
+    if (!hasGrassTiles) {
       const markings = this.add.graphics();
       markings.setDepth(1);
       markings.fillStyle(0x5A4028, 0.5);
@@ -1423,7 +1395,8 @@ export class NightScene extends Phaser.Scene {
 
   private setupLighting(): void {
     // Darker night background colour
-    this.cameras.main.setBackgroundColor('#0F1A0F');
+    // Match grass tile base color to eliminate visible gaps between tiles
+    this.cameras.main.setBackgroundColor('#2A491F');
 
     const mapW = MAP_WIDTH  * TILE_SIZE;
     const mapH = MAP_HEIGHT * TILE_SIZE;
@@ -1678,13 +1651,17 @@ export class NightScene extends Phaser.Scene {
 
     showStep();
 
+    // Pause physics and wave spawning while tutorial is showing
+    this.physics.pause();
+
     // Panel already has setInteractive -- click anywhere on it to advance.
     panel.on('pointerdown', advance);
     const keyHandler = this.input.keyboard?.on('keydown', advance);
 
-    // Clean up when container is destroyed
+    // Clean up when container is destroyed -- resume physics
     container.once('destroy', () => {
       if (keyHandler) this.input.keyboard?.off('keydown', advance);
+      this.physics.resume();
     });
   }
 }

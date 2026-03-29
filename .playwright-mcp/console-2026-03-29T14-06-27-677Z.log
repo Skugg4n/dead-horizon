@@ -1,1 +1,3 @@
 [    1771ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/favicon.ico:0
+[ 6441670ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:5173/src/scenes/NightScene.ts?t=1774799629259:0
+[ 6479797ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:5173/src/scenes/NightScene.ts?t=1774799667394:0
