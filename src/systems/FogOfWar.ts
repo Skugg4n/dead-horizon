@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { GameState } from '../config/types';
-import { FOG_BLOCK_SIZE, FOG_ALPHA } from '../config/constants';
+import { FOG_BLOCK_SIZE } from '../config/constants';
 
 /**
  * FogOfWar system for NightScene.
