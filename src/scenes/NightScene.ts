@@ -777,6 +777,7 @@ export class NightScene extends Phaser.Scene {
   }
 
   private shootAt(target: Zombie): void {
+    if (!target.active) return;
     const weapon = this.weaponManager.getEquipped();
     if (!weapon) return;
 
