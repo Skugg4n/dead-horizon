@@ -6,6 +6,20 @@
 - Character portraits (64x64 px pixel art) for all 4 playable characters: Soldier, Scavenger, Engineer, Medic
 - Portrait assets in public/assets/sprites/characters/
 - Portraits loaded in BootScene.ts as portrait_soldier, portrait_scavenger, portrait_engineer, portrait_medic
+- Visual overhaul: NightScene ground layer with per-tile colour variation, cleared dirt area around base, ground detail patches (grass tufts, leaves, pebbles)
+- Visual overhaul: natural wandering dirt road replacing solid rectangle
+- Visual overhaul: warm orange base glow (radial gradient, 8 steps, depth 4) around base centre
+- Visual overhaul: edge vignette (dark frame strips, 5-step gradient, depth 9) for atmospheric depth
+- TerrainGenerator overhaul: trees now use 4 crown shape variants with 3-4 overlapping ellipses, ground shadow, and textured trunk (dark stripe + knot detail)
+- TerrainGenerator: stones now have light highlight, dark shadow crescent, and 40% moss patches in forest/military zones
+- TerrainGenerator: bushes redesigned with 4 overlapping ellipses + specular highlight + ground shadow
+- TerrainGenerator: stumps improved with two annual rings and light spot
+- TerrainGenerator: new element -- flowers (10-20 per forest map, 5 petal types, yellow/white/red/pink/purple)
+- TerrainGenerator: new element -- mushrooms (3-6 per forest map, red Amanita with white spots, brown, pale)
+- TerrainGenerator: new element -- fallen logs (2-4 per forest, rotated with bark stripes and end caps)
+- TerrainGenerator: new element -- crates/debris (1-4 per map, near base, with wood plank detail and crack on broken variants)
+- Forest zone tree count increased from 5-8 to 10-15 for denser feel
+- Water zones improved with muddy shore ring and dual reflection highlights
 
 ## [1.7.0] - 2026-03-29
 
