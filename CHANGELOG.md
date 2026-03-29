@@ -19,7 +19,9 @@
 - U4: EventDialog dynamic height, never overflows
 - U5: Keyboard shortcuts in DayScene (B/L/R/E)
 - New title screen with procedural pixel art background, styled buttons, info panel
-- Terrain generation (trees, rocks, water, paths) with zone variation
+- Procedural terrain generation (trees, rocks, water, paths, stumps) with zone variation
+- Terrain colliders (trees/rocks block movement, water slows zombies 50%)
+- Tree canopies on high depth for parallax feel
 
 ### Changed
 - Version: 1.6.0 -> 1.7.0

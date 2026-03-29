@@ -119,6 +119,16 @@ export interface StructureInstance {
   y: number;
 }
 
+// Result from TerrainGenerator.generateTerrain()
+export interface TerrainResult {
+  // Static physics group for trees and large rocks (zombies + player collide with these)
+  colliders: Phaser.Physics.Arcade.StaticGroup;
+  // Non-physics group for water zones (overlap triggers slow debuff)
+  waterZones: Phaser.GameObjects.Group;
+  // Container holding all visual decorations (no physics)
+  decorContainer: Phaser.GameObjects.Container;
+}
+
 export interface GameState {
   version: string;
   player: {

@@ -27,6 +27,8 @@ import structuresData from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import enemiesData from '../data/enemies.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
+import { generateTerrain } from '../systems/TerrainGenerator';
+import type { TerrainResult } from '../config/types';
 
 // Parse structure colors from JSON (string hex to number)
 const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
@@ -89,6 +91,10 @@ export class NightScene extends Phaser.Scene {
   // Base center position (set once map is created)
   private baseCenterX: number = 0;
   private baseCenterY: number = 0;
+  // Procedural terrain (generated each night)
+  private terrainResult!: TerrainResult;
+  // Set of zombie IDs currently inside a water zone (for speed debuff)
+  private zombiesInWater: Set<Zombie> = new Set();
 
   constructor() {
     super({ key: 'NightScene' });
@@ -107,6 +113,7 @@ export class NightScene extends Phaser.Scene {
 
     this.createMap();
 
+
     // F2: Blood splatter container -- depth 0, below everything else
     this.bloodSplatContainer = this.add.container(0, 0);
     this.bloodSplatContainer.setDepth(0);
@@ -116,6 +123,8 @@ export class NightScene extends Phaser.Scene {
     this.baseMaxHp = this.gameState.base.maxHp ?? BASE_MAX_HP;
     // Restore full HP each night (base regenerates overnight)
     this.baseHp = this.baseMaxHp;
+
+    this.createTerrain();
 
     this.createStructures();
     this.createFogOfWar();
@@ -214,11 +223,29 @@ export class NightScene extends Phaser.Scene {
     const camTop = cam.scrollY - 500;
     const camBottom = cam.scrollY + cam.height + 500;
 
+    // Snapshot which zombies were in water last frame, then clear for this frame.
+    // The water overlap callbacks will re-populate zombiesInWater during physics step.
+    const prevInWater = new Set(this.zombiesInWater);
+    this.zombiesInWater.clear();
+
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
       if (zombie.active) {
         zombie.offScreen = zombie.x < camLeft || zombie.x > camRight ||
                            zombie.y < camTop || zombie.y > camBottom;
+
+        // Apply water speed debuff: halve moveSpeed while inside a water zone.
+        // We use a flag stored on the zombie to avoid double-multiplying each frame.
+        const wasSlowed = zombie.getData('waterSlowed') as boolean | undefined;
+        const isInWater = prevInWater.has(zombie);
+        if (isInWater && !wasSlowed) {
+          zombie.moveSpeed *= 0.5;
+          zombie.setData('waterSlowed', true);
+        } else if (!isInWater && wasSlowed) {
+          zombie.moveSpeed *= 2; // Restore full speed
+          zombie.setData('waterSlowed', false);
+        }
+
         zombie.update(delta);
       }
     });
@@ -356,6 +383,18 @@ export class NightScene extends Phaser.Scene {
 
     // Set world bounds
     this.physics.world.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
+  }
+
+  private createTerrain(): void {
+    const mapPixelWidth  = MAP_WIDTH  * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    const basePos = { x: mapPixelWidth / 2, y: mapPixelHeight / 2 };
+
+    // Seed: deterministic per run+wave combination so each night looks different
+    // but replaying the same day gives the same terrain.
+    const seed = (this.gameState.progress.totalRuns * 31 + this.gameState.progress.currentWave) | 0;
+
+    this.terrainResult = generateTerrain(this, this.gameState.zone, basePos, seed);
   }
 
   private createStructures(): void {
@@ -551,6 +590,22 @@ export class NightScene extends Phaser.Scene {
 
     // Walls also block player
     this.physics.add.collider(this.player, this.wallBodies);
+
+    // Terrain colliders: trees and large rocks block zombies and player
+    this.physics.add.collider(this.zombieGroup, this.terrainResult.colliders);
+    this.physics.add.collider(this.player, this.terrainResult.colliders);
+
+    // Water zones slow zombies (overlap -- no physical block)
+    this.physics.add.overlap(
+      this.zombieGroup,
+      this.terrainResult.waterZones,
+      (_zombie) => {
+        const zombie = _zombie as Zombie;
+        if (!zombie.active) return;
+        // Mark zombie as in-water so the update loop can apply speed debuff
+        this.zombiesInWater.add(zombie);
+      }
+    );
 
     // Spitter projectile hits player
     this.physics.add.overlap(
