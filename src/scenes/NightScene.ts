@@ -728,8 +728,19 @@ export class NightScene extends Phaser.Scene {
     // Walls also block player
     this.physics.add.collider(this.player, this.wallBodies);
 
-    // Terrain is purely visual -- no collision for anyone
-    // Zombies and player walk through trees/rocks freely
+    // Terrain slows zombies (overlap, not collider -- they push through but slowly)
+    this.physics.add.overlap(
+      this.zombieGroup,
+      this.terrainResult.colliders,
+      (_zombie) => {
+        const zombie = _zombie as Zombie;
+        if (!zombie.active) return;
+        // Halve velocity while overlapping terrain
+        if (zombie.body) {
+          zombie.setVelocity(zombie.body.velocity.x * 0.5, zombie.body.velocity.y * 0.5);
+        }
+      },
+    );
 
     // Water zones slow zombies (overlap -- no physical block)
     this.physics.add.overlap(
