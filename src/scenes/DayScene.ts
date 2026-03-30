@@ -17,7 +17,8 @@ import { ZoneManager } from '../systems/ZoneManager';
 import { CraftingManager } from '../systems/CraftingManager';
 import { CraftingPanel } from '../ui/CraftingPanel';
 import { AchievementManager } from '../systems/AchievementManager';
-import type { GameState, StructureInstance, ResourceType } from '../config/types';
+import type { GameState, StructureInstance, ResourceType, TerrainResult } from '../config/types';
+import { generateTerrain } from '../systems/TerrainGenerator';
 import { EventManager } from '../systems/EventManager';
 import { EventDialog } from '../ui/EventDialog';
 import type { EventChoice } from '../ui/EventDialog';
@@ -494,6 +495,16 @@ export class DayScene extends Phaser.Scene {
       grid.lineBetween(0, y, mapPixelWidth, y);
     }
     this.mapContainer.add(grid);
+
+    // ------------------------------------------------------------------
+    // TERRAIN FEATURES (trees, rocks, bushes etc.) -- visual only, no colliders
+    // Uses the same seed as NightScene so obstacles match.
+    // ------------------------------------------------------------------
+    const seed = (this.gameState.progress.totalRuns * 31 + this.gameState.progress.currentWave) | 0;
+    const basePos = { x: centerX, y: centerY };
+    const terrainResult: TerrainResult = generateTerrain(this, this.gameState.zone, basePos, seed);
+    // Add only the visual decorations -- ignore colliders and waterZones (day is planning only)
+    this.mapContainer.add(terrainResult.decorContainer);
 
     // ------------------------------------------------------------------
     // BASE TENT (centre)

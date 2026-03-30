@@ -218,8 +218,10 @@ export class WeaponPanel {
     });
     content.add(title);
 
+    const entrySpacing = 55;
+
     available.forEach((upgradeType, i) => {
-      const y = 20 + i * 32;
+      const y = 20 + i * entrySpacing;
       const upgradeData = WeaponManager.getUpgradeData(upgradeType);
       if (!upgradeData) return;
 
@@ -229,37 +231,44 @@ export class WeaponPanel {
       // Hover background
       const bg = this.scene.add.graphics();
       bg.fillStyle(0x333333, 0);
-      bg.fillRect(-4, y - 2, contentWidth + 8, 28);
+      bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
       content.add(bg);
 
-      // Upgrade name (9px body)
+      // Upgrade name + description with cost on same line (9px body)
+      const costLabel = `[${upgradeData.partsCost} parts]`;
       const entry = this.scene.add.text(0, y, `${upgradeData.name} - ${upgradeData.description}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color,
-        wordWrap: { width: contentWidth - 40 },
+        wordWrap: { width: contentWidth - 10 },
       });
       content.add(entry);
 
-      // Cost with resource icon (8px label)
-      renderResourceCosts(this.scene, content, { parts: upgradeData.partsCost }, 0, y + 14, color);
+      // Cost label right-aligned on same line as name (9px body)
+      const costText = this.scene.add.text(contentWidth, y, costLabel, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color,
+      });
+      costText.setOrigin(1, 0);
+      content.add(costText);
 
       if (canAfford) {
         bg.setInteractive(
-          new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, 28),
+          new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, entrySpacing - 4),
           Phaser.Geom.Rectangle.Contains,
         );
         if (bg.input) bg.input.cursor = 'pointer';
         bg.on('pointerover', () => {
           bg.clear();
           bg.fillStyle(0x444444, 0.5);
-          bg.fillRect(-4, y - 2, contentWidth + 8, 28);
+          bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
           entry.setColor('#FFD700');
         });
         bg.on('pointerout', () => {
           bg.clear();
           bg.fillStyle(0x333333, 0);
-          bg.fillRect(-4, y - 2, contentWidth + 8, 28);
+          bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
           entry.setColor('#E8DCC8');
         });
         bg.on('pointerdown', () => {
@@ -271,7 +280,7 @@ export class WeaponPanel {
     });
 
     // Back button (9px body)
-    const backY = 20 + available.length * 32 + 8;
+    const backY = 20 + available.length * entrySpacing + 8;
     const backBtn = this.scene.add.text(0, backY, '[ BACK ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',

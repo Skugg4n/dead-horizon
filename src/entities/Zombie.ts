@@ -230,6 +230,13 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     } else if (this.basePosition) {
       targetX = this.basePosition.x;
       targetY = this.basePosition.y;
+
+      // Stop near the base perimeter instead of spinning on top of the center
+      const distToBase = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+      if (distToBase < 48) {
+        this.setVelocity(0, 0);
+        return;
+      }
     } else {
       targetX = this.target.x;
       targetY = this.target.y;

@@ -1,5 +1,11 @@
 # Dead Horizon -- Changelog
 
+## [1.8.3] - 2026-03-28
+
+### Fixed
+- DayScene visar nu samma terrang (trad, stenar, buskar etc.) som NightScene via TerrainGenerator. Anvander samma seed sa hinder syns nar man placerar strukturer. Enbart visuellt -- inga colliders i dagscenen.
+- Zombies stannar nu ~48px fran basens centrum istallet for att snurra ovanpa den. De star stilla och "attackerar" perimetern, medan NightScene hanterar skada via befintlig overlap-logik.
+
 ## [1.8.2] - 2026-03-28
 
 ### Fixed -- 4 kritiska buggar
