@@ -1269,9 +1269,8 @@ export class NightScene extends Phaser.Scene {
   private checkZombieBaseInteractions(): void {
     if (this.baseCenterX === 0) return;
 
-    const baseLevelIdx = Math.min(this.gameState.base.level, 3);
-    // Base "hit radius" scales with base size (level 0 = 24px, level 3 = 48px)
-    const baseRadius = 24 + baseLevelIdx * 8;
+    // Base "hit radius" must match or exceed zombie stop distance (48px in Zombie.ts)
+    const baseRadius = 56;
 
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
@@ -1485,7 +1484,8 @@ export class NightScene extends Phaser.Scene {
   private setupLighting(): void {
     // Night uses same terrain as day -- no overlays, no glow, no vignette
     // Darkness comes from slightly darker background only
-    this.cameras.main.setBackgroundColor('#1A3A14');
+    // Match grass tile base color exactly to hide gaps between tiles
+    this.cameras.main.setBackgroundColor('#3A6B2A');
   }
 
   private updateLighting(): void {

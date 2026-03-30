@@ -205,6 +205,16 @@ export class EncounterDialog {
     });
     this.container.add(okBtn);
 
+    // Make entire container area clickable as fallback for OK button
+    const hitArea = this.scene.add.rectangle(DIALOG_WIDTH / 2, DIALOG_HEIGHT / 2, DIALOG_WIDTH, DIALOG_HEIGHT, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+    hitArea.on('pointerdown', () => {
+      this.hide();
+      onDismiss();
+    });
+    this.container.add(hitArea);
+    this.container.sendToBack(hitArea);
+
     this.backdrop.setVisible(true);
     this.container.setVisible(true);
   }

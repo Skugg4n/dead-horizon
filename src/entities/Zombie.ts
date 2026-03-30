@@ -298,6 +298,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   takeDamage(amount: number): void {
     this.hp -= amount;
 
+    // Pain aggro: when hit, turn toward the attacker (player)
+    if (this.target) {
+      this.onSoundHeard(this.target.x, this.target.y);
+    }
+
     // Screamer: scream on damage to attract nearby zombies
     if (this.behavior === 'screamer' && this.screamTimer <= 0) {
       this.screamTimer = this.screamCooldown;
