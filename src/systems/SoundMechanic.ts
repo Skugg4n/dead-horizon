@@ -29,6 +29,7 @@ export class SoundMechanic {
 
   private onWeaponFired(data: { x: number; y: number; noiseLevel: number }): void {
     if (data.noiseLevel <= 0) return;
+    if (!this.zombieGroup) return;
 
     const range = data.noiseLevel * NOISE_RANGE_MULTIPLIER;
 

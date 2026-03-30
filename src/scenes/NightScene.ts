@@ -194,7 +194,9 @@ export class NightScene extends Phaser.Scene {
       this.events.off('spitter-shoot');
       this.events.off('screamer-scream');
       this.events.off('boss-death-spawn');
+      this.events.off('weapon-fired');
 
+      this.soundMechanic.destroy();
       this.tweens.killAll();
       this.input.keyboard?.removeAllListeners();
     });
@@ -726,9 +728,9 @@ export class NightScene extends Phaser.Scene {
     // Walls also block player
     this.physics.add.collider(this.player, this.wallBodies);
 
-    // Terrain colliders: trees and large rocks block zombies and player
+    // Terrain colliders: trees and large rocks block zombies only
+    // Player can walk through terrain freely (prevents getting stuck)
     this.physics.add.collider(this.zombieGroup, this.terrainResult.colliders);
-    this.physics.add.collider(this.player, this.terrainResult.colliders);
 
     // Water zones slow zombies (overlap -- no physical block)
     this.physics.add.overlap(
@@ -1111,6 +1113,21 @@ export class NightScene extends Phaser.Scene {
       target.takeDamage(stats.damage);
       AudioManager.play('melee_hit');
       this.bloodEmitter.emitParticleAt(target.x, target.y, 6);
+
+      // Visual: sweep arc showing melee range
+      const arc = this.add.graphics();
+      arc.setDepth(9);
+      const sweepAngle = angleBetween(this.player.x, this.player.y, target.x, target.y);
+      arc.lineStyle(2, 0xE8DCC8, 0.6);
+      arc.beginPath();
+      arc.arc(this.player.x, this.player.y, stats.range, sweepAngle - 0.8, sweepAngle + 0.8, false);
+      arc.strokePath();
+      this.tweens.add({
+        targets: arc,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => arc.destroy(),
+      });
       return;
     }
 
