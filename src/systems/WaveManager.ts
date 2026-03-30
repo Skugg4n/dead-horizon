@@ -138,15 +138,8 @@ export class WaveManager {
     const offsetX = (Math.random() - 0.5) * 100;
     const offsetY = (Math.random() - 0.5) * 100;
 
-    // F5: 70% base seekers, 30% wanderers -- determined at spawn time
-    // Brutes and bosses always go for the base (structural damage focus)
-    const forceBaseSeeking = config.behavior === 'brute' || config.behavior === 'boss';
-    const aggroType: 'base_seeker' | 'wanderer' =
-      (!forceBaseSeeking && Math.random() < 0.3) ? 'wanderer' : 'base_seeker';
-
-    // Map size for wanderer boundary calculations
-    const mapWidth = this.mapWidth;
-    const mapHeight = this.mapHeight;
+    // All zombies target the base
+    const aggroType: 'base_seeker' | 'wanderer' = 'base_seeker';
 
     // Try to reuse an inactive zombie from the pool
     const existing = this.zombieGroup.getFirstDead(false) as Zombie | null;
@@ -155,13 +148,13 @@ export class WaveManager {
       if (this.target) existing.setTarget(this.target);
       if (this.basePosition) existing.setBasePosition(this.basePosition.x, this.basePosition.y);
       existing.aggroType = aggroType;
-      if (mapWidth && mapHeight) existing.setMapSize(mapWidth, mapHeight);
+      if (this.mapWidth && this.mapHeight) existing.setMapSize(this.mapWidth, this.mapHeight);
     } else {
       const zombie = new Zombie(this.scene, zone.x + offsetX, zone.y + offsetY, config);
       if (this.target) zombie.setTarget(this.target);
       if (this.basePosition) zombie.setBasePosition(this.basePosition.x, this.basePosition.y);
       zombie.aggroType = aggroType;
-      if (mapWidth && mapHeight) zombie.setMapSize(mapWidth, mapHeight);
+      if (this.mapWidth && this.mapHeight) zombie.setMapSize(this.mapWidth, this.mapHeight);
       this.zombieGroup.add(zombie);
     }
 

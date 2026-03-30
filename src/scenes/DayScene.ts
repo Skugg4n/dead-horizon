@@ -83,6 +83,7 @@ export class DayScene extends Phaser.Scene {
   }
 
   create(): void {
+    try {
     this.gameState = SaveManager.load();
     this.currentAP = AP_PER_DAY;
 
@@ -235,6 +236,10 @@ export class DayScene extends Phaser.Scene {
       this.input.keyboard?.removeAllListeners();
       this.input.off('pointerdown');
     });
+    } catch (e) {
+      console.error('DayScene create() failed:', e);
+      this.scene.start('MenuScene');
+    }
   }
 
   update(): void {

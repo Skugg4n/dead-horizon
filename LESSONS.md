@@ -4,6 +4,18 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ---
 
+## Zombie death-animation
+
+### Komplexa death-tweens skapar svarta skuggor
+**Problem:** Die()-metoden anvande flerstegs-tweens (vit blixt, skalforraning, vinkel-rotation, morknad corpse som legat kvar 10-15 sekunder). Vid pool-reuse avbryts inte alltid tweens korrekt, och corpses med setTint(0x441111) + setAngle() + setDepth(1) blev svarta skuggor som fortsatte rora sig.
+**Losning:** Forenkla die() drastiskt: vit blixt (80ms) sedan setActive(false) + setVisible(false). Inga corpses, inga tweens, inga safety-timers. Blod-splatters och loot hanteras av NightScene via 'zombie-killed'-eventet.
+
+### Wanderer-zombies vandrar planlost
+**Problem:** 30% av zombies fick aggroType 'wanderer' som fick dem att vandra langs kartkanterna istallet for att attackera basen. Sag ut som en bugg for spelaren.
+**Losning:** Ta bort wanderer-grenen i update(). Alla zombies gar mot basen (eller ljud/spelare). Behal aggroType-propertyn men satt alltid 'base_seeker'.
+
+---
+
 ## Projektsetup
 
 ### Vite static assets maste ligga i public/

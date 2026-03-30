@@ -1,5 +1,13 @@
 # Dead Horizon -- Changelog
 
+## [1.8.2] - 2026-03-28
+
+### Fixed -- 4 kritiska buggar
+- Zombie die() forrenklat: tog bort komplex death-animation med corpse-lingering, tweens och safety-timers som skapade svarta skuggor. Nu: vit blixt 80ms sedan ta bort. Inga kvarliggande corpses.
+- Wanderer aggro-typ borttagen: alla zombies gar nu mot basen (eller ljud/spelare). 30% wanderer-logik gav zombies som vandrade planlost vid kartkanterna.
+- DayScene create() inlindad i try-catch som fallback till MenuScene vid krasch (sakerhetsnatt for Continue-knappen).
+- Rensat oanvanda metoder och properties (getWanderDestination, pickWanderPoint, wanderTarget, deathAnimKey, deathSafetyTimer).
+
 ## [1.8.1] - 2026-03-30
 
 ### Fixed -- Stabiliseringsrunda (kodgranskning + bugfix)
