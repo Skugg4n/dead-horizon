@@ -956,8 +956,68 @@ export class NightScene extends Phaser.Scene {
       key.on('down', () => {
         this.weaponManager.switchWeapon(i - 1);
         this.updateWeaponHUD();
+        // Show ammo warning if switching to ranged weapon with no ammo
+        const w = this.weaponManager.getEquipped();
+        if (w) {
+          const s = this.weaponManager.getWeaponStats(w);
+          if (s.weaponClass !== 'melee' && this.loadedAmmo <= 0) {
+            this.hud.showMessage('NO AMMO! Load in Day phase.');
+            AudioManager.play('ui_error');
+          }
+        }
       });
     }
+
+    // ESC to pause
+    const escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    escKey.on('down', () => {
+      if (this.scene.isPaused()) {
+        this.scene.resume();
+        this.pauseOverlay?.setVisible(false);
+      } else {
+        this.scene.pause();
+        this.showPauseOverlay();
+      }
+    });
+  }
+
+  private pauseOverlay: Phaser.GameObjects.Container | null = null;
+
+  private showPauseOverlay(): void {
+    if (this.pauseOverlay) {
+      this.pauseOverlay.setVisible(true);
+      return;
+    }
+    this.pauseOverlay = this.add.container(0, 0).setDepth(300).setScrollFactor(0);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.6);
+    bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.pauseOverlay.add(bg);
+
+    const text = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, 'PAUSED', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '24px',
+      color: '#E8DCC8',
+    }).setOrigin(0.5);
+    this.pauseOverlay.add(text);
+
+    const hint = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20, 'Press ESC to resume', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5);
+    this.pauseOverlay.add(hint);
+
+    // Make bg interactive to prevent clicks passing through
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains
+    );
+    bg.on('pointerdown', () => {
+      this.scene.resume();
+      this.pauseOverlay?.setVisible(false);
+    });
   }
 
   private updateWeaponHUD(): void {
