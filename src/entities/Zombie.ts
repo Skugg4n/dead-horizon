@@ -70,6 +70,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   private mapWidth: number = 1280;
   private mapHeight: number = 960;
 
+  // Death state flag to prevent double tweens
+  private deathStarted = false;
+  // Safety timeout reference so animation complete can cancel it
+  private deathSafetyTimer: Phaser.Time.TimerEvent | null = null;
+
   // Pulsing tint for boss/screamer
   private pulseTimer: number = 0;
   private baseTint: number | null = null;
@@ -433,6 +438,8 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   }
 
   private die(): void {
+    this.deathStarted = true;
+
     // Boss: emit spawn event before dying
     if (this.behavior === 'boss' && this.spawnOnDeath) {
       this.scene.events.emit('boss-death-spawn', this);
@@ -458,6 +465,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       this.play(this.deathAnimKey);
       this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
         if (!this.scene) return;
+        // Cancel safety timeout since animation completed normally
+        if (this.deathSafetyTimer) {
+          this.deathSafetyTimer.destroy();
+          this.deathSafetyTimer = null;
+        }
         // Leave as darkened corpse on the ground
         this.setAngle(deathAngle);
         this.setTint(0x441111);
@@ -476,8 +488,9 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
         });
       });
       // Safety: force corpse after 1s if animation never completes
-      this.scene.time.delayedCall(1000, () => {
-        if (!this.active || !this.scene) return;
+      this.deathSafetyTimer = this.scene.time.delayedCall(1000, () => {
+        if (!this.deathStarted || !this.scene) return;
+        this.deathSafetyTimer = null;
         this.setAngle(deathAngle);
         this.setTint(0x441111);
         this.setDepth(1);
@@ -538,6 +551,15 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   }
 
   reset(x: number, y: number, config: ZombieConfig): void {
+    this.scene.tweens.killTweensOf(this);
+    if (this.deathSafetyTimer) {
+      this.deathSafetyTimer.destroy();
+      this.deathSafetyTimer = null;
+    }
+    this.deathStarted = false;
+    this.setVelocity(0, 0);
+    this.setAngle(0);
+    this.setAlpha(1);
     this.setPosition(x, y);
     this.zombieId = config.id;
     this.hp = config.hp;

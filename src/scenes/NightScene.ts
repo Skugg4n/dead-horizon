@@ -1046,13 +1046,16 @@ export class NightScene extends Phaser.Scene {
       noiseLevel: adjustedNoise,
     });
 
-    // Muzzle flash particles for ranged weapons
-    if (!isMelee) {
-      this.muzzleEmitter.emitParticleAt(this.player.x, this.player.y, 4);
-    } else {
-      // F4: Melee hit thud -- fires immediately since melee is direct damage
+    // Melee weapons apply damage directly -- no projectiles
+    if (isMelee) {
+      target.takeDamage(stats.damage);
       AudioManager.play('melee_hit');
+      this.bloodEmitter.emitParticleAt(target.x, target.y, 6);
+      return;
     }
+
+    // Muzzle flash particles for ranged weapons
+    this.muzzleEmitter.emitParticleAt(this.player.x, this.player.y, 4);
 
     const angle = angleBetween(
       this.player.x, this.player.y,

@@ -21,6 +21,9 @@ export class MenuScene extends Phaser.Scene {
   private mainMenuContainer!: Phaser.GameObjects.Container;
   private achievementContainer: Phaser.GameObjects.Container | null = null;
   private settingsContainer: Phaser.GameObjects.Container | null = null;
+  private charSelectLeftHandler: (() => void) | null = null;
+  private charSelectRightHandler: (() => void) | null = null;
+  private charSelectEnterHandler: (() => void) | null = null;
 
   // Animated elements
   private campfireGlow: Phaser.GameObjects.Graphics | null = null;
@@ -1143,17 +1146,24 @@ export class MenuScene extends Phaser.Scene {
     });
     this.characterSelectContainer.add(rightArrow);
 
-    // Keyboard navigation
-    this.input.keyboard?.removeAllListeners();
-    this.input.keyboard?.on('keydown-LEFT', () => {
+    // Keyboard navigation -- remove only previously registered char-select handlers
+    if (this.charSelectLeftHandler) this.input.keyboard?.off('keydown-LEFT', this.charSelectLeftHandler);
+    if (this.charSelectRightHandler) this.input.keyboard?.off('keydown-RIGHT', this.charSelectRightHandler);
+    if (this.charSelectEnterHandler) this.input.keyboard?.off('keydown-ENTER', this.charSelectEnterHandler);
+
+    this.charSelectLeftHandler = () => {
       this.selectedCharIndex = (this.selectedCharIndex - 1 + characters.length) % characters.length;
       this.buildCharacterView();
-    });
-    this.input.keyboard?.on('keydown-RIGHT', () => {
+    };
+    this.charSelectRightHandler = () => {
       this.selectedCharIndex = (this.selectedCharIndex + 1) % characters.length;
       this.buildCharacterView();
-    });
-    this.input.keyboard?.on('keydown-ENTER', () => this.startWithCharacter());
+    };
+    this.charSelectEnterHandler = () => this.startWithCharacter();
+
+    this.input.keyboard?.on('keydown-LEFT', this.charSelectLeftHandler);
+    this.input.keyboard?.on('keydown-RIGHT', this.charSelectRightHandler);
+    this.input.keyboard?.on('keydown-ENTER', this.charSelectEnterHandler);
 
     // Begin button
     const beginBtn = this.add.text(centerX, cardY + cardH + 28, '[ BEGIN ]', {

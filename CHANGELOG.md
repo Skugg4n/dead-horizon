@@ -1,5 +1,18 @@
 # Dead Horizon -- Changelog
 
+## [1.8.1] - 2026-03-30
+
+### Fixed -- Stabiliseringsrunda (kodgranskning + bugfix)
+- KRITISK: Melee-vapen kastade projektiler istallet for direkt skada. Lagt till separat melee-gren i shootAt() som applicerar damage direkt pa target
+- KRITISK: Zombie death-tweens kvarstod vid pool-reuse, avaktiverade nyspawnade zombies. Lagt till killTweensOf(this) i reset()
+- KRITISK: Dubbla death-tweens (animation + safety timeout). Lagt till deathStarted-flagga och timer-cleanup
+- Zombie velocity/angle/alpha inte nollstallt vid reset() -- zombies spawnade med momentum
+- Zombie aggroType/wanderTarget inte resettat vid pool-reuse
+- End Day-dialog: keyHandler forward-reference kunde krascha
+- Level-text pa strukturer lackade minne (inte tracked i structureSprites)
+- Build menu state-mismatch vid placement mode + B-tangent
+- MenuScene removeAllListeners() forstorde andra panels keyboard-handlers
+
 ## [Unreleased] - 2026-03-29
 
 ### Changed

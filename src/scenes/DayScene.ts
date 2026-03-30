@@ -552,6 +552,7 @@ export class DayScene extends Phaser.Scene {
       ).setOrigin(0.5);
       lvlText.setDepth(5);
       this.addToWorld(lvlText);
+      this.structureSprites.push(lvlText);
     }
   }
 
@@ -1102,7 +1103,8 @@ export class DayScene extends Phaser.Scene {
       // Each shortcut either closes the currently open panel (if that panel is open)
       // or opens the target panel (if no panel or a different one is open).
       this.input.keyboard.on('keydown-B', () => {
-        // B = Build menu
+        // B = Build menu (cancel placement if active instead of toggling)
+        if (this.placementMode) { this.cancelPlacement(); return; }
         this.toggleBuildMenu();
       });
 
@@ -1159,12 +1161,16 @@ export class DayScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(252);
     this.addToUI(prompt);
 
+    // Use an object wrapper so both dismiss and keyHandler can cross-reference
+    // each other while satisfying const constraints.
+    const handlers: { key?: (event: KeyboardEvent) => void } = {};
+
     const dismiss = (): void => {
       panel.destroy();
       prompt.destroy();
       yesBtn.destroy();
       noBtn.destroy();
-      this.input.keyboard?.off('keydown', keyHandler);
+      if (handlers.key) this.input.keyboard?.off('keydown', handlers.key);
     };
 
     const yesBtn = this.add.text(GAME_WIDTH / 2 - 50, py + 72, '[ YES ]', {
@@ -1188,7 +1194,7 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(noBtn);
 
     // Keyboard dismiss: Escape = cancel, Enter/Y = confirm
-    const keyHandler = (event: KeyboardEvent): void => {
+    handlers.key = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         dismiss();
       } else if (event.key === 'Enter' || event.key === 'y' || event.key === 'Y') {
@@ -1196,7 +1202,7 @@ export class DayScene extends Phaser.Scene {
         this.endDay();
       }
     };
-    this.input.keyboard?.on('keydown', keyHandler);
+    this.input.keyboard?.on('keydown', handlers.key);
   }
 
   private placeStructure(structureId: string, x: number, y: number): void {
