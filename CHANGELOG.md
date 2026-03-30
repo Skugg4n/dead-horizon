@@ -1,5 +1,19 @@
 # Dead Horizon -- Changelog
 
+## [1.8.4] - 2026-03-28
+
+### Added -- UX: Click-outside-to-close and deep keyboard shortcuts
+- UIPanel base class now has an invisible full-screen backdrop. Clicking outside any UIPanel-based panel (WeaponPanel, CraftingPanel, SkillPanel, RefugeePanel, LootRunPanel) closes it.
+- EncounterDialog result screen (ESCAPED!/VICTORY!/DEFEATED) closes on backdrop click, Enter, or Escape.
+- EventDialog shows number key hints for choices (1, 2, etc.) via handleKey.
+- Central keyboard router in DayScene dispatches keys to the topmost open dialog/panel before falling through to toolbar shortcuts.
+- Toolbar shortcut keys with visible hints: B=Build, A=Ammo, W=Weapons, C=Craft, R=Refugees, L=Loot Run, S=Skills, E=End Day. Shown in tooltip as e.g. "BUILD [B]".
+- Number keys 1-9 inside panels select the Nth item: build menu entries, loot destinations, crafting recipes, weapon equip.
+- Escape key closes whatever is on top: any open panel, build menu, placement mode, structure popup, or dialog.
+- EncounterDialog fight/flee choice supports 1=Fight, 2=Flee keyboard shortcuts.
+- Enter key closes loot run results dialog immediately (cancels auto-close timer).
+- Each panel exposes handleKey(key): boolean so the scene-level router can delegate.
+
 ## [1.8.3] - 2026-03-28
 
 ### Fixed

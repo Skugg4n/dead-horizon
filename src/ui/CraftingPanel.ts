@@ -134,4 +134,37 @@ export class CraftingPanel {
       default: return `${result.type} x${result.amount}`;
     }
   }
+
+  /** Handle keyboard input. Returns true if handled. */
+  handleKey(key: string): boolean {
+    if (!this.panel.isVisible()) return false;
+
+    if (key === 'Escape') {
+      this.panel.hide();
+      return true;
+    }
+
+    // Number keys craft recipes
+    const num = parseInt(key, 10);
+    if (num >= 1 && num <= 9) {
+      const recipes = this.craftingManager.getAllRecipes();
+      const recipe = recipes[num - 1];
+      if (recipe && this.craftingManager.canCraft(recipe.id)) {
+        this.craftingManager.craft(recipe.id);
+        this.updateResources();
+        this.refresh();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  isVisible(): boolean {
+    return this.panel.isVisible();
+  }
+
+  getPanel(): UIPanel {
+    return this.panel;
+  }
 }

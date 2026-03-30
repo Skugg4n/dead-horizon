@@ -149,3 +149,11 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ### Tangentbordsgenvag kolliderar med onKeydown-handler
 **Losning:** Spara referens till handler och anropa `keyboard.off('keydown', handler)` vid dismiss.
+
+### Central keyboard router for nested panels/dialogs
+**Problem:** Multiple individual keydown-X handlers fire even when a modal dialog or panel is on top, causing unintended actions (e.g., pressing B opens build menu behind an event dialog).
+**Losning:** En enda `keyboard.on('keydown')` handler i DayScene som testar dialogs/panels i prioritetsordning. Varje panel/dialog exponerar `handleKey(key: string): boolean` -- returnerar true om tangenten hanterades. Routern testar dialogs forst (EventDialog, EncounterDialog), sedan oppna paneler, sedan byggmeny, sedan globala genvagar. Om nagon nivaa returnerar true avbryts kedjan.
+
+### UIPanel click-outside-to-close med dual camera system
+**Problem:** UIPanel backdrop (full-screen invisible Graphics) skapas via scene.add.graphics() och hamnar pa main camera. I DayScenes dual-camera-system (scrollande main + fixerad UI) maste backdrop registreras pa UI-kameran via addToUI().
+**Losning:** UIPanel exponerar getBackdrop(). DayScene anropar addToUI(panel.getBackdrop()) for varje UIPanel-baserad panel efter getContainer(). Backdrop ar depth 99, panel container depth 100 -- backdrop fanger klick utanfor panelen.

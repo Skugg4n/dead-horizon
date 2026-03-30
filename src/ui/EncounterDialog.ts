@@ -17,15 +17,23 @@ export class EncounterDialog {
   private container: Phaser.GameObjects.Container;
   private backdrop: Phaser.GameObjects.Graphics;
   private onChoice: ((choice: EncounterChoice) => void) | null = null;
+  private onResultDismiss: (() => void) | null = null;
+  private isResultMode: boolean = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
-    // No full-screen backdrop -- the dialog panel blocks interaction via
-    // setInteractive on the panel background added in show()/showResult().
+    // Full-screen backdrop -- clicking it dismisses result dialogs
     this.backdrop = scene.add.graphics();
+    this.backdrop.fillStyle(0x000000, 0.01); // Nearly invisible but interactive
+    this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.backdrop.setDepth(190);
     this.backdrop.setVisible(false);
+    this.backdrop.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    this.backdrop.on('pointerdown', () => this.handleBackdropClick());
 
     this.container = scene.add.container(DIALOG_X, DIALOG_Y);
     this.container.setDepth(200);
@@ -36,9 +44,15 @@ export class EncounterDialog {
     return this.container;
   }
 
+  getBackdrop(): Phaser.GameObjects.Graphics {
+    return this.backdrop;
+  }
+
   /** Show the encounter dialog with a callback for the player's choice */
   show(strength: number, threshold: number, onChoice: (choice: EncounterChoice) => void): void {
     this.onChoice = onChoice;
+    this.isResultMode = false;
+    this.onResultDismiss = null;
     this.container.removeAll(true);
 
     // Dialog background with UIPanel styling.
@@ -128,6 +142,8 @@ export class EncounterDialog {
     details: string,
     onDismiss: () => void,
   ): void {
+    this.isResultMode = true;
+    this.onResultDismiss = onDismiss;
     this.container.removeAll(true);
 
     // Dialog background with UIPanel styling.
@@ -197,6 +213,60 @@ export class EncounterDialog {
     this.backdrop.setVisible(false);
     this.container.setVisible(false);
     this.container.removeAll(true);
+    this.isResultMode = false;
+    this.onResultDismiss = null;
+  }
+
+  isShowing(): boolean {
+    return this.container.visible;
+  }
+
+  /** Handle keyboard input. Returns true if handled. */
+  handleKey(key: string): boolean {
+    if (!this.container.visible) return false;
+
+    if (this.isResultMode) {
+      // Result mode: Enter or Escape or backdrop dismisses
+      if (key === 'Enter' || key === 'Escape') {
+        this.dismissResult();
+        return true;
+      }
+      return false;
+    }
+
+    // Choice mode: 1=Fight, 2=Flee
+    if (key === '1') {
+      this.resolve('fight');
+      return true;
+    }
+    if (key === '2') {
+      this.resolve('flee');
+      return true;
+    }
+    if (key === 'Escape') {
+      // ESC = flee (safer default)
+      this.resolve('flee');
+      return true;
+    }
+
+    return false;
+  }
+
+  private handleBackdropClick(): void {
+    if (!this.container.visible) return;
+    if (this.isResultMode) {
+      this.dismissResult();
+    }
+    // Don't dismiss fight/flee choice on backdrop click -- player must choose
+  }
+
+  private dismissResult(): void {
+    if (this.onResultDismiss) {
+      const cb = this.onResultDismiss;
+      this.onResultDismiss = null;
+      this.hide();
+      cb();
+    }
   }
 
   private resolve(choice: EncounterChoice): void {

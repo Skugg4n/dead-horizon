@@ -263,7 +263,27 @@ export class RefugeePanel {
     this.buildPanel();
   }
 
+  isVisible(): boolean {
+    return this.panel.isVisible();
+  }
+
+  /** Handle keyboard input. Returns true if handled. */
+  handleKey(key: string): boolean {
+    if (!this.panel.isVisible()) return false;
+
+    if (key === 'Escape') {
+      this.panel.hide();
+      return true;
+    }
+
+    return false;
+  }
+
   getContainer(): Phaser.GameObjects.Container {
     return this.panel.getContainer();
+  }
+
+  getPanel(): UIPanel {
+    return this.panel;
   }
 }

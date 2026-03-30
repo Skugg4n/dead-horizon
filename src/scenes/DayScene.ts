@@ -139,16 +139,19 @@ export class DayScene extends Phaser.Scene {
       () => this.updateResourceDisplay(),
     );
     this.addToUI(this.weaponPanel.getContainer());
+    this.addToUI(this.weaponPanel.getPanel().getBackdrop());
 
     // Skill system
     this.skillManager = new SkillManager(this, this.gameState);
     this.skillPanel = new SkillPanel(this, this.skillManager);
     this.addToUI(this.skillPanel.getContainer());
+    this.addToUI(this.skillPanel.getPanel().getBackdrop());
 
     // Refugee system
     this.refugeeManager = new RefugeeManager(this, this.gameState);
     this.refugeePanel = new RefugeePanel(this, this.refugeeManager);
     this.addToUI(this.refugeePanel.getContainer());
+    this.addToUI(this.refugeePanel.getPanel().getBackdrop());
 
     // Loot run system
     this.lootManager = new LootManager(this, this.gameState);
@@ -164,7 +167,9 @@ export class DayScene extends Phaser.Scene {
       () => this.updateResourceDisplay(),
     );
     this.addToUI(this.lootRunPanel.getContainer());
+    this.addToUI(this.lootRunPanel.getPanel().getBackdrop());
     this.addToUI(this.lootRunPanel.getEncounterContainer());
+    this.addToUI(this.lootRunPanel.getEncounterDialog().getBackdrop());
 
     // Zone system
     this.zoneManager = new ZoneManager(this, this.gameState);
@@ -181,6 +186,7 @@ export class DayScene extends Phaser.Scene {
     );
     this.craftingPanel = new CraftingPanel(this, this.craftingManager, () => this.updateResourceDisplay());
     this.addToUI(this.craftingPanel.getContainer());
+    this.addToUI(this.craftingPanel.getPanel().getBackdrop());
 
     // Achievement system
     this.achievementManager = new AchievementManager(this, this.gameState);
@@ -210,6 +216,7 @@ export class DayScene extends Phaser.Scene {
     this.eventManager = new EventManager(this, this.gameState);
     this.eventDialog = new EventDialog(this);
     this.addToUI(this.eventDialog.getContainer());
+    this.addToUI(this.eventDialog.getBackdrop());
 
     // Day-start processing: food consumption, healing, random arrival, leadership XP
     this.processDayStart();
@@ -500,7 +507,8 @@ export class DayScene extends Phaser.Scene {
     // TERRAIN FEATURES (trees, rocks, bushes etc.) -- visual only, no colliders
     // Uses the same seed as NightScene so obstacles match.
     // ------------------------------------------------------------------
-    const seed = (this.gameState.progress.totalRuns * 31 + this.gameState.progress.currentWave) | 0;
+    // Seed based on totalRuns only -- stays consistent between day and night within a run
+    const seed = (this.gameState.progress.totalRuns * 31) | 0;
     const basePos = { x: centerX, y: centerY };
     const terrainResult: TerrainResult = generateTerrain(this, this.gameState.zone, basePos, seed);
     // Add only the visual decorations -- ignore colliders and waterZones (day is planning only)
@@ -642,17 +650,18 @@ export class DayScene extends Phaser.Scene {
     barBg.setDepth(100).setScrollFactor(0);
     this.addToUI(barBg);
 
-    // Button definitions: label, icon key, theme color, callback
+    // Button definitions: label, icon key, theme color, callback, shortcut key
     // Order: BUILD | AMMO | WEAPONS | CRAFT | gap | REFUGEES | LOOT RUN | gap | SKILLS | END DAY
     interface ToolbarButton {
       label: string;
       iconKey: string;
       color: number;
       onClick: () => void;
+      shortcut?: string;
     }
 
     const buttons: (ToolbarButton | null)[] = [
-      { label: 'BUILD', iconKey: 'icon_build', color: 0x4CAF50, onClick: () => this.toggleBuildMenu() },
+      { label: 'BUILD', iconKey: 'icon_build', color: 0x4CAF50, onClick: () => this.toggleBuildMenu(), shortcut: 'B' },
       { label: 'AMMO', iconKey: 'icon_ammo', color: 0x4A90D9, onClick: () => {
         if (this.currentAP < 1) { this.showInfo('Not enough AP!'); return; }
         const result = loadAmmo(this.gameState, 1);
@@ -662,15 +671,15 @@ export class DayScene extends Phaser.Scene {
           this.updateResourceDisplay();
         }
         this.showInfo(result.message);
-      }},
-      { label: 'WEAPONS', iconKey: 'icon_weapons', color: 0xC5A030, onClick: () => this.weaponPanel.toggle() },
-      { label: 'CRAFT', iconKey: 'icon_craft', color: 0xD4A030, onClick: () => this.craftingPanel.toggle() },
+      }, shortcut: 'A' },
+      { label: 'WEAPONS', iconKey: 'icon_weapons', color: 0xC5A030, onClick: () => this.weaponPanel.toggle(), shortcut: 'W' },
+      { label: 'CRAFT', iconKey: 'icon_craft', color: 0xD4A030, onClick: () => this.craftingPanel.toggle(), shortcut: 'C' },
       null, // gap
-      { label: 'REFUGEES', iconKey: 'icon_refugees', color: 0x8B6FC0, onClick: () => this.refugeePanel.toggle() },
-      { label: 'LOOT RUN', iconKey: 'icon_lootrun', color: 0xD4A030, onClick: () => this.lootRunPanel.toggle() },
+      { label: 'REFUGEES', iconKey: 'icon_refugees', color: 0x8B6FC0, onClick: () => this.refugeePanel.toggle(), shortcut: 'R' },
+      { label: 'LOOT RUN', iconKey: 'icon_lootrun', color: 0xD4A030, onClick: () => this.lootRunPanel.toggle(), shortcut: 'L' },
       null, // gap
-      { label: 'SKILLS', iconKey: 'icon_skills', color: 0xC5A030, onClick: () => this.skillPanel.toggle() },
-      { label: 'END DAY', iconKey: 'icon_endday', color: 0xD4620B, onClick: () => this.endDay() },
+      { label: 'SKILLS', iconKey: 'icon_skills', color: 0xC5A030, onClick: () => this.skillPanel.toggle(), shortcut: 'S' },
+      { label: 'END DAY', iconKey: 'icon_endday', color: 0xD4620B, onClick: () => this.showEndDayConfirmation(), shortcut: 'E' },
     ];
 
     // Calculate positions: real buttons get evenly distributed, nulls are gaps
@@ -698,7 +707,8 @@ export class DayScene extends Phaser.Scene {
         curX += GAP_WIDTH;
         continue;
       }
-      this.createIconButton(entry.iconKey, entry.label, entry.color, curX, TOOLBAR_Y + 6, BUTTON_SIZE, entry.onClick, tooltip);
+      const shortcutHint = entry.shortcut ? ` [${entry.shortcut}]` : '';
+      this.createIconButton(entry.iconKey, entry.label + shortcutHint, entry.color, curX, TOOLBAR_Y + 6, BUTTON_SIZE, entry.onClick, tooltip);
       curX += BUTTON_SIZE + 8;
     }
   }
@@ -1115,28 +1125,95 @@ export class DayScene extends Phaser.Scene {
         if (cursors.down.isDown) this.cameras.main.scrollY += panSpeed;
       });
 
-      // Keyboard shortcuts for day phase panels.
-      // Each shortcut either closes the currently open panel (if that panel is open)
-      // or opens the target panel (if no panel or a different one is open).
-      this.input.keyboard.on('keydown-B', () => {
-        // B = Build menu (cancel placement if active instead of toggling)
-        if (this.placementMode) { this.cancelPlacement(); return; }
-        this.toggleBuildMenu();
-      });
+      // Central keyboard router -- dispatches to the topmost open dialog/panel
+      this.input.keyboard.on('keydown', (event: KeyboardEvent) => {
+        const key = event.key;
 
-      this.input.keyboard.on('keydown-L', () => {
-        // L = Loot run panel
-        this.lootRunPanel.toggle();
-      });
+        // 1. Dialogs take priority (EventDialog, EncounterDialog)
+        if (this.eventDialog.isShowing()) {
+          if (this.eventDialog.handleKey(key)) return;
+        }
 
-      this.input.keyboard.on('keydown-R', () => {
-        // R = Refugee panel
-        this.refugeePanel.toggle();
-      });
+        // EncounterDialog is inside lootRunPanel but rendered on top
+        if (this.lootRunPanel.getEncounterDialog().isShowing()) {
+          if (this.lootRunPanel.getEncounterDialog().handleKey(key)) return;
+        }
 
-      this.input.keyboard.on('keydown-E', () => {
-        // E = End day (with confirmation dialog)
-        this.showEndDayConfirmation();
+        // 2. Open panels get next shot
+        if (this.weaponPanel.isVisible()) {
+          if (this.weaponPanel.handleKey(key)) return;
+        }
+        if (this.craftingPanel.isVisible()) {
+          if (this.craftingPanel.handleKey(key)) return;
+        }
+        if (this.skillPanel.isVisible()) {
+          if (this.skillPanel.handleKey(key)) return;
+        }
+        if (this.refugeePanel.isVisible()) {
+          if (this.refugeePanel.handleKey(key)) return;
+        }
+        if (this.lootRunPanel.isVisible()) {
+          if (this.lootRunPanel.handleKey(key)) return;
+        }
+
+        // 3. Build menu keyboard handling
+        if (this.buildMenuVisible) {
+          if (key === 'Escape') {
+            this.toggleBuildMenu();
+            return;
+          }
+          // Number keys select build menu entries
+          const num = parseInt(key, 10);
+          if (num >= 1 && num <= 9 && num <= this.buildMenuEntries.length) {
+            const entry = this.buildMenuEntries[num - 1];
+            if (entry && entry.text.alpha === 1.0) {
+              this.startPlacement(entry.structureId);
+              return;
+            }
+          }
+          return; // Consume all other keys when build menu is open
+        }
+
+        // 4. Placement mode
+        if (this.placementMode) {
+          if (key === 'Escape') {
+            this.cancelPlacement();
+            return;
+          }
+          return;
+        }
+
+        // 5. Structure popup
+        if (this.structurePopup) {
+          if (key === 'Escape') {
+            this.closeStructurePopup();
+            return;
+          }
+        }
+
+        // 6. Global toolbar shortcuts (only when no panel is open)
+        const upper = key.toUpperCase();
+        switch (upper) {
+          case 'B': this.toggleBuildMenu(); break;
+          case 'A': {
+            if (this.currentAP < 1) { this.showInfo('Not enough AP!'); break; }
+            const result = loadAmmo(this.gameState, 1);
+            if (result.success) {
+              this.currentAP -= 1;
+              this.apBar.update(this.currentAP);
+              this.updateResourceDisplay();
+            }
+            this.showInfo(result.message);
+            break;
+          }
+          case 'W': this.weaponPanel.toggle(); break;
+          case 'C': this.craftingPanel.toggle(); break;
+          case 'R': this.refugeePanel.toggle(); break;
+          case 'L': this.lootRunPanel.toggle(); break;
+          case 'S': this.skillPanel.toggle(); break;
+          case 'E': this.showEndDayConfirmation(); break;
+          default: break;
+        }
       });
     }
 

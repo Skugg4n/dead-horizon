@@ -96,8 +96,6 @@ export class NightScene extends Phaser.Scene {
   // Set of zombie IDs currently inside a water zone (for speed debuff)
   private zombiesInWater: Set<Zombie> = new Set();
   // Visual atmosphere: base warm glow + edge vignette
-  private baseGlowGraphics!: Phaser.GameObjects.Graphics;
-  private vignetteGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -529,7 +527,8 @@ export class NightScene extends Phaser.Scene {
 
     // Seed: deterministic per run+wave combination so each night looks different
     // but replaying the same day gives the same terrain.
-    const seed = (this.gameState.progress.totalRuns * 31 + this.gameState.progress.currentWave) | 0;
+    // Seed based on totalRuns only -- stays consistent between day and night within a run
+    const seed = (this.gameState.progress.totalRuns * 31) | 0;
 
     this.terrainResult = generateTerrain(this, this.gameState.zone, basePos, seed);
   }
@@ -1484,90 +1483,13 @@ export class NightScene extends Phaser.Scene {
   }
 
   private setupLighting(): void {
-    // Darker night background colour
-    // Match grass tile base color to eliminate visible gaps between tiles
-    this.cameras.main.setBackgroundColor('#2A491F');
-
-    const mapW = MAP_WIDTH  * TILE_SIZE;
-    const mapH = MAP_HEIGHT * TILE_SIZE;
-
-    // ------------------------------------------------------------------
-    // BASE WARM GLOW
-    // Radial warm-orange gradient around the base centre.
-    // Drawn as concentric filled ellipses with decreasing alpha.
-    // Depth 4 -- above ground detail but below entities and canopies.
-    // ------------------------------------------------------------------
-    this.baseGlowGraphics = this.add.graphics();
-    this.baseGlowGraphics.setDepth(4);
-
-    const glowSteps  = 8;
-    const glowRadius = 220;
-    for (let i = glowSteps; i >= 1; i--) {
-      // Outermost step lowest alpha, innermost highest
-      const t     = i / glowSteps;
-      const alpha = t * t * 0.10; // max 0.10 at center, quadratic falloff
-      const r     = glowRadius * (i / glowSteps);
-      // Warm orange-yellow tint
-      this.baseGlowGraphics.fillStyle(0xFFAA44, alpha);
-      this.baseGlowGraphics.fillEllipse(
-        this.baseCenterX, this.baseCenterY,
-        r * 2, r * 1.4  // slightly flattened ellipse looks more natural
-      );
-    }
-
-    // ------------------------------------------------------------------
-    // EDGE VIGNETTE
-    // Dark semi-transparent rectangles along all four edges to frame the
-    // map and give a sense of darkness beyond the clearing.
-    // Depth 9 -- above tree canopies but below HUD (depth 100+).
-    // ------------------------------------------------------------------
-    this.vignetteGraphics = this.add.graphics();
-    this.vignetteGraphics.setDepth(9);
-
-    const vEdge   = 80;  // how far in from the edge the dark band extends
-    const vAlpha  = 0.55;
-    const vColor  = 0x050A05;
-
-    // Build a vignette as 4 gradient strips (each in 4 sub-steps)
-    const vSteps = 5;
-    // Top strip
-    for (let s = 0; s < vSteps; s++) {
-      const a = vAlpha * (1 - s / vSteps);
-      const y = (s / vSteps) * vEdge;
-      const h = vEdge / vSteps;
-      this.vignetteGraphics.fillStyle(vColor, a);
-      this.vignetteGraphics.fillRect(0, y, mapW, h);
-    }
-    // Bottom strip
-    for (let s = 0; s < vSteps; s++) {
-      const a = vAlpha * (1 - s / vSteps);
-      const y = mapH - vEdge + (s / vSteps) * vEdge;
-      const h = vEdge / vSteps;
-      this.vignetteGraphics.fillStyle(vColor, a);
-      this.vignetteGraphics.fillRect(0, y, mapW, h);
-    }
-    // Left strip
-    for (let s = 0; s < vSteps; s++) {
-      const a = vAlpha * (1 - s / vSteps);
-      const x = (s / vSteps) * vEdge;
-      const w = vEdge / vSteps;
-      this.vignetteGraphics.fillStyle(vColor, a);
-      this.vignetteGraphics.fillRect(x, 0, w, mapH);
-    }
-    // Right strip
-    for (let s = 0; s < vSteps; s++) {
-      const a = vAlpha * (1 - s / vSteps);
-      const x = mapW - vEdge + (s / vSteps) * vEdge;
-      const w = vEdge / vSteps;
-      this.vignetteGraphics.fillStyle(vColor, a);
-      this.vignetteGraphics.fillRect(x, 0, w, mapH);
-    }
+    // Night uses same terrain as day -- no overlays, no glow, no vignette
+    // Darkness comes from slightly darker background only
+    this.cameras.main.setBackgroundColor('#1A3A14');
   }
 
   private updateLighting(): void {
-    // Base glow and vignette are static world-space graphics -- no update needed.
-    // If a spotlight effect following the player is desired in a future version,
-    // it would be implemented here.
+    // No lighting effects -- kept as empty method for API compatibility
   }
 
   private setupDamageOverlay(): void {

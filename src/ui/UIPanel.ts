@@ -1,5 +1,6 @@
 // Dead Horizon -- Shared UI panel component
 
+import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 
 /** Event name emitted to close all open panels. */
@@ -21,6 +22,7 @@ export class UIPanel {
   private visible: boolean = false;
   private panelWidth: number;
   private panelHeight: number;
+  private backdrop: Phaser.GameObjects.Graphics;
 
   constructor(
     scene: Phaser.Scene,
@@ -34,16 +36,32 @@ export class UIPanel {
 
     const panelX = Math.floor((GAME_WIDTH - this.panelWidth) / 2);
 
+    // Full-screen invisible backdrop -- clicking outside the panel closes it
+    this.backdrop = scene.add.graphics();
+    this.backdrop.fillStyle(0x000000, 0.01);
+    this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.backdrop.setDepth(99);
+    this.backdrop.setVisible(false);
+    this.backdrop.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    this.backdrop.on('pointerdown', () => this.hide());
+
     this.container = scene.add.container(panelX, PANEL_Y);
     this.container.setDepth(100);
     this.container.setVisible(false);
 
-    // Background with border
+    // Background with border -- blocks clicks from reaching the backdrop
     const bg = scene.add.graphics();
     bg.fillStyle(BG_COLOR, BG_ALPHA);
     bg.fillRect(0, 0, this.panelWidth, this.panelHeight);
     bg.lineStyle(1, BORDER_COLOR, 1);
     bg.strokeRect(0, 0, this.panelWidth, this.panelHeight);
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, this.panelWidth, this.panelHeight),
+      Phaser.Geom.Rectangle.Contains,
+    );
     this.container.add(bg);
 
     // Header background
@@ -90,6 +108,7 @@ export class UIPanel {
     // Clean up on scene shutdown
     scene.events.once('shutdown', () => {
       scene.events.off(CLOSE_ALL_PANELS, this.handleCloseAll, this);
+      this.backdrop.destroy();
       this.container.destroy();
     });
   }
@@ -97,6 +116,7 @@ export class UIPanel {
   private handleCloseAll = (): void => {
     if (this.visible) {
       this.container.setVisible(false);
+      this.backdrop.setVisible(false);
       this.visible = false;
     }
   };
@@ -104,11 +124,13 @@ export class UIPanel {
   show(): void {
     // Close any other open panels first
     this.scene.events.emit(CLOSE_ALL_PANELS);
+    this.backdrop.setVisible(true);
     this.container.setVisible(true);
     this.visible = true;
   }
 
   hide(): void {
+    this.backdrop.setVisible(false);
     this.container.setVisible(false);
     this.visible = false;
   }
@@ -131,5 +153,9 @@ export class UIPanel {
 
   getContainer(): Phaser.GameObjects.Container {
     return this.container;
+  }
+
+  getBackdrop(): Phaser.GameObjects.Graphics {
+    return this.backdrop;
   }
 }

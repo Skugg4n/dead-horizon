@@ -59,6 +59,10 @@ export class LootRunPanel {
     return this.encounterDialog.getContainer();
   }
 
+  getEncounterDialog(): EncounterDialog {
+    return this.encounterDialog;
+  }
+
   toggle(): void {
     if (this.panel.isVisible()) {
       this.cancelResultsTimer();
@@ -74,6 +78,55 @@ export class LootRunPanel {
 
   isVisible(): boolean {
     return this.panel.isVisible();
+  }
+
+  /** Handle keyboard input when panel is visible. Returns true if handled. */
+  handleKey(key: string): boolean {
+    if (!this.panel.isVisible()) return false;
+
+    // ESC closes the panel
+    if (key === 'Escape') {
+      this.cancelResultsTimer();
+      this.panel.hide();
+      return true;
+    }
+
+    // In results mode, Enter also closes
+    if (this.panelState === 'results' && key === 'Enter') {
+      this.cancelResultsTimer();
+      this.panel.hide();
+      return true;
+    }
+
+    // In destinations mode, number keys select destinations
+    if (this.panelState === 'destinations') {
+      const num = parseInt(key, 10);
+      if (num >= 1 && num <= 9) {
+        const destinations = this.lootManager.getDestinations();
+        const dest = destinations[num - 1];
+        if (dest && this.currentAP() >= dest.apCost) {
+          this.selectedDestination = dest;
+          const availableCompanions = this.gameState.refugees.filter(
+            r => r.status === 'healthy' && r.job !== 'loot_run',
+          );
+          if (availableCompanions.length > 0) {
+            this.panelState = 'companions';
+            this.selectedCompanions = [];
+            this.rebuild();
+          } else {
+            this.selectedCompanions = [];
+            this.startRun();
+          }
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  getPanel(): UIPanel {
+    return this.panel;
   }
 
   private rebuild(): void {

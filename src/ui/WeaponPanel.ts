@@ -289,4 +289,32 @@ export class WeaponPanel {
     backBtn.on('pointerdown', () => this.rebuild());
     content.add(backBtn);
   }
+
+  /** Handle keyboard input. Returns true if handled. */
+  handleKey(key: string): boolean {
+    if (!this.panel.isVisible()) return false;
+
+    if (key === 'Escape') {
+      this.panel.hide();
+      return true;
+    }
+
+    // Number keys select weapons (equip)
+    const num = parseInt(key, 10);
+    if (num >= 1 && num <= 9) {
+      const weapons = this.weaponManager.getWeapons();
+      const weapon = weapons[num - 1];
+      if (weapon) {
+        this.weaponManager.equip(weapon.id);
+        this.rebuild();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  getPanel(): UIPanel {
+    return this.panel;
+  }
 }

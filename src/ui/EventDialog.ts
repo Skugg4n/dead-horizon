@@ -31,15 +31,22 @@ export class EventDialog {
   private container: Phaser.GameObjects.Container;
   private backdrop: Phaser.GameObjects.Graphics;
   private onChoice: ((choice: EventChoice) => void) | null = null;
+  private currentChoices: EventChoice[] = [];
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
-    // No full-screen backdrop -- the dialog panel itself blocks interaction
-    // via setInteractive on the panel background.
+    // Full-screen backdrop -- clicking it dismisses the dialog
     this.backdrop = scene.add.graphics();
+    this.backdrop.fillStyle(0x000000, 0.01); // Nearly invisible but interactive
+    this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.backdrop.setDepth(190);
     this.backdrop.setVisible(false);
+    this.backdrop.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    this.backdrop.on('pointerdown', () => this.dismissViaBackdrop());
 
     // Container is repositioned dynamically in show() once we know dialog height
     this.container = scene.add.container(0, 0);
@@ -51,8 +58,13 @@ export class EventDialog {
     return this.container;
   }
 
+  getBackdrop(): Phaser.GameObjects.Graphics {
+    return this.backdrop;
+  }
+
   show(event: EventData, onChoice: (choice: EventChoice) => void): void {
     this.onChoice = onChoice;
+    this.currentChoices = event.choices;
     this.container.removeAll(true);
 
     // -- Measure text heights before drawing so we can size the panel correctly --
@@ -206,6 +218,41 @@ export class EventDialog {
     this.backdrop.setVisible(false);
     this.container.setVisible(false);
     this.container.removeAll(true);
+  }
+
+  /** Dismiss by selecting the first choice (backdrop click acts as default) */
+  private dismissViaBackdrop(): void {
+    // Only dismiss if dialog is showing with choices
+    if (!this.onChoice) return;
+    // Do nothing -- event dialogs require an explicit choice, backdrop does not dismiss
+    // (unlike simple info dialogs). This prevents accidental loss of event choices.
+  }
+
+  /** Handle keyboard input. Returns true if handled. */
+  handleKey(key: string): boolean {
+    if (!this.container.visible || !this.onChoice) return false;
+
+    // Number keys select choices (1-based)
+    const num = parseInt(key, 10);
+    if (num >= 1 && num <= 9 && this.currentChoices.length >= num) {
+      const choice = this.currentChoices[num - 1];
+      if (choice) {
+        this.resolve(choice);
+        return true;
+      }
+    }
+
+    // ESC closes by picking first choice as fallback
+    if (key === 'Escape' && this.currentChoices.length > 0) {
+      // Don't auto-pick -- event choices are significant. Just ignore ESC.
+      return true; // consume the key so nothing else fires
+    }
+
+    return false;
+  }
+
+  isShowing(): boolean {
+    return this.container.visible;
   }
 
   private resolve(choice: EventChoice): void {
