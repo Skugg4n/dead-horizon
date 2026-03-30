@@ -728,9 +728,8 @@ export class NightScene extends Phaser.Scene {
     // Walls also block player
     this.physics.add.collider(this.player, this.wallBodies);
 
-    // Terrain colliders: trees and large rocks block zombies only
-    // Player can walk through terrain freely (prevents getting stuck)
-    this.physics.add.collider(this.zombieGroup, this.terrainResult.colliders);
+    // Terrain is purely visual -- no collision for anyone
+    // Zombies and player walk through trees/rocks freely
 
     // Water zones slow zombies (overlap -- no physical block)
     this.physics.add.overlap(
