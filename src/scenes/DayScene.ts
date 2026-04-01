@@ -246,6 +246,8 @@ export class DayScene extends Phaser.Scene {
     });
     } catch (e) {
       console.error('DayScene create() failed:', e);
+      // Save is likely corrupted -- clear it and restart fresh
+      SaveManager.clearSave();
       this.scene.start('MenuScene');
     }
   }
@@ -279,16 +281,23 @@ export class DayScene extends Phaser.Scene {
     // Use terrain tile sprites when available, otherwise rich Graphics.
     // ------------------------------------------------------------------
     const hasGrassTiles = this.textures.exists('terrain_grass_1');
+
+    // Solid green base layer to fill any gaps between tiles
+    const groundFill = this.add.graphics();
+    groundFill.fillStyle(0x3A6B2A);
+    groundFill.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+    this.mapContainer.add(groundFill);
+
     if (hasGrassTiles) {
       for (let ty = 0; ty < MAP_HEIGHT; ty++) {
         for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
-          const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
+          // Integer positions + origin(0,0) to prevent subpixel gaps
+          const tileX = tx * TILE_SIZE;
+          const tileY = ty * TILE_SIZE;
           const hash = (tx * 1619 + ty * 3571) | 0;
 
-          // All tiles use grass -- road and base drawn as Graphics overlay
           const tileKey = ((hash >>> 0) % 10 === 0) ? 'terrain_grass_2' : 'terrain_grass_1';
-          const tile = this.add.image(tileX, tileY, tileKey);
+          const tile = this.add.image(tileX, tileY, tileKey).setOrigin(0, 0);
           this.mapContainer.add(tile);
         }
       }

@@ -319,18 +319,23 @@ export class NightScene extends Phaser.Scene {
     // GROUND LAYER
     // ------------------------------------------------------------------
     const hasGrassTiles = this.textures.exists('terrain_grass_1');
+
+    // Always draw a solid green base layer to fill gaps between tiles
+    const groundFill = this.add.graphics();
+    groundFill.fillStyle(0x2D4A22);
+    groundFill.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
+
     if (hasGrassTiles) {
-      // --- Sprite-based grass tiles only; road/base use Graphics overlay ---
+      // --- Sprite-based grass tiles over solid base ---
       for (let ty = 0; ty < MAP_HEIGHT; ty++) {
         for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
-          const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
+          // Use integer positions (origin 0,0) to prevent subpixel gaps
+          const tileX = tx * TILE_SIZE;
+          const tileY = ty * TILE_SIZE;
           const hash = (tx * 1619 + ty * 3571) | 0;
 
-          // All tiles use grass -- road and base drawn as Graphics overlay
           const tileKey = ((hash >>> 0) % 10 === 0) ? 'terrain_grass_2' : 'terrain_grass_1';
-          const img = this.add.image(tileX, tileY, tileKey);
-          // Edge tiles slightly darker
+          const img = this.add.image(tileX, tileY, tileKey).setOrigin(0, 0);
           if (tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2) {
             img.setTint(0xBBBBBB);
           }
@@ -1588,7 +1593,16 @@ export class NightScene extends Phaser.Scene {
 
     const container = this.add.container(0, 0).setDepth(200).setScrollFactor(0);
 
-    // No full-screen backdrop -- panel blocks clicks via setInteractive.
+    // Full-screen clickable backdrop
+    const backdrop = this.add.graphics();
+    backdrop.fillStyle(0x000000, 0.5);
+    backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    backdrop.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    container.add(backdrop);
+
     const panelW = 320;
     const panelH = 180;
     const px = (GAME_WIDTH - panelW) / 2;
@@ -1599,10 +1613,6 @@ export class NightScene extends Phaser.Scene {
     panel.fillRoundedRect(px, py, panelW, panelH, 8);
     panel.lineStyle(2, 0xD4620B);
     panel.strokeRoundedRect(px, py, panelW, panelH, 8);
-    panel.setInteractive(
-      new Phaser.Geom.Rectangle(px, py, panelW, panelH),
-      Phaser.Geom.Rectangle.Contains,
-    );
     container.add(panel);
 
     // Step counter
@@ -1671,8 +1681,8 @@ export class NightScene extends Phaser.Scene {
     // Pause physics and wave spawning while tutorial is showing
     this.physics.pause();
 
-    // Panel already has setInteractive -- click anywhere on it to advance.
-    panel.on('pointerdown', advance);
+    // Click anywhere to advance
+    backdrop.on('pointerdown', advance);
     const keyHandler = this.input.keyboard?.on('keydown', advance);
 
     // Clean up when container is destroyed -- resume physics
