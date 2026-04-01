@@ -1052,8 +1052,13 @@ export class DayScene extends Phaser.Scene {
   private startPlacement(structureId: string): void {
     this.placementMode = true;
     this.placementStructureId = structureId;
-    // Prevent the same click that selected the menu item from placing the structure
+    // Prevent the same click that selected the menu item from placing the structure.
+    // Reset on next tick so only the originating pointer event is skipped, not the
+    // first real map click.
     this.placementJustStarted = true;
+    this.time.delayedCall(0, () => {
+      this.placementJustStarted = false;
+    });
 
     // Create ghost preview (world-space element, only on main camera)
     if (this.ghostGraphics) {
@@ -1098,7 +1103,6 @@ export class DayScene extends Phaser.Scene {
       if (this.placementMode && this.placementStructureId) {
         // Skip the click that opened placement mode (same pointer event)
         if (this.placementJustStarted) {
-          this.placementJustStarted = false;
           return;
         }
         this.placeStructure(this.placementStructureId, gridX, gridY);

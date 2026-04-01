@@ -772,7 +772,7 @@ export class NightScene extends Phaser.Scene {
 
     this.cameras.main.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-    this.cameras.main.setBackgroundColor('#1A1A2E');
+    this.cameras.main.setBackgroundColor('#1E3216');
   }
 
   private setupEvents(): void {
@@ -1284,6 +1284,11 @@ export class NightScene extends Phaser.Scene {
         // Zombie hits base
         this.damageBase(zombie.damage);
         zombie.resetAttackCooldown();
+
+        // Base defenses slowly wear down zombies so waves can always complete.
+        // Without this, base-stuck zombies with velocity 0 could live forever
+        // if the player doesn't actively shoot them, blocking wave progression.
+        zombie.takeDamage(1);
       }
     });
   }
@@ -1484,8 +1489,8 @@ export class NightScene extends Phaser.Scene {
   private setupLighting(): void {
     // Night uses same terrain as day -- no overlays, no glow, no vignette
     // Darkness comes from slightly darker background only
-    // Match grass tile base color exactly to hide gaps between tiles
-    this.cameras.main.setBackgroundColor('#3A6B2A');
+    // Match the darkest grass tile color to hide gaps between tiles
+    this.cameras.main.setBackgroundColor('#1E3216');
   }
 
   private updateLighting(): void {

@@ -346,7 +346,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.structureAttackCooldown = enemiesData.structureAttackCooldown;
   }
 
-  /** Quick red pulse when attacking; plays attack anim if available */
+  /** Quick red pulse + scale bump when attacking; plays attack anim if available */
   playAttackPulse(): void {
     if (this.attackAnimKey) {
       this.play(this.attackAnimKey);
@@ -359,6 +359,13 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       if (this.active) {
         this.restoreTint();
       }
+    });
+
+    // Brief scale pulse so the attack is visible on the zombie side
+    const origScale = this.scaleX;
+    this.setScale(origScale * 1.2);
+    this.scene.time.delayedCall(100, () => {
+      if (this.active) this.setScale(origScale);
     });
   }
 
