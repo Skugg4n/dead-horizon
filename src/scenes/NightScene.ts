@@ -352,57 +352,47 @@ export class NightScene extends Phaser.Scene {
       ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
 
       // ------------------------------------------------------------------
-      // ROAD (natural dirt path -- 2 tiles wide, slightly winding)
+      // ROAD -- single continuous horizontal band across the full map.
+      // Three stacked fillRects create a soft edge: dark shoulders + bright
+      // centre. No per-tile variation so there are no visible seams.
       // ------------------------------------------------------------------
       const road = this.add.graphics();
       road.setDepth(0);
 
-      for (let tx = 0; tx < MAP_WIDTH; tx++) {
-        // Slight meander: offset by 0 or 1 tile based on x position
-        const wander = ((tx * 7919) & 0x3) < 2 ? 0 : 1;
-        const baseRow = roadRow + wander - 1; // row shifts +-1 along the road
-        for (let rowOffset = 0; rowOffset < 2; rowOffset++) {
-          const ty = baseRow + rowOffset;
-          if (ty < 0 || ty >= MAP_HEIGHT) continue;
-          const hash2   = (tx * 2017 + ty * 4049) | 0;
-          // Dirt colour slightly varied
-          const dirtBase   = 0x4A3218;
-          const dirtVary   = (hash2 & 0xF) * 0x010000; // very small shift
-          const dirtColor  = dirtBase + (dirtVary > 0x0F0000 ? 0 : dirtVary);
-          road.fillStyle(dirtColor);
-          road.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        }
-      }
+      // Road centre Y in pixels
+      const roadCentreY = roadRow * TILE_SIZE + TILE_SIZE / 2;
+      const roadHalfH   = TILE_SIZE; // half-height of the main road band
+
+      // Soft outer edges (semi-transparent dark dirt, slightly wider)
+      road.fillStyle(0x3A2510, 0.55);
+      road.fillRect(0, roadCentreY - roadHalfH - 4, mapPixelWidth, 8);
+      road.fillRect(0, roadCentreY + roadHalfH - 4, mapPixelWidth, 8);
+
+      // Main road body -- single solid fill spanning full map width
+      road.fillStyle(0x4A3218);
+      road.fillRect(0, roadCentreY - roadHalfH, mapPixelWidth, roadHalfH * 2);
+
+      // Subtle inner highlight strip along the road centre
+      road.fillStyle(0x5A3E20, 0.45);
+      road.fillRect(0, roadCentreY - 3, mapPixelWidth, 6);
 
       // ------------------------------------------------------------------
-      // CLEARED AREA AROUND BASE (dirt patch, 200x200 px)
+      // CLEARED AREA AROUND BASE -- single circular dirt patch.
+      // Uses fillEllipse for one smooth shape instead of per-tile rects.
       // ------------------------------------------------------------------
       const baseArea = this.add.graphics();
       baseArea.setDepth(0);
 
       const baseClearRadius = 100; // pixels
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
-          const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
-          const dx    = tileX - centerX;
-          const dy    = tileY - centerY;
-          const dist  = Math.sqrt(dx * dx + dy * dy);
+      const baDiameter = baseClearRadius * 2;
 
-          if (dist < baseClearRadius) {
-            // Full dirt tile
-            const hash3     = (tx * 1301 + ty * 2909) | 0;
-            const dirtShade = 0x3E2A12 + ((hash3 & 0x7) * 0x010000);
-            baseArea.fillStyle(dirtShade > 0x5A3A1E ? 0x5A3A1E : dirtShade);
-            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-          } else if (dist < baseClearRadius + 32) {
-            // Blending ring: dirt/grass mix -- draw a partial dirt overlay
-            const blend = 1 - (dist - baseClearRadius) / 32;
-            baseArea.fillStyle(0x3E2A12, blend * 0.7);
-            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-          }
-        }
-      }
+      // Outer soft halo (slightly transparent)
+      baseArea.fillStyle(0x3E2A12, 0.55);
+      baseArea.fillEllipse(centerX, centerY, baDiameter + 56, baDiameter + 56);
+
+      // Main dirt circle
+      baseArea.fillStyle(0x4A3218);
+      baseArea.fillEllipse(centerX, centerY, baDiameter, baDiameter);
 
       // ------------------------------------------------------------------
       // SCATTERED GROUND DETAIL PATCHES (leaves, small stones, grass tufts)

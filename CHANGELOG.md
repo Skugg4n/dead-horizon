@@ -1,5 +1,13 @@
 # Dead Horizon -- Changelog
 
+## [1.8.6] - 2026-04-02
+
+### Fixed -- 2 buggar: tutorial/event-overlap och vag-rendering
+
+- DayScene: tutorial och EventDialog visades samtidigt pa dag 1. `checkRandomEvent()` anropades nu EFTER tutorialkontrollen. Ny flagga `tutorialShowing` satt till true nar tutorial visar. Om tutorial ar aktiv hoppas random event over. Nar sista steget stangds nollstalls flaggan och `checkRandomEvent()` anropas sa eventet visas direkt efterat utan overlap.
+- NightScene och DayScene: vagen ritades som individuella `fillRect` per tile vilket skapade synliga bruna rektanglar. Bytt till tre horisontella `fillRect` som spacklar hela kartbredden: mjuka axlar (semi-transparent) + ett huvudbandbredd + ett subtilt mittstreck. Inga synliga tile-granser.
+- NightScene och DayScene: bas-area (jordpatch runt basen) ritades ocksa som per-tile rects. Bytt till `fillEllipse` for en slat cirkuler form: yttre halo (semi-transparent) + inre fast cirkel.
+
 ## [1.8.4] - 2026-03-28
 
 ### Added -- UX: Click-outside-to-close and deep keyboard shortcuts

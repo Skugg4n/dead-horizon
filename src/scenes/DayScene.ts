@@ -62,6 +62,9 @@ export class DayScene extends Phaser.Scene {
   private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
   private placementJustStarted: boolean = false;
 
+  // Tutorial state -- when true, random events are deferred until tutorial closes
+  private tutorialShowing: boolean = false;
+
   // UI camera -- fixed at (0,0), never scrolls.
   // All UI elements are assigned here so their interactive zones
   // always match their visual positions regardless of main camera scroll.
@@ -221,14 +224,17 @@ export class DayScene extends Phaser.Scene {
     // Day-start processing: food consumption, healing, random arrival, leadership XP
     this.processDayStart();
 
-    // Roll for random event at day start
-    this.checkRandomEvent();
-
     this.setupInput();
 
-    // Show day-phase tutorial on first ever game
+    // Show day-phase tutorial on first ever game.
+    // Tutorial sets tutorialShowing=true so random events are deferred until it closes.
     if (this.gameState.progress.totalRuns === 0 && this.gameState.progress.currentWave <= 1) {
       this.showDayTutorial();
+    }
+
+    // Roll for random event at day start -- deferred if tutorial is currently showing
+    if (!this.tutorialShowing) {
+      this.checkRandomEvent();
     }
 
     this.events.emit('day-started', this.gameState.progress.currentWave);
@@ -314,58 +320,49 @@ export class DayScene extends Phaser.Scene {
       this.mapContainer.add(ground);
 
       // -----------------------------------------------------------------
-      // ROAD -- natural dirt path, slightly varied colour per tile
+      // ROAD -- single continuous horizontal band across the full map.
+      // Three stacked fillRects give a soft natural look without seams.
       // -----------------------------------------------------------------
       const road = this.add.graphics();
       road.setDepth(1);
 
-      for (let tx = 0; tx < MAP_WIDTH; tx++) {
-        // Very slight meander
-        const wander  = ((tx * 7919) & 0x3) < 2 ? 0 : 1;
-        const baseRow = roadRow + wander - 1;
-        for (let rowOffset = 0; rowOffset < 2; rowOffset++) {
-          const ty = baseRow + rowOffset;
-          if (ty < 0 || ty >= MAP_HEIGHT) continue;
-          const hash2    = (tx * 2017 + ty * 4049) | 0;
-          const dirtBase = 0x7A6248;
-          // Small per-tile variation in red channel
-          const dirtVary  = (hash2 & 0xF) * 0x010000;
-          const dirtColor = dirtBase + (dirtVary > 0x0F0000 ? 0 : dirtVary);
-          road.fillStyle(dirtColor);
-          road.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        }
-      }
+      // Road centre Y in pixels
+      const roadCentreY = roadRow * TILE_SIZE + TILE_SIZE / 2;
+      const roadHalfH   = TILE_SIZE; // half-height of the main road band
+
+      // Soft outer shoulders
+      road.fillStyle(0x6A5230, 0.55);
+      road.fillRect(0, roadCentreY - roadHalfH - 4, mapPixelWidth, 8);
+      road.fillRect(0, roadCentreY + roadHalfH - 4, mapPixelWidth, 8);
+
+      // Main road body -- one solid fill spanning full map width
+      road.fillStyle(0x7A6248);
+      road.fillRect(0, roadCentreY - roadHalfH, mapPixelWidth, roadHalfH * 2);
+
+      // Subtle inner highlight strip
+      road.fillStyle(0x8A7258, 0.45);
+      road.fillRect(0, roadCentreY - 3, mapPixelWidth, 6);
+
       this.mapContainer.add(road);
 
       // -----------------------------------------------------------------
-      // CLEARED BASE AREA -- lighter, sandy dirt around the base
+      // CLEARED BASE AREA -- lighter, sandy dirt around the base.
+      // Single circular shape so there are no per-tile seam artefacts.
       // -----------------------------------------------------------------
       const baseArea = this.add.graphics();
       baseArea.setDepth(1);
 
       const baseClearRadius = 110; // pixels
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const tileX = tx * TILE_SIZE + TILE_SIZE / 2;
-          const tileY = ty * TILE_SIZE + TILE_SIZE / 2;
-          const dx    = tileX - centerX;
-          const dy    = tileY - centerY;
-          const dist  = Math.sqrt(dx * dx + dy * dy);
+      const baDiameter = baseClearRadius * 2;
 
-          if (dist < baseClearRadius) {
-            // Lighter sandy earth inside the cleared zone
-            const hash3     = (tx * 1301 + ty * 2909) | 0;
-            const dirtShade = 0x6A5030 + ((hash3 & 0x7) * 0x010101);
-            baseArea.fillStyle(dirtShade > 0x7A6040 ? 0x7A6040 : dirtShade);
-            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-          } else if (dist < baseClearRadius + 32) {
-            // Soft transition ring
-            const blend = 1 - (dist - baseClearRadius) / 32;
-            baseArea.fillStyle(0x6A5030, blend * 0.65);
-            baseArea.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-          }
-        }
-      }
+      // Outer soft halo
+      baseArea.fillStyle(0x6A5030, 0.55);
+      baseArea.fillEllipse(centerX, centerY, baDiameter + 56, baDiameter + 56);
+
+      // Main cleared dirt circle (lighter sandy earth)
+      baseArea.fillStyle(0x7A6040);
+      baseArea.fillEllipse(centerX, centerY, baDiameter, baDiameter);
+
       this.mapContainer.add(baseArea);
 
       // -----------------------------------------------------------------
@@ -1683,6 +1680,9 @@ export class DayScene extends Phaser.Scene {
   }
 
   private showDayTutorial(): void {
+    // Block random events until all tutorial steps are dismissed
+    this.tutorialShowing = true;
+
     const steps = [
       { title: 'DAY PHASE', text: 'You have 12 Action Points\nto prepare for the night.' },
       { title: 'BUILD', text: 'Use the BUILD menu to place\nbarricades, walls and traps\naround your base.' },
@@ -1760,7 +1760,10 @@ export class DayScene extends Phaser.Scene {
     const advance = () => {
       currentStep++;
       if (currentStep >= steps.length) {
+        // Tutorial finished -- clear flag and check for deferred random events
+        this.tutorialShowing = false;
         container.destroy();
+        this.checkRandomEvent();
         return;
       }
       AudioManager.play('ui_click');

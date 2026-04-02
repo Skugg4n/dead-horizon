@@ -157,3 +157,11 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### UIPanel click-outside-to-close med dual camera system
 **Problem:** UIPanel backdrop (full-screen invisible Graphics) skapas via scene.add.graphics() och hamnar pa main camera. I DayScenes dual-camera-system (scrollande main + fixerad UI) maste backdrop registreras pa UI-kameran via addToUI().
 **Losning:** UIPanel exponerar getBackdrop(). DayScene anropar addToUI(panel.getBackdrop()) for varje UIPanel-baserad panel efter getContainer(). Backdrop ar depth 99, panel container depth 100 -- backdrop fanger klick utanfor panelen.
+
+### Tutorial och EventDialog overlap
+**Problem:** `checkRandomEvent()` anropades i `create()` FORE `showDayTutorial()`, sa bada dialogs visades direkt vid dag 1.
+**Losning:** Flytta `checkRandomEvent()` EFTER tutorial-kontrollen. Lagg till en `tutorialShowing`-flagga pa scenen. `showDayTutorial()` satts flaggan till true direkt. I `advance()` nar alla steg ar klara: nollstall flaggan och anropa `checkRandomEvent()`. I `create()`: hoppa over `checkRandomEvent()` om `tutorialShowing === true`.
+
+### Per-tile fillRect skapar synliga seams i vag och base-area
+**Problem:** Road och base-area i NightScene/DayScene ritades med individuella `fillRect` per tile. Varje rect hade nagra pixels skillnad i farg vilket skapade ett rutmonster av bruna block.
+**Losning:** Ersatt med fa breda `fillRect` (ett per lager) som spanner hela kartbredden for vagen. Base-area ersatt med `fillEllipse` for en slat cirkel. Inget per-tile-loopar behovs langre for dessa former.
