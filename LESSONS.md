@@ -177,3 +177,7 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Per-tile fillRect skapar synliga seams i vag och base-area
 **Problem:** Road och base-area i NightScene/DayScene ritades med individuella `fillRect` per tile. Varje rect hade nagra pixels skillnad i farg vilket skapade ett rutmonster av bruna block.
 **Losning:** Ersatt med fa breda `fillRect` (ett per lager) som spanner hela kartbredden for vagen. Base-area ersatt med `fillEllipse` for en slat cirkel. Inget per-tile-loopar behovs langre for dessa former.
+
+### Dag/Natt visuell layout-diskrepans
+**Problem:** DayScene och NightScene anvande identisk seed till generateTerrain() men såg anda olika ut. Orsaken var att DayScene hade EXTRA hardkodad dekorationskod (14 buskar/blommor/stenar langs kartkanterna) som INTE existerade i NightScene.
+**Losning:** Ta bort all scen-specifik dekorationskod. ALL dekoration ska komma fran TerrainGenerator.generateTerrain() (samma funktion, samma seed). Lagg till console.log for seed i bada scenerna (`[DayScene] terrain seed = X`, `[NightScene] terrain seed = X`) sa man kan verifiera att de matchar.

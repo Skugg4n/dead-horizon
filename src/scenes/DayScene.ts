@@ -409,68 +409,8 @@ export class DayScene extends Phaser.Scene {
       }
       this.mapContainer.add(patches);
 
-      // -----------------------------------------------------------------
-      // MAP EDGE DECORATIONS: bushes, flowers, stones (10-15 elements)
-      // Placed around the perimeter so they don't block the play area.
-      // -----------------------------------------------------------------
-      const decor = this.add.graphics();
-      decor.setDepth(3);
-
-      // Deterministic decoration positions along the map edges
-      const decorPositions: Array<{ x: number; y: number; type: number }> = [];
-      for (let i = 0; i < 14; i++) {
-        const seed = (i * 6271 + 1337) >>> 0;
-        // Alternate between all four edges
-        const edge = i % 4;
-        let dx = 0;
-        let dy = 0;
-        if (edge === 0) {
-          // Top edge
-          dx = ((seed * 1619) >>> 0) % (mapPixelWidth - 48) + 24;
-          dy = ((seed * 3571) >>> 0) % 48 + 8;
-        } else if (edge === 1) {
-          // Bottom edge
-          dx = ((seed * 2017) >>> 0) % (mapPixelWidth - 48) + 24;
-          dy = mapPixelHeight - (((seed * 4049) >>> 0) % 48 + 16);
-        } else if (edge === 2) {
-          // Left edge
-          dx = ((seed * 1301) >>> 0) % 48 + 8;
-          dy = ((seed * 2909) >>> 0) % (mapPixelHeight - 48) + 24;
-        } else {
-          // Right edge
-          dx = mapPixelWidth - (((seed * 1009) >>> 0) % 48 + 16);
-          dy = ((seed * 3137) >>> 0) % (mapPixelHeight - 48) + 24;
-        }
-        decorPositions.push({ x: dx, y: dy, type: (seed >> 8) % 3 });
-      }
-
-      for (const pos of decorPositions) {
-        if (pos.type === 0) {
-          // Bush -- dark green ellipse cluster
-          decor.fillStyle(0x2E6020, 0.85);
-          decor.fillEllipse(pos.x, pos.y, 22, 16);
-          decor.fillStyle(0x3A7028, 0.70);
-          decor.fillEllipse(pos.x + 8, pos.y - 4, 14, 10);
-          decor.fillStyle(0x264A18, 0.60);
-          decor.fillEllipse(pos.x - 6, pos.y + 2, 12, 8);
-        } else if (pos.type === 1) {
-          // Small wildflower -- green stem + coloured top
-          const flowerColor = ((pos.x * 31 + pos.y * 17) % 3) === 0
-            ? 0xFFD740
-            : ((pos.x + pos.y) % 3 === 1 ? 0xFF7043 : 0xE040FB);
-          decor.fillStyle(0x3A7028, 1);
-          decor.fillRect(pos.x - 1, pos.y, 2, 8);
-          decor.fillStyle(flowerColor, 0.9);
-          decor.fillCircle(pos.x, pos.y, 4);
-        } else {
-          // Stone -- grey rounded blob
-          decor.fillStyle(0x787060, 0.85);
-          decor.fillEllipse(pos.x, pos.y, 18, 12);
-          decor.fillStyle(0x9A9080, 0.50);
-          decor.fillEllipse(pos.x - 3, pos.y - 3, 8, 6);
-        }
-      }
-      this.mapContainer.add(decor);
+      // MAP EDGE DECORATIONS removed -- TerrainGenerator handles all decorations
+      // so that DayScene and NightScene show identical layouts.
     }
 
     // Grid overlay removed -- caused visible square pattern over terrain tiles
@@ -479,9 +419,10 @@ export class DayScene extends Phaser.Scene {
     // TERRAIN FEATURES (trees, rocks, bushes etc.) -- visual only, no colliders
     // Uses the same seed as NightScene so obstacles match.
     // ------------------------------------------------------------------
-    // Seed based on totalRuns only -- stays consistent between day and night within a run.
-    // Pass isDaytime=true so TerrainGenerator uses brighter daytime colour palettes.
+    // Seed: totalRuns * 31 -- stays consistent between day and night within the same run.
+    // IMPORTANT: must match NightScene seed exactly so decorations appear on same positions.
     const seed = (this.gameState.progress.totalRuns * 31) | 0;
+    console.log(`[DayScene] terrain seed = ${seed} (totalRuns=${this.gameState.progress.totalRuns})`);
     const basePos = { x: centerX, y: centerY };
     const terrainResult: TerrainResult = generateTerrain(this, this.gameState.zone, basePos, seed, true);
     // Add only the visual decorations -- ignore colliders and waterZones (day is planning only)
@@ -1105,6 +1046,9 @@ export class DayScene extends Phaser.Scene {
       // Central keyboard router -- dispatches to the topmost open dialog/panel
       this.input.keyboard.on('keydown', (event: KeyboardEvent) => {
         const key = event.key;
+
+        // 0. Block ALL shortcuts while tutorial is showing
+        if (this.tutorialShowing) return;
 
         // 1. Dialogs take priority (EventDialog, EncounterDialog)
         if (this.eventDialog.isShowing()) {

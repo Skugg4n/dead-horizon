@@ -22,7 +22,7 @@ import { distanceBetween, angleBetween } from '../utils/math';
 import { AudioManager } from '../systems/AudioManager';
 import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect } from '../config/types';
 import type { ZombieConfig } from '../entities/Zombie';
-import zombieLootData from '../data/zombie-loot.json';
+// zombie-loot.json replaced by per-enemy dropTable in enemies.json (v1.9.1)
 import structuresData from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import enemiesData from '../data/enemies.json';
@@ -35,11 +35,12 @@ const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
   Object.entries(visualConfig.structureColors).map(([k, v]) => [k, parseInt(v.replace('0x', ''), 16)])
 );
 
-interface LootDrop {
+// Per-enemy drop table entry -- resource + weight-based random selection
+interface DropTableEntry {
   resource: ResourceType;
   min: number;
   max: number;
-  chance: number;
+  weight: number;
 }
 
 export class NightScene extends Phaser.Scene {
@@ -500,10 +501,10 @@ export class NightScene extends Phaser.Scene {
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
     const basePos = { x: mapPixelWidth / 2, y: mapPixelHeight / 2 };
 
-    // Seed: deterministic per run+wave combination so each night looks different
-    // but replaying the same day gives the same terrain.
-    // Seed based on totalRuns only -- stays consistent between day and night within a run
+    // Seed: totalRuns * 31 -- stays consistent between day and night within the same run.
+    // IMPORTANT: must match DayScene seed exactly so decorations appear on same positions.
     const seed = (this.gameState.progress.totalRuns * 31) | 0;
+    console.log(`[NightScene] terrain seed = ${seed} (totalRuns=${this.gameState.progress.totalRuns})`);
 
     this.terrainResult = generateTerrain(this, this.gameState.zone, basePos, seed);
   }
@@ -762,7 +763,7 @@ export class NightScene extends Phaser.Scene {
       this.player.kills = this.kills;
       this.hud.updateKills(this.kills);
       this.waveManager.onEnemyKilled();
-      this.rollLootDrops(zombie.x, zombie.y);
+      this.rollLootDrops(zombie.x, zombie.y, zombie.zombieId);
       AudioManager.play('zombie_death');
       // Blood splatter particles (short-lived burst)
       this.bloodEmitter.emitParticleAt(zombie.x, zombie.y, 6);
@@ -1467,20 +1468,53 @@ export class NightScene extends Phaser.Scene {
     }
   }
 
-  // Roll loot from zombie-loot.json and add to resources
-  private rollLootDrops(x: number, y: number): void {
-    const drops = zombieLootData.drops as LootDrop[];
-    let yOffset = 0;
+  /**
+   * Roll loot drop for a killed zombie using per-enemy dropTable from enemies.json.
+   * Each enemy type has its own dropChance (0-1) and a weighted dropTable.
+   * Brutes and bosses have higher dropChance (0.4) and better loot ranges.
+   *
+   * Algorithm:
+   *  1. Look up the enemy config by zombieId.
+   *  2. Roll against dropChance -- if miss, no drop.
+   *  3. Select one resource from dropTable using weighted random (sum weights, pick slice).
+   *  4. Roll amount between min and max.
+   *  5. Add to inventory and show a floating floater text.
+   */
+  private rollLootDrops(x: number, y: number, zombieId: string): void {
+    // Find the enemy config matching this zombie type
+    const enemyConfig = enemiesData.enemies.find(e => e.id === zombieId);
+    if (!enemyConfig) return; // unknown enemy type -- skip drop
 
-    for (const drop of drops) {
-      if (Math.random() < drop.chance) {
-        const amount = Math.floor(Math.random() * (drop.max - drop.min + 1)) + drop.min;
-        this.resourceManager.add(drop.resource, amount);
-        this.showFloatingText(x, y + yOffset, `+${amount} ${drop.resource}`);
-        AudioManager.play('loot_pickup');
-        yOffset -= 16;
+    // Check if this enemy has drop data
+    const dropChance = (enemyConfig as Record<string, unknown>).dropChance as number | undefined;
+    const dropTableRaw = (enemyConfig as Record<string, unknown>).dropTable as DropTableEntry[] | undefined;
+    if (dropChance === undefined || !dropTableRaw || dropTableRaw.length === 0) return;
+
+    // Roll against dropChance
+    if (Math.random() > dropChance) return;
+
+    // Weighted selection: sum all weights, then pick a random slice
+    const totalWeight = dropTableRaw.reduce((sum, entry) => sum + entry.weight, 0);
+    let roll = Math.random() * totalWeight;
+    let chosen: DropTableEntry | undefined;
+    for (const entry of dropTableRaw) {
+      roll -= entry.weight;
+      if (roll <= 0) {
+        chosen = entry;
+        break;
       }
     }
+    // Fallback: floating-point drift may leave roll > 0 -- use last entry
+    if (!chosen) chosen = dropTableRaw[dropTableRaw.length - 1];
+    // Guard: should never be undefined since we verified dropTableRaw.length > 0 above
+    if (!chosen) return;
+
+    const amount = Math.floor(Math.random() * (chosen.max - chosen.min + 1)) + chosen.min;
+    this.resourceManager.add(chosen.resource as ResourceType, amount);
+
+    // Floater text: yellow, fades up 30px over 1.5s
+    this.showFloatingText(x, y, `+${amount} ${chosen.resource.toUpperCase()}`);
+    AudioManager.play('loot_pickup');
   }
 
   private showFloatingText(x: number, y: number, message: string): void {
@@ -1494,7 +1528,7 @@ export class NightScene extends Phaser.Scene {
       targets: text,
       y: y - 30,
       alpha: 0,
-      duration: 1200,
+      duration: 1500,
       ease: 'Power2',
       onComplete: () => text.destroy(),
     });

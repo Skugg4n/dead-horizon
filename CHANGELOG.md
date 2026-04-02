@@ -1,5 +1,21 @@
 # Dead Horizon -- Changelog
 
+## [1.9.1] - 2026-04-02 15:45
+
+### Fixed -- Dag/Natt layout-diskrepans
+
+- `src/scenes/DayScene.ts`: Tog bort de 14 hardkodade edge-dekorationerna (buskar, blommor, stenar langs kartkanterna) som existerade i DayScene men INTE i NightScene. Dessa element skapade visuell diskrepans -- spelet sg annorlunda ut dag vs natt trots identisk seed. ALL dekoration hanteras nu exklusivt av TerrainGenerator (samma kod for bada scenerna).
+- `src/scenes/DayScene.ts` + `src/scenes/NightScene.ts`: Lade till `console.log` for terrainseeden i bada scenerna sa man kan verifiera att de ar identiska: `[DayScene] terrain seed = X` / `[NightScene] terrain seed = X`.
+- Verifierat: bada scenerna anvander `seed = (totalRuns * 31) | 0` -- IDENTISK formeln.
+
+### Feature -- Zombie drops (per-fiendetyp)
+
+- `src/data/enemies.json`: Lade till `dropChance` och `dropTable` pa varje fiendetyp. Walker/Runner/Spitter/Screamer: `dropChance: 0.2`. Brute/Brute Boss: `dropChance: 0.4` med hogre min/max-varden. `dropTable` ar viktad (weight-baserad) med fem resurser: scrap, ammo, meds, parts, food. Vikterna varierar per fiendetyp (t.ex. Runner har mer ammo, Spitter mer meds).
+- `src/scenes/NightScene.ts`: Ersatte globala `zombie-loot.json`-systemet med per-zombietyp logik. Ny `rollLootDrops(x, y, zombieId)` slar upp fiendekonfiguration fran `enemies.json`, rullar mot `dropChance`, valjer sedan en resurs via viktad slumpalgoritm (summa vikter, rullande subtrahering). Inga `any`-typer.
+- `src/scenes/NightScene.ts`: `zombie-killed`-handleren skickar nu `zombie.zombieId` till `rollLootDrops`.
+- `src/scenes/NightScene.ts`: Floater-text duration okad till 1500ms (fran 1200ms) for battre lasbarhet.
+- `src/scenes/NightScene.ts`: Tog bort import av `zombie-loot.json` (ersatt). `LootDrop`-interface ersatt med `DropTableEntry` (weight istallet for chance).
+
 ## [1.8.9] - 2026-04-02 14:30
 
 ### Fixed -- B3: Pillbox UI och logik

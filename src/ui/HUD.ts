@@ -179,7 +179,7 @@ export class HUD {
     // "BASE" label
     this.baseHpLabel = scene.add.text(baseLabelX, BAR_Y + BAR_H / 2, 'BASE', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
+      fontSize: '8px',
       color: '#9A9A9A',
     }).setOrigin(1, 0.5);
     this.container.add(this.baseHpLabel);

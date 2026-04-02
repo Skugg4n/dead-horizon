@@ -1,7 +1,7 @@
 {
   "name": "dead-horizon",
   "private": true,
-  "version": "1.8.8",
+  "version": "1.9.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

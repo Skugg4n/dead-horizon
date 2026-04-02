@@ -167,7 +167,7 @@ export class BootScene extends Phaser.Scene {
 
     // Player animations
     tryAnim('player-walk', 'player_walk', 3, 8, -1);
-    tryAnim('player-attack', 'player_attack', 2, 10, 0);
+    tryAnim('player-attack', 'player_attack', 0, 10, 0);
     tryAnim('player-death', 'player_death', 3, 6, 0);
 
     // Walker animations

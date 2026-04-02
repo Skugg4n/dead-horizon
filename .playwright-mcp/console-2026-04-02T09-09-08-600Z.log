@@ -122,3 +122,41 @@
 [18638742ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
 [18638836ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
 [18638836ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18842242ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18842339ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18842340ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18853866ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18853969ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18853969ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18857689ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18857785ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18857785ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18873316ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18873403ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18873403ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18877339ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18877436ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18877436ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18891675ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18891767ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18891767ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18899837ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18899923ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18899923ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18905587ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18905686ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18905686ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18924133ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18924222ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18924222ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[18940966ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[18941070ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[18941070ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[19039047ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[19039154ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[19039154ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[19074624ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[19074718ms] [WARNING] Frame "%s" not found in texture "%s" 1 player_attack @ http://localhost:5173/@vite/client:509
+[19074718ms] [WARNING] Frame "%s" not found in texture "%s" 2 player_attack @ http://localhost:5173/@vite/client:509
+[19102157ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
+[19126878ms] [LOG] %c %c %c %c %c Phaser v3.90.0 (WebGL | Web Audio) %c https://phaser.io/v390 background: #ff0000 background: #ffff00 background: #00ff00 background: #00ffff color: #ffffff; background: #000000 background: transparent @ http://localhost:5173/node_modules/.vite/deps/phaser.js?v=9b78083f:8905
