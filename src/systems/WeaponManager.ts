@@ -7,6 +7,7 @@ import type {
   WeaponClass,
   WeaponUpgradeType,
   WeaponUpgradeData,
+  WeaponSpecialEffect,
   Rarity,
 } from '../config/types';
 import weaponsJson from '../data/weapons.json';
@@ -110,10 +111,11 @@ export class WeaponManager {
     noiseLevel: number;
     weaponClass: WeaponClass;
     name: string;
+    specialEffect: WeaponSpecialEffect | null;
   } {
     const data = WeaponManager.getWeaponData(weapon.weaponId);
     if (!data) {
-      return { damage: 1, range: 40, fireRate: 500, noiseLevel: 0, weaponClass: 'melee', name: 'Unknown' };
+      return { damage: 1, range: 40, fireRate: 500, noiseLevel: 0, weaponClass: 'melee', name: 'Unknown', specialEffect: null };
     }
 
     const rarityMult = rarityMultipliers[weapon.rarity] ?? 1.0;
@@ -148,6 +150,7 @@ export class WeaponManager {
       noiseLevel,
       weaponClass: data.class,
       name: data.name,
+      specialEffect: data.specialEffect ?? null,
     };
   }
 

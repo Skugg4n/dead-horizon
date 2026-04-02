@@ -163,6 +163,20 @@ export class HUD {
     this.hpBar.fillRect(16, 8, 180 * ratio, 12);
   }
 
+  /**
+   * Flash the HP bar briefly to signal player damage.
+   * Drops alpha to 0.3 then fades back to 1.
+   */
+  flashHpBar(): void {
+    this.hpBar.setAlpha(0.3);
+    this.scene.tweens.add({
+      targets: this.hpBar,
+      alpha: 1,
+      duration: 250,
+      ease: 'Power2',
+    });
+  }
+
   /** F3: Update base health bar color (green -> yellow -> red) */
   updateBaseHpBar(hp: number, maxHp: number): void {
     const baseBarX = GAME_WIDTH - 210;
@@ -181,8 +195,8 @@ export class HUD {
     this.staminaBar.fillRect(16, 22, 100 * ratio, 6);
   }
 
-  updateWave(wave: number): void {
-    this.waveText.setText(`Wave ${wave}/5`);
+  updateWave(wave: number, maxWaves: number = 5): void {
+    this.waveText.setText(`Wave ${wave}/${maxWaves}`);
   }
 
   updateKills(kills: number): void {

@@ -1,5 +1,53 @@
 # Dead Horizon -- Changelog
 
+## [1.9.1] - 2026-04-02
+
+### Added -- Tydligare toolbar- och resursikoner
+
+- Ny Python-skript `sprite_gen_icons_v2.py` och `sprite_gen_icons_fix.py` for ikonsgenerering.
+- Omritade alla 14 ikoner med tydligare pixel art-silhuetter:
+  - **Toolbar 24x24:** icon_build (hammare), icon_ammo (patron), icon_weapons (korsade knivar), icon_craft (kugghjul+nyckel), icon_refugees (person), icon_lootrun (ryggsack), icon_skills (stjarna), icon_endday (halvmane).
+  - **Resurser 16x16:** icon_scrap (kugghjul), icon_food (apple), icon_parts (skiftnyckel), icon_meds (rott kors), icon_heart (hjarta), icon_skull (dodskalle).
+- Alla ikoner foljr art-direction-paletten, transparant bakgrund, RGBA PNG.
+- Preview-filer (8x uppskalade) skapade for alla ikoner.
+
+## [1.9.0] - 2026-04-02
+
+### Added -- Wave-progression, tydligare dod, forbattrad damage-feedback
+
+**UPPGIFT 1: Dynamic wave-count per natt**
+- WaveManager: ny property `maxWaves` (default 5). Ny metod `setMaxWaves(n)` och `getMaxWaves()`.
+- NightScene.setupWaveManager(): raknar ut `Math.min(Math.max(nightNumber, 1), 5)` fran `gameState.progress.currentWave` och kallar `waveManager.setMaxWaves(totalWaves)`.
+- WaveManager.onEnemyKilled(): janfar nu mot `this.maxWaves` istallet for hardkodat 5.
+- wave-complete handler: startar nasta wave om `wave < maxWaves` (inte alltid < 5).
+- all-waves-complete: skickar `wave: waveManager.getMaxWaves()` till ResultScene.
+- HUD.updateWave(): tar nu `maxWaves: number = 5` som andra parameter, visar "Wave X/Y" dynamiskt.
+- Tutorial-text i NightScene visar "Survive N wave(s)" med dynamiskt N.
+
+**UPPGIFT 2: Tydligare dodsorsak**
+- Player.takeDamage(): emitar nu `player-died` med reason `'player_killed'`.
+- NightScene.damageBase(): emitar `player-died` med reason `'base_destroyed'`, trackar `baseDamageTaken`.
+- NightScene.player-died handler: tar emot reason-strang, guard `gameOverShown` forhindrar double-fire.
+- Ny metod `showGameOver(reason)`: visar centrerad panel (INTE fullskarms-overlay) med rubrik "YOU DIED" (rod) eller "BASE DESTROYED" (orange), stats (kills, wave, base damage), "You keep all your gear." i grott, och "Click to continue" prompt. Klick pa panelen eller tangent gar till DayScene. Physics pausas under panelen.
+
+**UPPGIFT 3: Forbattrad damage-feedback**
+- NightScene: ny particle emitter `playerBloodEmitter` (5 roda partiklar runt spelaren vid skada, depth 12).
+- NightScene: ny Graphics `vignetteFlash` (depth 98) som ritar fyra kantade rektanglar vid skada. Tonar ut pa 300ms.
+- player-damaged event anropar nu `flashPlayerDamage()`: emitar blodpartiklar, vignette-flash, `cameras.main.shake(50, 0.006)` och `hud.flashHpBar()`.
+- HUD.flashHpBar(): ny metod, satter hpBar.alpha=0.3 och tweens tillbaka till 1 pa 250ms.
+
+## [1.8.7] - 2026-04-02
+
+### Added -- 5 nya melee-vapen med specialeffekter
+
+- `src/data/weapons.json`: Lade till 5 nya melee-vapen: Hunting Knife (bleed), Baseball Bat (knockback), Crowbar (cripple), Two-by-Four (stun), Fire Axe (cleave). Lade till `specialEffect: null` pa befintliga vapen. Varje vapen har ett `specialEffect`-objekt med type, chance, value och duration.
+- `src/config/types.ts`: Ny `WeaponSpecialEffect`-interface med union-type for `type` ('bleed' | 'knockback' | 'cripple' | 'stun' | 'cleave'), `chance` (0-1), `value` och `duration`. Uppdaterade `WeaponData` med optional `specialEffect: WeaponSpecialEffect | null`.
+- `src/systems/WeaponManager.ts`: `getWeaponStats()` returnerar nu aven `specialEffect` fran vapendatan. Importerar `WeaponSpecialEffect`-typen.
+- `src/scenes/NightScene.ts`: Ny privat metod `applyMeleeSpecialEffect()` applicerar effekter efter melee-treff: knockback (physics setVelocity bort fran spelaren), cripple (sanker moveSpeed temporart), stun (nollstaller moveSpeed + velocity temporart), bleed (delayedCall 1s -> extra skada), cleave (skadar alla zombies inom radie). Anropas i `shootAt()` efter `target.takeDamage()` om zombie fortfarande ar aktiv.
+- `src/data/loot-tables.json`: Nytt `weaponDrops`-array med chans-baserade vapenavrop per destination. Alla 9 vapen har entries med destination-lista och chans (0.03-0.09).
+- `src/systems/LootManager.ts`: `LootResult` har nu `weaponDropId: string | null`. Ny `rollWeaponDrop()`-metod slumpar vapenfynd fran `weaponDrops`-tabellen. `executeLootRun()` rullar vapendrop och inkluderar det i resultatet.
+- `src/ui/LootRunPanel.ts`: Vapenfynd visas i resultatskärmen med gul text. `applyResults()` skapar ett nytt `WeaponInstance` och lagger det till `gameState.inventory.weapons`.
+
 ## [1.8.6] - 2026-04-02
 
 ### Fixed -- 2 buggar: tutorial/event-overlap och vag-rendering

@@ -156,10 +156,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (this.hasDeathAnim) {
         this.play('player-death');
         this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-          this.scene.events.emit('player-died');
+          this.scene.events.emit('player-died', 'player_killed');
         });
       } else {
-        this.scene.events.emit('player-died');
+        this.scene.events.emit('player-died', 'player_killed');
       }
     }
   }

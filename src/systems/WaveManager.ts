@@ -35,6 +35,8 @@ export class WaveManager {
   private hordeMultiplier: number = 1.0;
   private mapWidth: number = 0;
   private mapHeight: number = 0;
+  // Max waves for this night (dynamically set from NightScene based on night number)
+  private maxWaves: number = 5;
 
   constructor(scene: Phaser.Scene, zombieGroup: Phaser.Physics.Arcade.Group, wavesData?: WaveDataSource) {
     this.scene = scene;
@@ -114,6 +116,15 @@ export class WaveManager {
     this.totalEnemiesInWave++;
   }
 
+  /** Set the maximum number of waves for this night (dynamic per night number) */
+  setMaxWaves(max: number): void {
+    this.maxWaves = max;
+  }
+
+  getMaxWaves(): number {
+    return this.maxWaves;
+  }
+
   onEnemyKilled(): void {
     this.enemiesRemaining--;
 
@@ -121,7 +132,8 @@ export class WaveManager {
       this.waveActive = false;
       this.scene.events.emit('wave-complete', this.currentWave);
 
-      if (this.currentWave >= 5) {
+      // Trigger all-waves-complete when the last wave for this night is done
+      if (this.currentWave >= this.maxWaves) {
         this.scene.events.emit('all-waves-complete');
       }
     }

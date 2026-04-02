@@ -12,7 +12,73 @@
       "ammoPerNight": 0,
       "fireRate": 500,
       "rarity": "common",
-      "maxDurability": 50
+      "maxDurability": 50,
+      "specialEffect": null
+    },
+    {
+      "id": "hunting_knife",
+      "name": "Hunting Knife",
+      "class": "melee",
+      "damage": 20,
+      "range": 45,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 450,
+      "rarity": "common",
+      "maxDurability": 60,
+      "specialEffect": { "type": "bleed", "chance": 0.25, "value": 5, "duration": 2000 }
+    },
+    {
+      "id": "baseball_bat",
+      "name": "Baseball Bat",
+      "class": "melee",
+      "damage": 25,
+      "range": 55,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 700,
+      "rarity": "common",
+      "maxDurability": 80,
+      "specialEffect": { "type": "knockback", "chance": 0.3, "value": 40, "duration": 0 }
+    },
+    {
+      "id": "crowbar",
+      "name": "Crowbar",
+      "class": "melee",
+      "damage": 22,
+      "range": 50,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 600,
+      "rarity": "uncommon",
+      "maxDurability": 100,
+      "specialEffect": { "type": "cripple", "chance": 0.25, "value": 0.5, "duration": 3000 }
+    },
+    {
+      "id": "two_by_four",
+      "name": "Two-by-Four",
+      "class": "melee",
+      "damage": 12,
+      "range": 60,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 650,
+      "rarity": "common",
+      "maxDurability": 40,
+      "specialEffect": { "type": "stun", "chance": 0.15, "value": 0, "duration": 1000 }
+    },
+    {
+      "id": "fire_axe",
+      "name": "Fire Axe",
+      "class": "melee",
+      "damage": 35,
+      "range": 50,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 900,
+      "rarity": "rare",
+      "maxDurability": 45,
+      "specialEffect": { "type": "cleave", "chance": 0.2, "value": 30, "duration": 0 }
     },
     {
       "id": "worn_pistol",
@@ -24,7 +90,8 @@
       "ammoPerNight": 2,
       "fireRate": 400,
       "rarity": "common",
-      "maxDurability": 40
+      "maxDurability": 40,
+      "specialEffect": null
     },
     {
       "id": "hunting_rifle",
@@ -36,7 +103,8 @@
       "ammoPerNight": 3,
       "fireRate": 800,
       "rarity": "uncommon",
-      "maxDurability": 35
+      "maxDurability": 35,
+      "specialEffect": null
     },
     {
       "id": "sawed_off",
@@ -48,7 +116,8 @@
       "ammoPerNight": 4,
       "fireRate": 900,
       "rarity": "uncommon",
-      "maxDurability": 30
+      "maxDurability": 30,
+      "specialEffect": null
     }
   ]
 }

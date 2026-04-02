@@ -68,6 +68,13 @@ export interface CharacterData {
   skillBonuses: Partial<Record<SkillType, number>>;
 }
 
+export interface WeaponSpecialEffect {
+  type: 'bleed' | 'knockback' | 'cripple' | 'stun' | 'cleave';
+  chance: number;   // 0-1 probability to trigger
+  value: number;    // bleed: extra damage, knockback: pixels, cripple: speed multiplier (0-1), stun: unused, cleave: radius
+  duration: number; // milliseconds -- bleed: dot interval, cripple/stun: how long the debuff lasts
+}
+
 export interface WeaponData {
   id: string;
   name: string;
@@ -79,6 +86,7 @@ export interface WeaponData {
   fireRate: number;
   rarity: Rarity;
   maxDurability: number;
+  specialEffect: WeaponSpecialEffect | null;
 }
 
 export interface WeaponUpgradeData {

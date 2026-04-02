@@ -1,4 +1,15 @@
 {
+  "weaponDrops": [
+    { "weaponId": "rusty_knife",   "chance": 0.08, "destinations": ["nearby_houses", "abandoned_store"] },
+    { "weaponId": "hunting_knife", "chance": 0.06, "destinations": ["nearby_houses", "abandoned_store", "military_outpost"] },
+    { "weaponId": "baseball_bat",  "chance": 0.07, "destinations": ["nearby_houses", "abandoned_store"] },
+    { "weaponId": "crowbar",       "chance": 0.05, "destinations": ["nearby_houses", "abandoned_store", "military_outpost"] },
+    { "weaponId": "two_by_four",   "chance": 0.09, "destinations": ["nearby_houses", "abandoned_store"] },
+    { "weaponId": "fire_axe",      "chance": 0.03, "destinations": ["military_outpost"] },
+    { "weaponId": "worn_pistol",   "chance": 0.05, "destinations": ["nearby_houses", "abandoned_store", "military_outpost"] },
+    { "weaponId": "hunting_rifle", "chance": 0.03, "destinations": ["military_outpost"] },
+    { "weaponId": "sawed_off",     "chance": 0.03, "destinations": ["abandoned_store", "military_outpost"] }
+  ],
   "destinations": [
     {
       "id": "nearby_houses",

@@ -20,7 +20,7 @@ import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
 import { distanceBetween, angleBetween } from '../utils/math';
 import { AudioManager } from '../systems/AudioManager';
-import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance } from '../config/types';
+import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect } from '../config/types';
 import type { ZombieConfig } from '../entities/Zombie';
 import zombieLootData from '../data/zombie-loot.json';
 import structuresData from '../data/structures.json';
@@ -72,6 +72,9 @@ export class NightScene extends Phaser.Scene {
   private muzzleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private trapEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  // Player damage feedback: blood splatter particles and screen-edge vignette flash
+  private playerBloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private vignetteFlash!: Phaser.GameObjects.Graphics;
   private isFirstGame: boolean = false;
   // Movement tracking for speed_agility XP
   private lastPlayerX: number = 0;
@@ -95,7 +98,10 @@ export class NightScene extends Phaser.Scene {
   private terrainResult!: TerrainResult;
   // Set of zombie IDs currently inside a water zone (for speed debuff)
   private zombiesInWater: Set<Zombie> = new Set();
-  // Visual atmosphere: base warm glow + edge vignette
+  // Total damage taken by the base this night (for game over stats)
+  private baseDamageTaken: number = 0;
+  // Guard: prevent player-died from firing twice (e.g. base destroyed then player killed same frame)
+  private gameOverShown: boolean = false;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -111,6 +117,8 @@ export class NightScene extends Phaser.Scene {
     this.playerTookDamage = false;
     this.meleeKillsThisNight = 0;
     this.movementAccumulator = 0;
+    this.baseDamageTaken = 0;
+    this.gameOverShown = false;
 
     this.createMap();
 
@@ -613,6 +621,12 @@ export class NightScene extends Phaser.Scene {
     this.waveManager = new WaveManager(this, this.zombieGroup, waveData);
     this.waveManager.setTarget(this.player);
 
+    // Dynamic wave count: night 1 = 1 wave, night 2 = 2 waves, ..., night 5+ = 5 waves (capped)
+    // gameState.progress.currentWave is the night number (1-indexed)
+    const nightNumber = this.gameState.progress.currentWave;
+    const totalWaves = Math.min(Math.max(nightNumber, 1), 5);
+    this.waveManager.setMaxWaves(totalWaves);
+
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
 
@@ -773,7 +787,7 @@ export class NightScene extends Phaser.Scene {
     });
 
     this.events.on('wave-started', (wave: number) => {
-      this.hud.updateWave(wave);
+      this.hud.updateWave(wave, this.waveManager.getMaxWaves());
       this.hud.showWaveAnnouncement(wave);
       AudioManager.play('wave_start');
     });
@@ -790,8 +804,9 @@ export class NightScene extends Phaser.Scene {
       // Record zone progress
       this.zoneManager.recordWaveCleared(wave);
 
-      // Only start next wave if there are more waves (5 total)
-      if (wave < 5) {
+      // Only start next wave if there are more waves (dynamic max for this night)
+      const maxWaves = this.waveManager.getMaxWaves();
+      if (wave < maxWaves) {
         this.time.delayedCall(3000, () => {
           this.waveManager.startWave(wave + 1);
         });
@@ -821,16 +836,22 @@ export class NightScene extends Phaser.Scene {
 
       SaveManager.save(this.gameState);
       AudioManager.stopAmbient();
-      this.scene.start('ResultScene', { kills: this.kills, wave: 5, survived: true });
+      this.scene.start('ResultScene', { kills: this.kills, wave: this.waveManager.getMaxWaves(), survived: true });
     });
 
     this.events.on('player-damaged', (hp: number, maxHp: number) => {
       this.hud.updateHpBar(hp, maxHp);
       this.playerTookDamage = true;
       AudioManager.play('player_hurt');
+      // Enhanced damage feedback: blood particles + vignette + shake + HP blink
+      this.flashPlayerDamage();
     });
 
-    this.events.on('player-died', () => {
+    this.events.on('player-died', (reason: string = 'player_killed') => {
+      // Guard against double-fire (e.g. base destroyed + player killed same frame)
+      if (this.gameOverShown) return;
+      this.gameOverShown = true;
+
       AudioManager.play('player_death');
       AudioManager.stopAmbient();
       this.gameState.progress.totalKills += this.kills;
@@ -843,11 +864,9 @@ export class NightScene extends Phaser.Scene {
       this.fogOfWar.syncToState();
       SaveManager.save(this.gameState);
 
-      this.time.delayedCall(500, () => {
-        this.scene.start('GameOverScene', {
-          kills: this.kills,
-          wave: this.waveManager.getCurrentWave(),
-        });
+      // Short delay so death animation can start before we show the panel
+      this.time.delayedCall(600, () => {
+        this.showGameOver(reason);
       });
     });
 
@@ -1090,6 +1109,11 @@ export class NightScene extends Phaser.Scene {
       AudioManager.play('melee_hit');
       this.bloodEmitter.emitParticleAt(target.x, target.y, 6);
 
+      // Apply special effect if weapon has one and zombie survived the hit
+      if (stats.specialEffect && target.active) {
+        this.applyMeleeSpecialEffect(target, stats.specialEffect);
+      }
+
       // Visual: sweep arc showing melee range
       const arc = this.add.graphics();
       arc.setDepth(9);
@@ -1146,6 +1170,82 @@ export class NightScene extends Phaser.Scene {
       shotgun: 'combat_shotgun',
     };
     return map[weaponClass] ?? null;
+  }
+
+  /**
+   * Apply a melee weapon's special effect to a zombie.
+   * Called after the base hit damage is applied, only when the zombie is still alive.
+   * Each effect has a random chance to trigger (effect.chance 0-1).
+   */
+  private applyMeleeSpecialEffect(zombie: Zombie, effect: WeaponSpecialEffect): void {
+    if (Math.random() > effect.chance) return; // Chance roll failed
+
+    switch (effect.type) {
+      case 'knockback': {
+        // Push zombie away from player along the hit vector
+        const angle = angleBetween(this.player.x, this.player.y, zombie.x, zombie.y);
+        const kbVx = Math.cos(angle) * effect.value * 10;
+        const kbVy = Math.sin(angle) * effect.value * 10;
+        zombie.setVelocity(kbVx, kbVy);
+        // Restore normal velocity after a short delay so zombie resumes pathing
+        this.time.delayedCall(150, () => {
+          if (zombie.active) zombie.setVelocity(0, 0);
+        });
+        break;
+      }
+
+      case 'cripple': {
+        // Reduce moveSpeed by (1 - value) fraction for duration ms
+        const originalSpeed = zombie.moveSpeed;
+        zombie.moveSpeed = originalSpeed * effect.value;
+        this.time.delayedCall(effect.duration, () => {
+          if (zombie.active) zombie.moveSpeed = originalSpeed;
+        });
+        break;
+      }
+
+      case 'stun': {
+        // Stop zombie movement completely for duration ms
+        const stunOriginal = zombie.moveSpeed;
+        zombie.moveSpeed = 0;
+        zombie.setVelocity(0, 0);
+        this.time.delayedCall(effect.duration, () => {
+          if (zombie.active) zombie.moveSpeed = stunOriginal;
+        });
+        break;
+      }
+
+      case 'bleed': {
+        // Deal extra damage after 1 second (damage over time, single tick)
+        const bleedDamage = effect.value;
+        this.time.delayedCall(1000, () => {
+          if (zombie.active) {
+            zombie.takeDamage(bleedDamage);
+            if (zombie.active) this.bloodEmitter.emitParticleAt(zombie.x, zombie.y, 3);
+          }
+        });
+        break;
+      }
+
+      case 'cleave': {
+        // Damage all zombies within effect.value pixels radius
+        const cleaveRadius = effect.value;
+        const equipped = this.weaponManager.getEquipped();
+        const cleaveDamage = equipped
+          ? Math.round(this.weaponManager.getWeaponStats(equipped).damage * 0.5)
+          : 5;
+        this.zombieGroup.getChildren().forEach(child => {
+          const nearby = child as Zombie;
+          if (!nearby.active || nearby === zombie) return;
+          const dist = distanceBetween(zombie.x, zombie.y, nearby.x, nearby.y);
+          if (dist <= cleaveRadius) {
+            nearby.takeDamage(cleaveDamage);
+            if (nearby.active) this.bloodEmitter.emitParticleAt(nearby.x, nearby.y, 3);
+          }
+        });
+        break;
+      }
+    }
   }
 
   // Decrease durability by 1 for each weapon used during this night
@@ -1451,6 +1551,18 @@ export class NightScene extends Phaser.Scene {
       emitting: false,
     });
     this.trapEmitter.setDepth(6);
+
+    // Player blood splatter: brighter red, emitted at player world position when hit
+    this.playerBloodEmitter = this.add.particles(0, 0, 'particle_red', {
+      speed: { min: 60, max: 180 },
+      angle: { min: 0, max: 360 },
+      lifespan: 350,
+      scale: { start: 1.4, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: 0xCC0000,
+      emitting: false,
+    });
+    this.playerBloodEmitter.setDepth(12); // above player (depth 10)
   }
 
   private setupLighting(): void {
@@ -1469,6 +1581,13 @@ export class NightScene extends Phaser.Scene {
     this.damageOverlay.setDepth(99);
     this.damageOverlay.setScrollFactor(0);
     this.damageOverlay.setAlpha(0);
+
+    // Screen-edge vignette flash for player damage (not a fullscreen overlay --
+    // only the borders of the screen flash red, center stays clear)
+    this.vignetteFlash = this.add.graphics();
+    this.vignetteFlash.setDepth(98);
+    this.vignetteFlash.setScrollFactor(0);
+    this.vignetteFlash.setAlpha(0);
   }
 
   private flashDamageOverlay(): void {
@@ -1483,6 +1602,48 @@ export class NightScene extends Phaser.Scene {
       duration: visualConfig.damageFlash.duration,
       ease: 'Power2',
     });
+  }
+
+  /**
+   * Player damage feedback: blood particles at player position, screen-edge vignette flash,
+   * camera shake, and HP bar color flash in HUD.
+   * Called from player-damaged event.
+   */
+  private flashPlayerDamage(): void {
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+    const borderThickness = 40;
+
+    // 1. Blood splatter particles around the player (world-space)
+    this.playerBloodEmitter.emitParticleAt(this.player.x, this.player.y, 5);
+
+    // 2. Screen-edge vignette flash (NOT fullscreen -- only borders, center clear)
+    //    Draw four border rects to simulate a vignette edge
+    this.vignetteFlash.clear();
+    this.vignetteFlash.fillStyle(0xCC0000, 0.55);
+    // Top edge
+    this.vignetteFlash.fillRect(0, 0, w, borderThickness);
+    // Bottom edge
+    this.vignetteFlash.fillRect(0, h - borderThickness, w, borderThickness);
+    // Left edge
+    this.vignetteFlash.fillRect(0, 0, borderThickness, h);
+    // Right edge
+    this.vignetteFlash.fillRect(w - borderThickness, 0, borderThickness, h);
+    this.vignetteFlash.setAlpha(1);
+
+    this.tweens.killTweensOf(this.vignetteFlash);
+    this.tweens.add({
+      targets: this.vignetteFlash,
+      alpha: 0,
+      duration: 300,
+      ease: 'Power2',
+    });
+
+    // 3. Camera shake: small, 50ms, 2px intensity
+    this.cameras.main.shake(50, 0.006);
+
+    // 4. HP bar flash: delegate to HUD
+    this.hud.flashHpBar();
   }
 
   /**
@@ -1534,13 +1695,131 @@ export class NightScene extends Phaser.Scene {
    */
   private damageBase(amount: number): void {
     this.baseHp = Math.max(0, this.baseHp - amount);
+    this.baseDamageTaken += amount;
     this.hud.updateBaseHpBar(this.baseHp, this.baseMaxHp);
     AudioManager.play('structure_damage');
 
     // Base destroyed: game over
     if (this.baseHp <= 0) {
-      this.events.emit('player-died');
+      this.events.emit('player-died', 'base_destroyed');
     }
+  }
+
+  /**
+   * Show a Game Over panel explaining WHY the player lost.
+   * Uses a centered panel (NOT a fullscreen overlay).
+   * reason: 'player_killed' or 'base_destroyed'
+   */
+  private showGameOver(reason: string): void {
+    // Freeze all physics so zombies stop moving during game over screen
+    this.physics.pause();
+
+    const isPlayerKilled = reason === 'player_killed';
+    const heading = isPlayerKilled ? 'YOU DIED' : 'BASE DESTROYED';
+    const headingColor = isPlayerKilled ? '#F44336' : '#D4620B';
+
+    // Panel dimensions
+    const panelW = 340;
+    const panelH = 240;
+    const px = (GAME_WIDTH - panelW) / 2;
+    const py = (GAME_HEIGHT - panelH) / 2;
+
+    const container = this.add.container(0, 0).setDepth(250).setScrollFactor(0);
+
+    // Dark panel background (NOT fullscreen -- only the panel itself)
+    const panel = this.add.graphics();
+    panel.fillStyle(0x0A0A14, 0.95);
+    panel.fillRoundedRect(px, py, panelW, panelH, 10);
+    panel.lineStyle(2, isPlayerKilled ? 0xF44336 : 0xD4620B);
+    panel.strokeRoundedRect(px, py, panelW, panelH, 10);
+    container.add(panel);
+
+    // Heading
+    const headingText = this.add.text(GAME_WIDTH / 2, py + 32, heading, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '20px',
+      color: headingColor,
+    }).setOrigin(0.5);
+    container.add(headingText);
+
+    // Scale-in animation for heading
+    headingText.setScale(0.6);
+    this.tweens.add({
+      targets: headingText,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 250,
+      ease: 'Back.easeOut',
+    });
+
+    // Stats section
+    const waveSurvived = this.waveManager.getCurrentWave();
+    const maxWaves = this.waveManager.getMaxWaves();
+    const statsLines: string[] = [];
+    statsLines.push(`Kills: ${this.kills}`);
+    statsLines.push(`Wave: ${waveSurvived}/${maxWaves}`);
+    if (!isPlayerKilled) {
+      statsLines.push(`Base damage taken: ${Math.round(this.baseDamageTaken)}`);
+    }
+
+    const statsText = this.add.text(
+      GAME_WIDTH / 2,
+      py + 80,
+      statsLines.join('\n'),
+      {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#E8DCC8',
+        align: 'center',
+        lineSpacing: 8,
+      }
+    ).setOrigin(0.5, 0);
+    container.add(statsText);
+
+    // "You keep all your gear" reassurance
+    const gearText = this.add.text(GAME_WIDTH / 2, py + 160, 'You keep all your gear.', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#4CAF50',
+    }).setOrigin(0.5);
+    container.add(gearText);
+
+    // Click to continue prompt
+    const continueText = this.add.text(GAME_WIDTH / 2, py + panelH - 22, 'Click to continue', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5);
+    container.add(continueText);
+
+    // Blink the continue prompt
+    this.tweens.add({
+      targets: continueText,
+      alpha: 0.3,
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    // Make the panel itself clickable (not fullscreen)
+    panel.setInteractive(
+      new Phaser.Geom.Rectangle(px, py, panelW, panelH),
+      Phaser.Geom.Rectangle.Contains,
+    );
+
+    const goToDay = () => {
+      this.scene.start('DayScene');
+    };
+
+    panel.on('pointerdown', goToDay);
+    // Also allow any key to continue
+    const keyHandler = (_evt: KeyboardEvent) => {
+      goToDay();
+    };
+    this.input.keyboard?.on('keydown', keyHandler);
+    container.once('destroy', () => {
+      this.input.keyboard?.off('keydown', keyHandler);
+    });
   }
 
   private showTutorialOverlay(): void {
@@ -1549,7 +1828,7 @@ export class NightScene extends Phaser.Scene {
       { title: 'SHOOT', text: 'You auto-shoot the\nclosest enemy in range.' },
       { title: 'SPRINT', text: 'Hold SHIFT to sprint.\nWatch your stamina bar.' },
       { title: 'SWITCH', text: 'Press 1-5 to switch\nweapons during combat.' },
-      { title: 'SURVIVE', text: 'Survive 5 waves.\nYou keep everything\nwhen you die.' },
+      { title: 'SURVIVE', text: `Survive ${this.waveManager.getMaxWaves()} wave(s).\nYou keep everything\nwhen you die.` },
     ];
     let currentStep = 0;
 

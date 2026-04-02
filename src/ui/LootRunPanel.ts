@@ -6,7 +6,8 @@ import Phaser from 'phaser';
 import { LootManager, type LootDestination, type LootResult } from '../systems/LootManager';
 import { EncounterDialog } from './EncounterDialog';
 import { UIPanel } from './UIPanel';
-import type { GameState, RefugeeInstance, ResourceType } from '../config/types';
+import { WeaponManager } from '../systems/WeaponManager';
+import type { GameState, RefugeeInstance, ResourceType, WeaponInstance } from '../config/types';
 
 const PANEL_WIDTH = 360;
 
@@ -461,6 +462,27 @@ export class LootRunPanel {
       }
     }
 
+    // Show weapon drop if one was found
+    if (result.weaponDropId) {
+      const weaponData = WeaponManager.getWeaponData(result.weaponDropId);
+      const weaponName = weaponData ? weaponData.name : result.weaponDropId;
+      yOffset += 4;
+      const weaponLabel = this.scene.add.text(0, yOffset, 'Weapon found:', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '10px',
+        color: '#C5A030',
+      });
+      content.add(weaponLabel);
+      yOffset += 16;
+      const weaponLine = this.scene.add.text(8, yOffset, `+ ${weaponName}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#FFD700',
+      });
+      content.add(weaponLine);
+      yOffset += 16;
+    }
+
     yOffset += 8;
 
     // Auto-close countdown label
@@ -520,6 +542,24 @@ export class LootRunPanel {
     for (const [resource, amount] of Object.entries(result.loot) as Array<[ResourceType, number]>) {
       if (amount > 0) {
         this.gameState.inventory.resources[resource] += amount;
+      }
+    }
+
+    // Add weapon drop to inventory if one was found
+    if (result.weaponDropId) {
+      const weaponData = WeaponManager.getWeaponData(result.weaponDropId);
+      if (weaponData) {
+        const newWeapon: WeaponInstance = {
+          id: `${weaponData.id}_${Date.now()}`,
+          weaponId: weaponData.id,
+          rarity: weaponData.rarity,
+          level: 1,
+          xp: 0,
+          durability: weaponData.maxDurability,
+          maxDurability: weaponData.maxDurability,
+          upgrades: [],
+        };
+        this.gameState.inventory.weapons.push(newWeapon);
       }
     }
 

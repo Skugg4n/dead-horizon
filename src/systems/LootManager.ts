@@ -28,6 +28,12 @@ export interface LootDestination {
   loot: LootEntry[];
 }
 
+interface WeaponDropEntry {
+  weaponId: string;
+  chance: number;
+  destinations: string[];
+}
+
 interface LootEntry {
   resource: ResourceType;
   min: number;
@@ -38,6 +44,8 @@ interface LootEntry {
 export interface LootResult {
   destination: LootDestination;
   loot: Partial<Record<ResourceType, number>>;
+  // weaponDropId is set if a weapon was found during this loot run (null otherwise)
+  weaponDropId: string | null;
   encounter: boolean;
   encounterResolved: boolean;
   encounterOutcome: 'none' | 'win' | 'lose' | 'flee';
@@ -46,6 +54,7 @@ export interface LootResult {
 }
 
 const destinations = lootTablesJson.destinations as unknown as LootDestination[];
+const weaponDropEntries = lootTablesJson.weaponDrops as unknown as WeaponDropEntry[];
 const weaponDataList = weaponsJson.weapons as WeaponData[];
 
 // Build weapon damage lookup
@@ -65,6 +74,21 @@ export class LootManager {
 
   getDestinations(): LootDestination[] {
     return destinations;
+  }
+
+  /**
+   * Roll for a weapon drop at a given destination.
+   * Checks all weapon drop entries whose destinations include the given id.
+   * Returns the weaponId of the first successful roll, or null.
+   */
+  private rollWeaponDrop(destinationId: string): string | null {
+    const eligible = weaponDropEntries.filter(e => e.destinations.includes(destinationId));
+    for (const entry of eligible) {
+      if (Math.random() < entry.chance) {
+        return entry.weaponId;
+      }
+    }
+    return null;
   }
 
   /** Roll loot from a destination's loot table */
@@ -106,12 +130,16 @@ export class LootManager {
     // Roll base loot
     const loot = this.rollLoot(destination);
 
+    // Roll for weapon drop (independent of resource loot)
+    const weaponDropId = this.rollWeaponDrop(destinationId);
+
     // Check for encounter
     const encounter = Math.random() < destination.encounterChance;
 
     const result: LootResult = {
       destination,
       loot,
+      weaponDropId,
       encounter,
       encounterResolved: !encounter,
       encounterOutcome: encounter ? 'none' : 'none',
