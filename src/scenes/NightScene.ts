@@ -655,6 +655,7 @@ export class NightScene extends Phaser.Scene {
         const proj = _proj as Projectile;
         const zombie = _zombie as Zombie;
         if (!proj.active || !zombie.active) return;
+        if (typeof proj.deactivate !== 'function') { _proj.destroy(); return; }
 
         zombie.takeDamage(proj.damage);
         proj.deactivate();
@@ -741,7 +742,13 @@ export class NightScene extends Phaser.Scene {
       this.player,
       (_proj) => {
         const proj = _proj as Projectile;
-        if (!proj.active || !this.player.active) return;
+        if (!this.player.active) return;
+        // Guard: overlap may fire on non-Projectile objects
+        if (typeof proj.deactivate !== 'function') {
+          (proj as Phaser.GameObjects.GameObject).destroy();
+          return;
+        }
+        if (!proj.active) return;
         this.player.takeDamage(proj.damage);
         proj.deactivate();
       },
