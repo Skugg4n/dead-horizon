@@ -1,12 +1,12 @@
 {
   "weaponDrops": [
-    { "weaponId": "rusty_knife",      "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
-    { "weaponId": "hunting_knife",    "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "military_outpost", "armory"] },
+    { "weaponId": "rusty_knife",      "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "city_ruins"] },
+    { "weaponId": "hunting_knife",    "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "military_outpost", "armory"] },
     { "weaponId": "baseball_bat",     "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins", "police_station"] },
-    { "weaponId": "two_by_four",      "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "weaponId": "two_by_four",      "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "city_ruins"] },
     { "weaponId": "worn_pistol",      "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "military_outpost", "police_station", "armory"] },
     { "weaponId": "9mm_compact",      "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins", "police_station"] },
-    { "weaponId": "crowbar",          "chance": 0.08, "destinations": ["nearby_houses", "abandoned_store", "military_outpost", "city_ruins"] },
+    { "weaponId": "crowbar",          "chance": 0.08, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "military_outpost", "city_ruins"] },
     { "weaponId": "hunting_rifle",    "chance": 0.08, "destinations": ["military_outpost", "armory"] },
     { "weaponId": "sawed_off",        "chance": 0.08, "destinations": ["abandoned_store", "military_outpost", "police_station"] },
     { "weaponId": "machete",          "chance": 0.08, "destinations": ["nearby_houses", "city_ruins", "military_outpost"] },
@@ -48,6 +48,19 @@
         { "resource": "food", "min": 5, "max": 12, "chance": 0.8 },
         { "resource": "ammo", "min": 2, "max": 5, "chance": 0.3 },
         { "resource": "meds", "min": 1, "max": 3, "chance": 0.3 }
+      ]
+    },
+    {
+      "id": "ranger_station",
+      "zone": "forest",
+      "name": "Ranger Station",
+      "apCost": 4,
+      "encounterChance": 0.35,
+      "loot": [
+        { "resource": "parts", "min": 1, "max": 4, "chance": 0.75 },
+        { "resource": "scrap", "min": 5, "max": 12, "chance": 0.8 },
+        { "resource": "ammo", "min": 2, "max": 6, "chance": 0.5 },
+        { "resource": "meds", "min": 1, "max": 3, "chance": 0.35 }
       ]
     },
     {

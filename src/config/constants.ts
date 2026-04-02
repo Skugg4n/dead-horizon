@@ -71,6 +71,7 @@ export const ENCOUNTER_RESCUE_CHANCE = 0.3;
 export const ENCOUNTER_THRESHOLDS: Record<string, number> = {
   nearby_houses: 50,
   abandoned_store: 70,
+  ranger_station: 65,
   city_ruins: 60,
   hospital: 65,
   police_station: 80,
@@ -78,7 +79,7 @@ export const ENCOUNTER_THRESHOLDS: Record<string, number> = {
   armory: 120,
 };
 
-export const GAME_VERSION = '2.0.2';
+export const GAME_VERSION = '2.0.3';
 
 // Base HP (used in NightScene for base health bar)
 export const BASE_MAX_HP = 200;

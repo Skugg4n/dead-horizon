@@ -42,6 +42,15 @@ export class GameOverScene extends Phaser.Scene {
 
     retryText.on('pointerover', () => retryText.setColor('#FFD700'));
     retryText.on('pointerout', () => retryText.setColor('#D4620B'));
-    retryText.on('pointerdown', () => this.scene.start('DayScene'));
+
+    const advance = () => this.scene.start('DayScene');
+    retryText.on('pointerdown', advance);
+
+    // ESC, Enter, Space to continue -- mirrors ResultScene keyboard handling
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
+        advance();
+      }
+    });
   }
 }

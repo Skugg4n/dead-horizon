@@ -7,9 +7,9 @@ import type { WeaponInstance, WeaponUpgradeType, UpgradeDefinition, GameState } 
 
 const PANEL_WIDTH = 360;
 
-// Build a star-string showing current and remaining levels, e.g. "**o" for level 2 of 3
-function starLabel(current: number, max: number): string {
-  return '*'.repeat(current) + 'o'.repeat(max - current);
+// Build a clear level label, e.g. "Lv 2/3" -- replaces the old [*oo] star notation
+function levelLabel(current: number, max: number): string {
+  return `Lv ${current}/${max}`;
 }
 
 // Resolve the description template with the actual value at a given level
@@ -106,17 +106,25 @@ export class WeaponPanel {
     bg.fillRect(-4, y - 2, contentWidth + 8, 76);
     content.add(bg);
 
-    // Equipped indicator
-    const prefix = isEquipped ? '> ' : '  ';
     const nameColor = isBroken ? '#F44336' : (isEquipped ? '#FFD700' : '#E8DCC8');
 
     // Name + class + rarity (10px title)
-    const nameText = this.scene.add.text(0, y, `${prefix}${stats.name} [${weapon.rarity}]`, {
+    const nameText = this.scene.add.text(0, y, `${stats.name} [${weapon.rarity}]`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: nameColor,
     });
     content.add(nameText);
+
+    // [EQUIPPED] badge shown next to the active weapon for clarity
+    if (isEquipped) {
+      const equippedBadge = this.scene.add.text(contentWidth, y, '[EQUIPPED]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#FFD700',
+      }).setOrigin(1, 0);
+      content.add(equippedBadge);
+    }
 
     // Stats line (9px body)
     const brokenTag = isBroken ? ' BROKEN' : '';
@@ -145,7 +153,7 @@ export class WeaponPanel {
       const upgradeStrs = weapon.upgrades.map(u => {
         const def = WeaponManager.getUpgradeDef(u.id);
         if (!def) return u.id;
-        return `${def.name}[${starLabel(u.level, def.maxLevel)}]`;
+        return `${def.name}[${levelLabel(u.level, def.maxLevel)}]`;
       });
       const slotsTag = slotsFree > 0 ? ` +${slotsFree}` : ' FULL';
       const upgText = this.scene.add.text(0, y + 39, upgradeStrs.join(' ') + slotsTag, {
@@ -262,10 +270,13 @@ export class WeaponPanel {
       bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
       content.add(bg);
 
-      // Upgrade name + current star level (9px body)
+      // Upgrade name + level indicator (9px body).
+      // If not yet installed (level 0) show "NEW" -- avoids confusing [Lv 0/X] display.
       const levelTag = isMaxed
         ? `${def.name} MAX`
-        : `${def.name} [${starLabel(currentLevel, def.maxLevel)}]`;
+        : currentLevel === 0
+          ? `${def.name} NEW`
+          : `${def.name} [${levelLabel(currentLevel, def.maxLevel)}]`;
       const nameEntry = this.scene.add.text(0, y, levelTag, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',

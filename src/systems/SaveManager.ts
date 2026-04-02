@@ -174,7 +174,14 @@ function load(): GameState {
       return state;
     }
   } catch (e) {
-    console.error('Failed to load game state:', e);
+    // Corrupted save -- clear it so the game does not get stuck in a boot loop.
+    // This can happen if the game crashed mid-write or the save format is invalid.
+    console.warn('[SaveManager] Corrupted save detected, clearing and using defaults:', e);
+    try {
+      localStorage.removeItem(SAVE_KEY);
+    } catch {
+      // If we can't even clear localStorage we just move on
+    }
   }
   return createDefaultState();
 }

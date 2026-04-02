@@ -176,10 +176,10 @@ export class HUD {
     houseGfx.fillRect(houseX + 2, houseY + 6, 8, 8);
     this.container.add(houseGfx);
 
-    // "BASE" label
+    // "BASE" label -- 9px ensures the font renders cleanly at all scale factors
     this.baseHpLabel = scene.add.text(baseLabelX, BAR_Y + BAR_H / 2, 'BASE', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
+      fontSize: '9px',
       color: '#9A9A9A',
     }).setOrigin(1, 0.5);
     this.container.add(this.baseHpLabel);

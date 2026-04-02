@@ -1893,10 +1893,13 @@ export class NightScene extends Phaser.Scene {
   }
 
   private showFloatingText(x: number, y: number, message: string): void {
+    // 10px + stroke for readability over varied terrain backgrounds
     const text = this.add.text(x, y, message, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
+      fontSize: '10px',
       color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 3,
     }).setOrigin(0.5).setDepth(50);
 
     this.tweens.add({

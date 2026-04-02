@@ -1,5 +1,39 @@
 # Dead Horizon -- Changelog
 
+## [2.0.3] - 2026-04-02 18:30
+
+### Fix -- KB2: SaveManager.load() korrupt spara hang
+- `src/systems/SaveManager.ts`: Nar load() kaschar ett undantag (korrupt JSON eller TypeError vid merge) rensas nu sparfilen med `localStorage.removeItem()` innan default state returneras. Tidigare sparades felet bara och spelet kunde fastna i Continue-loopen.
+
+### Fix -- VB2: Vapenpanel equipped-indikator otydlig
+- `src/ui/WeaponPanel.ts`: Bytte ">" prefixet mot ett explicit `[EQUIPPED]`-marke i gul farg (`#FFD700`) hogerplacerat bredvid det aktiva vapnets namn. Prefixet togs bort fran namnstrengen.
+
+### Fix -- VB3: BASE-text trunkerad i HUD
+- `src/ui/HUD.ts`: Okade fontstorlek pa BASE-etiketten fran 8px till 9px for att eliminera teckenstympning vid sma skalningsfaktorer.
+
+### Verifiera -- GB1: B-tangent blockeras av tutorial (redan korrekt)
+- `src/scenes/DayScene.ts`: Bekraftades att `if (this.tutorialShowing) return;` ar FORSTA kontrollen i keyboard-routern (rad 1050) och att `tutorialShowing = true` sats i borjan av `showDayTutorial()` fore allt annat. Ingen kodandring kravdes.
+
+### Fix -- UB2: Game Over-skarmen saknar tangentbordshantering
+- `src/scenes/GameOverScene.ts`: Lade till ESC/Enter/Space tangentbordshandler (identisk med ResultScene) sa spelaren kan ga vidare utan att klicka.
+
+### Fix -- Loot: Tredje Forest-destination tillagd
+- `src/data/loot-tables.json`: Lade till `ranger_station` (zone: forest, 4 AP, 35% encounter). Loot: parts, scrap, ammo, meds. Spelaren i Forest-zonen ser nu 3 destinationer (Nearby Houses, Abandoned Store, Ranger Station) istallet for 2.
+- `src/data/loot-tables.json`: Ranger Station lagd till weapon drop-tabellerna for rusty_knife, hunting_knife, two_by_four, crowbar.
+- `src/config/constants.ts`: Lade till `ranger_station: 65` i ENCOUNTER_THRESHOLDS.
+
+### Fix -- VB7: Nivaindikatorer [*oo] otydliga
+- `src/ui/WeaponPanel.ts`: Ersatte `starLabel()` (returnerade "[*oo]"-strang) med `levelLabel()` (returnerar "Lv X/Y"). Anvands bade i installerade upgrade-listan och i upgrade-menyn.
+
+### Fix -- Bug 8: [ooo] visas for icke-installerade upgrades
+- `src/ui/WeaponPanel.ts`: I `showUpgradeOptions()` visas nu "NEW" istallet for "[Lv 0/X]" for upgrades som annu inte ar installerade.
+
+### Fix -- Bug 9: Floater-text svar att lasa
+- `src/scenes/NightScene.ts`: `showFloatingText()` okad till 10px (fran 8px) med svart outline (strokeThickness: 3) for battre lasbarhet over varierande terrainbakgrunder.
+
+### Verifiera -- Alla 283 tester passerar
+- `npm run test`: 283/283 tester klarade.
+
 ## [2.0.2] - 2026-04-02 17:30
 
 ### Feature -- Nya fallor och hinder
