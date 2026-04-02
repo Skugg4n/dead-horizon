@@ -20,7 +20,7 @@
     },
     {
       "id": "trap",
-      "name": "Spike Trap",
+      "name": "Claw Trap",
       "hp": 1,
       "cost": { "scrap": 8 },
       "apCost": 1,

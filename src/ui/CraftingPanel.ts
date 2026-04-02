@@ -79,7 +79,7 @@ export class CraftingPanel {
 
       // Result description (9px body)
       const resultStr = this.getResultDescription(recipe.result);
-      const resultText = this.scene.add.text(0, yPos + 32, `> ${resultStr}`, {
+      const resultText = this.scene.add.text(0, yPos + 32, `-- ${resultStr}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: '#4CAF50',

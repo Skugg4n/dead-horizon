@@ -241,10 +241,10 @@ export class MenuScene extends Phaser.Scene {
     sg.lineStyle(2, 0x2A2010, 0.6);
     sg.lineBetween(sx + sw / 2, sy + sh, sx + sw / 2, sy + sh + 30);
 
-    // "EVAC" text
+    // "EVAC" text -- 8px minimum for legibility
     const evacText = this.add.text(sx + 6, sy + 5, 'EVAC  2.3 km', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
+      fontSize: '8px',
       color: '#5A7A3A',
     }).setOrigin(0, 0);
     evacText.setDepth(7);
@@ -486,7 +486,7 @@ export class MenuScene extends Phaser.Scene {
     // Tagline
     const tagline = this.add.text(2, 106, 'POST APOCALYPTIC TOP-DOWN SURVIVAL / BASE BUILDING - SHOOTER', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '6px',
+      fontSize: '8px',
       color: '#5A4A3A',
       wordWrap: { width: 300 },
     }).setOrigin(0, 0);
@@ -517,7 +517,7 @@ export class MenuScene extends Phaser.Scene {
     // --- VERSION (bottom-left) ---
     const versionText = this.add.text(LEFT_MARGIN, GAME_HEIGHT - 14, `v${GAME_VERSION} -- EARLY ACCESS`, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
+      fontSize: '8px',
       color: '#2A2520',
     }).setOrigin(0, 0.5);
     this.mainMenuContainer.add(versionText);
@@ -589,7 +589,7 @@ export class MenuScene extends Phaser.Scene {
       // Feature description (dim)
       const descText = this.add.text(22, baseY + 16, f.desc, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: '#5A4A3A',
         wordWrap: { width: panelW - 34 },
       }).setOrigin(0, 0);
@@ -707,7 +707,7 @@ export class MenuScene extends Phaser.Scene {
     if (subtext) {
       const subText = this.add.text(primary ? 12 : 10, btnH / 2 + 10, subtext, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: '#4A3A34',
       }).setOrigin(0, 0.5);
       container.add(subText);

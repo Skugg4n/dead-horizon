@@ -158,7 +158,7 @@ export class WeaponPanel {
       const slotsTag = slotsFree > 0 ? ` +${slotsFree}` : ' FULL';
       const upgText = this.scene.add.text(0, y + 39, upgradeStrs.join(' ') + slotsTag, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: '#7B9FCF',
         wordWrap: { width: contentWidth - 80 },
       });
@@ -287,7 +287,7 @@ export class WeaponPanel {
       if (!isMaxed) {
         // Next level description (8px body)
         const nextDesc = resolveDescription(def, nextLevel);
-        const descText = this.scene.add.text(0, y + 13, `> ${nextDesc}`, {
+        const descText = this.scene.add.text(0, y + 13, `-- ${nextDesc}`, {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '8px',
           color: '#AAB8C2',

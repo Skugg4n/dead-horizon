@@ -97,10 +97,10 @@ export class HUD {
     this.hpBar = scene.add.graphics();
     this.container.add(this.hpBar);
 
-    // HP numeric label ("HP: 100/100")
+    // HP numeric label ("HP: 100/100") -- minimum 8px for legibility
     this.hpText = scene.add.text(hpBarX + hpBarW + 5, BAR_Y + BAR_H / 2, 'HP: 100/100', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
+      fontSize: '8px',
       color: '#cccccc',
     }).setOrigin(0, 0.5);
     this.container.add(this.hpText);
@@ -221,7 +221,7 @@ export class HUD {
     // ---- Weapon section (left) ----------------------------------------
     const weapX = 10;
 
-    // Weapon name text
+    // Weapon name text -- rendered in the dark bottom HUD panel; 8px minimum
     this.weaponText = scene.add.text(weapX, centerY - 8, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
@@ -241,10 +241,10 @@ export class HUD {
     this.weaponDurBar = scene.add.graphics();
     this.container.add(this.weaponDurBar);
 
-    // Special effect label (right of weapon area)
+    // Special effect label (right of weapon area) -- minimum 8px for legibility
     this.weaponEffectText = scene.add.text(weapX + durBarW + 6, centerY + 4, '', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '6px',
+      fontSize: '8px',
       color: '#c77dff',
     }).setOrigin(0, 0.5);
     this.container.add(this.weaponEffectText);
@@ -258,10 +258,10 @@ export class HUD {
         .setDisplaySize(ICON_SIZE, ICON_SIZE);
       this.container.add(ammoIcon);
     } else {
-      // Fallback text label
+      // Fallback text label -- 8px minimum for legibility
       const ammoLabel = scene.add.text(ammoSectionX, centerY, 'AMMO', {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: '#9A9A9A',
       }).setOrigin(0, 0.5);
       this.container.add(ammoLabel);
@@ -285,7 +285,7 @@ export class HUD {
     } else {
       const killLabel = scene.add.text(killSectionX, centerY, 'KILLS', {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: '#9A9A9A',
       }).setOrigin(0, 0.5);
       this.container.add(killLabel);
@@ -309,10 +309,13 @@ export class HUD {
     this.waveAnnouncementBg.setAlpha(0);
     this.container.add(this.waveAnnouncementBg);
 
+    // Wave announcement rendered directly on the game world -- needs stroke for readability
     this.waveAnnouncementText = scene.add.text(GAME_WIDTH / 2, 200, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '16px',
       color: '#D4620B',
+      stroke: '#000000',
+      strokeThickness: 3,
     }).setOrigin(0.5).setAlpha(0);
     this.container.add(this.waveAnnouncementText);
   }

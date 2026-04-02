@@ -1,5 +1,32 @@
 # Dead Horizon -- Changelog
 
+## [2.0.6] - 2026-04-02
+
+### Fix -- TB1: Textläsbarhet genomgång
+
+**Fontgränser -- alla text uppgraderade till minst 8px:**
+- `src/ui/HUD.ts`: HP-text 7px -> 8px. Fallback AMMO/KILLS etiketter 7px -> 8px. Vapenstatus-effektstext 6px -> 8px.
+- `src/ui/WeaponPanel.ts`: Upgrade-slots sammanfattningstext 7px -> 8px.
+- `src/ui/RefugeePanel.ts`: Initialer i porträttcirkel, stats-rad och jobbknappar 7px -> 8px. Knapphobjd ökad till 18px för att rymma texten.
+- `src/ui/EventDialog.ts`: Event-typ-badge 7px -> 8px.
+- `src/scenes/MenuScene.ts`: EVAC-skylt 7px -> 8px, tagline 6px -> 8px, versionsnummer 7px -> 8px, infopanel-beskrivningar 7px -> 8px, knappar subtext 7px -> 8px.
+
+**Stroke/shadow på text renderad direkt på spelplanen:**
+- `src/scenes/NightScene.ts`: BASE-etiketten ovanför basen fick `stroke: '#000000', strokeThickness: 3`, storlek ökad 8px -> 9px, setDepth(10) för korrekt z-order.
+- `src/scenes/DayScene.ts`: BASE-etiketten på dagkartan fick samma behandling (9px + svart stroke + depth 10).
+- `src/ui/HUD.ts`: Vågpresentationen (wave announcement) fick `stroke: '#000000', strokeThickness: 3` för läsbarhet mot varierande bakgrund.
+- `src/scenes/NightScene.ts`: Drop-floaters hade redan 10px + strokeThickness 3 sedan v2.0.3 -- verifierat korrekt.
+
+**">" pil ersatt med "--" i beskrivningstexter:**
+- `src/ui/WeaponPanel.ts`: `> ${nextDesc}` ersatt med `-- ${nextDesc}` i uppgraderingsmenyn.
+- `src/ui/CraftingPanel.ts`: `> ${resultStr}` ersatt med `-- ${resultStr}` i crafting-panelen.
+
+**Strukturnamn -- "Spike Trap" bytt till "Claw Trap":**
+- `src/data/structures.json`: Strukturen med id `trap` och namnet "Spike Trap" döpts om till "Claw Trap" för att tydligt skilja sig från "Spike Strip" (id: `spike_strip`). Inga duplicerade namn längre i build-menyn.
+
+### Bump -- Version 2.0.5 -> 2.0.6
+- `src/config/constants.ts`: GAME_VERSION uppdaterad.
+
 ## [2.0.3] - 2026-04-02 18:30
 
 ### Fix -- KB2: SaveManager.load() korrupt spara hang

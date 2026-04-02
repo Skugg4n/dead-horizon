@@ -145,7 +145,7 @@ export class EventDialog {
     // Event type badge (right side of header)
     const badge = this.scene.add.text(DIALOG_WIDTH - PADDING, Math.floor(HEADER_H / 2), event.type.toUpperCase(), {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
+      fontSize: '8px',
       color: '#6B6B6B',
     }).setOrigin(1, 0.5);
     this.container.add(badge);

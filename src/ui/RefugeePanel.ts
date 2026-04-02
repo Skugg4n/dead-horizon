@@ -119,7 +119,7 @@ export class RefugeePanel {
     const initials = refugee.name.split(' ').map(n => n[0] ?? '').join('').substring(0, 2).toUpperCase();
     const initialsText = this.scene.add.text(PORTRAIT_R, PORTRAIT_R, initials, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
+      fontSize: '8px',
       color: '#000000',
     }).setOrigin(0.5);
 
@@ -149,7 +149,7 @@ export class RefugeePanel {
       `HP ${refugee.hp}/${refugee.maxHp}  |  ${jobLabel}  |  ${refugee.skillBonus}`,
       {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: hpColor,
         wordWrap: { width: CONTENT_W - textX },
       },
@@ -191,25 +191,25 @@ export class RefugeePanel {
       }
 
       const label = JOB_LABELS[job];
-      // Measure text to size button dynamically
+      // Measure text to size button dynamically -- use same fontSize as rendered label
       const tmpText = this.scene.add.text(0, 0, label, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: textColor,
       });
       const btnW = tmpText.width + 8;
       tmpText.destroy();
 
-      // Button background
+      // Button background -- 18px height to fit 8px font with padding
       const btnBg = this.scene.add.graphics();
       btnBg.fillStyle(bgColor, 1);
-      btnBg.fillRoundedRect(btnX, btnY, btnW, 16, 2);
+      btnBg.fillRoundedRect(btnX, btnY, btnW, 18, 2);
       content.add(btnBg);
 
       // Button label
-      const btnText = this.scene.add.text(btnX + btnW / 2, btnY + 8, label, {
+      const btnText = this.scene.add.text(btnX + btnW / 2, btnY + 9, label, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
+        fontSize: '8px',
         color: textColor,
       }).setOrigin(0.5);
       content.add(btnText);
@@ -217,19 +217,19 @@ export class RefugeePanel {
       // Interaction
       if (canAssign && !isCurrentJob) {
         btnBg.setInteractive(
-          new Phaser.Geom.Rectangle(btnX, btnY, btnW, 16),
+          new Phaser.Geom.Rectangle(btnX, btnY, btnW, 18),
           Phaser.Geom.Rectangle.Contains,
         );
         btnBg.on('pointerover', () => {
           btnBg.clear();
           btnBg.fillStyle(0x4A90D9, 0.6);
-          btnBg.fillRoundedRect(btnX, btnY, btnW, 16, 2);
+          btnBg.fillRoundedRect(btnX, btnY, btnW, 18, 2);
           btnText.setColor('#FFD700');
         });
         btnBg.on('pointerout', () => {
           btnBg.clear();
           btnBg.fillStyle(0x333333, 1);
-          btnBg.fillRoundedRect(btnX, btnY, btnW, 16, 2);
+          btnBg.fillRoundedRect(btnX, btnY, btnW, 18, 2);
           btnText.setColor('#E8DCC8');
         });
         btnBg.on('pointerdown', () => {

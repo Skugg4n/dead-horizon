@@ -439,11 +439,14 @@ export class DayScene extends Phaser.Scene {
     this.mapContainer.add(this.baseTentGraphics);
 
     const baseLevelData = this.getBaseLevelData();
+    // Base label -- rendered on the game world; 9px + stroke for readability over terrain
     this.add.text(centerX, centerY - (baseLevelData.visual.size / 2) - 8, 'BASE', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
+      fontSize: '9px',
       color: '#E8DCC8',
-    }).setOrigin(0.5);
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(10);
   }
 
   private renderPlacedStructures(): void {
