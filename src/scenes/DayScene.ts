@@ -280,7 +280,9 @@ export class DayScene extends Phaser.Scene {
     // GROUND LAYER
     // Use terrain tile sprites when available, otherwise rich Graphics.
     // ------------------------------------------------------------------
-    const hasGrassTiles = this.textures.exists('terrain_grass_1');
+    // Sprite tiles disabled: WebGL sub-pixel rendering causes visible seams
+    // between adjacent tile sprites. Graphics path is seam-free.
+    const hasGrassTiles = false; // this.textures.exists('terrain_grass_1');
 
     // Solid green base layer to fill any gaps between tiles
     const groundFill = this.add.graphics();
@@ -303,37 +305,12 @@ export class DayScene extends Phaser.Scene {
       }
     } else {
       // -----------------------------------------------------------------
-      // GRAPHICS-based rich ground (5 daytime green shades)
-      // Brighter palette than NightScene -- daylight colours.
+      // Single solid fill -- per-tile variation caused checkerboard pattern
       // -----------------------------------------------------------------
-      const grassColors = [0x4A7A2A, 0x528733, 0x3E6E22, 0x567D2E, 0x3A6825];
-
       const ground = this.add.graphics();
       ground.setDepth(0);
-
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const tileX = tx * TILE_SIZE;
-          const tileY = ty * TILE_SIZE;
-
-          // Deterministic colour per tile for non-flat look
-          const hash     = (tx * 1619 + ty * 3571) | 0;
-          const colorIdx = ((hash >>> 0) % grassColors.length);
-          let tileColor  = grassColors[colorIdx] ?? 0x4A7A2A;
-
-          // Edge tiles slightly darker for a subtle vignette
-          const isEdge = tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2;
-          if (isEdge) {
-            const r = ((tileColor >> 16) & 0xFF) * 0.80;
-            const g = ((tileColor >>  8) & 0xFF) * 0.80;
-            const b = ( tileColor        & 0xFF) * 0.80;
-            tileColor = (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
-          }
-
-          ground.fillStyle(tileColor);
-          ground.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
-        }
-      }
+      ground.fillStyle(0x4A7A2A);
+      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
       this.mapContainer.add(ground);
 
       // -----------------------------------------------------------------
@@ -499,18 +476,7 @@ export class DayScene extends Phaser.Scene {
       this.mapContainer.add(decor);
     }
 
-    // ------------------------------------------------------------------
-    // GRID OVERLAY -- very subtle, just enough for placement guidance
-    // ------------------------------------------------------------------
-    const grid = this.add.graphics();
-    grid.lineStyle(1, 0x2D5A22, 0.1);
-    for (let x = 0; x <= mapPixelWidth; x += TILE_SIZE) {
-      grid.lineBetween(x, 0, x, mapPixelHeight);
-    }
-    for (let y = 0; y <= mapPixelHeight; y += TILE_SIZE) {
-      grid.lineBetween(0, y, mapPixelWidth, y);
-    }
-    this.mapContainer.add(grid);
+    // Grid overlay removed -- caused visible square pattern over terrain tiles
 
     // ------------------------------------------------------------------
     // TERRAIN FEATURES (trees, rocks, bushes etc.) -- visual only, no colliders

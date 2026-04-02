@@ -318,7 +318,8 @@ export class NightScene extends Phaser.Scene {
     // ------------------------------------------------------------------
     // GROUND LAYER
     // ------------------------------------------------------------------
-    const hasGrassTiles = this.textures.exists('terrain_grass_1');
+    // Sprite tiles disabled: WebGL sub-pixel seams. Graphics path is seam-free.
+    const hasGrassTiles = false; // this.textures.exists('terrain_grass_1');
 
     // Always draw a solid green base layer to fill gaps between tiles
     const groundFill = this.add.graphics();
@@ -342,42 +343,13 @@ export class NightScene extends Phaser.Scene {
         }
       }
     } else {
-      // --- Graphics-based rich ground ---
-      // We draw the full ground as a single Graphics call for performance,
-      // then layer detail patches on top.
-
-      // Grass colour palette (dark, slightly varied greens for night)
-      const grassColors = [0x253D1A, 0x2D4A22, 0x22381A, 0x304E25, 0x1E3216];
-
-      // Each tile gets a deterministic color variation for a non-flat look.
-      // We batch into one Graphics object to minimise draw calls.
+      // --- Graphics-based ground: single solid fill, no per-tile variation ---
+      // Per-tile color variation caused visible checkerboard patterns.
+      // One solid color + terrain decorations provides all visual interest.
       const ground = this.add.graphics();
       ground.setDepth(0);
-
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const tileX = tx * TILE_SIZE;
-          const tileY = ty * TILE_SIZE;
-
-          // Deterministic but varied colour per tile
-          const hash     = (tx * 1619 + ty * 3571) | 0;
-          const colorIdx = ((hash >>> 0) % grassColors.length);
-          let tileColor  = grassColors[colorIdx] ?? 0x2D4A22;
-
-          // Tiles near edges: darken slightly for depth/vignette feel
-          const isEdge = tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2;
-          if (isEdge) {
-            // Reduce each channel by ~15%
-            const r = ((tileColor >> 16) & 0xFF) * 0.85;
-            const g = ((tileColor >>  8) & 0xFF) * 0.85;
-            const b = ( tileColor        & 0xFF) * 0.85;
-            tileColor = (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
-          }
-
-          ground.fillStyle(tileColor);
-          ground.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
-        }
-      }
+      ground.fillStyle(0x2A4A22);
+      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
 
       // ------------------------------------------------------------------
       // ROAD (natural dirt path -- 2 tiles wide, slightly winding)
