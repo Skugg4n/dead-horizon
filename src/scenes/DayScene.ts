@@ -479,10 +479,11 @@ export class DayScene extends Phaser.Scene {
     // TERRAIN FEATURES (trees, rocks, bushes etc.) -- visual only, no colliders
     // Uses the same seed as NightScene so obstacles match.
     // ------------------------------------------------------------------
-    // Seed based on totalRuns only -- stays consistent between day and night within a run
+    // Seed based on totalRuns only -- stays consistent between day and night within a run.
+    // Pass isDaytime=true so TerrainGenerator uses brighter daytime colour palettes.
     const seed = (this.gameState.progress.totalRuns * 31) | 0;
     const basePos = { x: centerX, y: centerY };
-    const terrainResult: TerrainResult = generateTerrain(this, this.gameState.zone, basePos, seed);
+    const terrainResult: TerrainResult = generateTerrain(this, this.gameState.zone, basePos, seed, true);
     // Add only the visual decorations -- ignore colliders and waterZones (day is planning only)
     this.mapContainer.add(terrainResult.decorContainer);
 

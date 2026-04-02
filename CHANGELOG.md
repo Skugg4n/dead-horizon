@@ -1,5 +1,55 @@
 # Dead Horizon -- Changelog
 
+## [1.9.3] - 2026-04-02
+
+### Changed -- Forbattrade sprites for spelare, zombies, baser och strukturer
+
+- **sprite_gen_improved.py**: Nytt Python/Pillow-skript som genererar 14 sprites med betydligt hogre detaljnivad an tidigare placeholders.
+- **public/assets/sprites/player.png** (32x32): MilitargrOn jacka med skuggning, brun ryggsack med baljespanne i guld, hudfargat huvud med har och ogon, benberoende i morka byxor, vapensubb i hoger hand.
+- **public/assets/sprites/player_attack.png** (32x32): Attackpose med hoger arm utstrack uppat, mejsell/machete-vapen synlig.
+- **public/assets/sprites/walker.png** (32x32): Gra/gron zombiehud, trasiga klder med synliga skarskador, slapande armar med klor, morkt anskite med blodflackar, gap mun.
+- **public/assets/sprites/runner.png** (32x32): Smal och framaloverd, riva klader med synligt blek hud, RODA OGON (nyckelfeature), klor utstrack framat i springpose.
+- **public/assets/sprites/brute.png** (48x48): Massiv 48x48 zombie, bred kroppsmassa med muskeldefiniton, improviserade rustningsplattor pa axlarna med rostflackar, djupsatta roda ogon, enorma armar med blod pa handerna.
+- **public/assets/sprites/spitter.png** (32x32): Uppsvallen gron/giftig zombie, toxiska flackar och bblar pa huden, VIDOPPEN MUN med synliga tander och giftigt spott/tunga.
+- **public/assets/sprites/screamer.png** (32x32): Ljus/gra zombie, vidoppna ogon av skrack, armar hojda i skrik-pose, EXTREMT VIDOPPEN MUN med tander och strupe synlig.
+- **public/assets/sprites/base_tent.png** (32x32): Militargreent talt franat ovanifrn, ridgepinne i mitten, staglinor i hrnorna.
+- **public/assets/sprites/base_camp.png** (48x48): Camp med tristan runtom, talt i mitten, lagereld, tunna och kistlada.
+- **public/assets/sprites/base_outpost.png** (64x64): Befastad utpost med tjocka betongmurar, kreneleringar, sandsacksbunkrar i hrn, vakttornplatform, byggnad/bunker med skottglugg, forraad och fat.
+- **public/assets/sprites/struct_barricade.png** (32x32): Tre horisontella plankbitar med lodrata stodposter, spikar/bultar vid korsningar, tradkorn-textur.
+- **public/assets/sprites/struct_wall.png** (32x32): Stenmursmonster med forsattradede blockrader, bruklinjer och skador/sprickor.
+- **public/assets/sprites/struct_trap.png** (32x32): Taggtrad i spiralringar, metallglimtar, halvtransparent for att se nar synlig.
+- **public/assets/sprites/struct_pillbox.png** (32x32): Cirkular sandsacksmur med skjutoppning i underkant, vapenpipa synlig, ljusa accenter pa sandsackarna.
+- Alla preview-filer (8x uppskalade) uppdaterade.
+
+## [1.8.8] - 2026-04-02
+
+### Fixed -- Synkronisera terrangdekorationer mellan dag och natt
+
+- `src/systems/TerrainGenerator.ts`: Lade till optional parameter `isDaytime: boolean = false` i `generateTerrain()`. Nar `isDaytime=true` anvands ljusare farger: trad (kronor och stammar +30% ljusare), stenar (+22%), buskar (+28%), stubbar (+25%), stockar (+25%), lador (+20%), stigar (+35%), vattenomraden (ljusblatt dagsljusvatten istallet for morkblatt nattvatten). Skuggor reduceras fran 22% till 10% alpha i dagsljus.
+- Ny intern hjalp-funktion `lightenColor(hex, factor)`: blandar varje RGB-kanal mot 0xFF baserat pa factor (0=original, 1=vitt). Anvands i alla ritfunktioner for att berakna dagsljuspaletter.
+- Ny intern hjalp-funktion `lightenPalette(palette, factor)`: tillampas pa en hel fargaray.
+- Alla interna ritfunktioner (`drawTree`, `drawStone`, `drawBush`, `drawStump`, `drawWaterZone`, `drawPath`, `drawFlower`, `drawMushroom`, `drawLog`, `drawCrate`) fick `isDaytime: boolean` som ny sista parameter.
+- `src/scenes/DayScene.ts`: `createMap()` kallar nu `generateTerrain(..., seed, true)` med `isDaytime=true`. Kommentar uppdaterad.
+- Resultat: dekorationer ar nu identiska (samma seed, samma positioner) mellan DayScene och NightScene inom ett run. DayScene far ljusare/klarare farger som matcher det ljusa dagsljuset. Ny run efter dod ger ny layout (totalRuns andras => nytt seed).
+
+## [1.9.2] - 2026-04-02
+
+### Changed -- HUD-styling for NightScene
+
+- **HUD.ts** omskriven med styled paneler och ikoner:
+  - Topp-HUD hojd okat fran 32px till 44px for battre hierarki.
+  - HP-bar: icon_heart + fargad bar (gron->gul->rod) + "HP: X/MaxHP" text som byter farg med halsa.
+  - Stamina-bar: programmatisk blixt-ikon + bla bar under HP-bar.
+  - Wave-indikator: centrerad rundad panel med bakgrund och "Wave X/Y" i 10px text.
+  - Base HP: programmatisk hus-ikon + "BASE" label + fargad bar (hoger sida).
+  - Botten-HUD hojd okat fran 24px till 36px.
+  - Vapen-display: namn + liten durability-bar (gron->gul->rod) + special effect-text ("BLEED 25%" etc.).
+  - Ammo: icon_ammo sprite-ikon (fallback: text) + antal med fargkodning (orange vid <= 5, rod vid 0).
+  - Kills: icon_skull sprite-ikon (fallback: text) + antal.
+  - Alla HUD-paneler har subtil mork bakgrund (fillRoundedRect + border, ej fullskarm).
+- **HUD.updateWeapon()** tar nu optional `specialEffect?: WeaponSpecialEffect | null` parameter.
+- **NightScene.updateWeaponHUD()** skickar nu `stats.specialEffect` till HUD.
+
 ## [1.9.1] - 2026-04-02
 
 ### Added -- Tydligare toolbar- och resursikoner

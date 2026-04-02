@@ -1021,7 +1021,7 @@ export class NightScene extends Phaser.Scene {
     const weapon = this.weaponManager.getEquipped();
     if (weapon) {
       const stats = this.weaponManager.getWeaponStats(weapon);
-      this.hud.updateWeapon(stats.name, weapon.durability, weapon.maxDurability);
+      this.hud.updateWeapon(stats.name, weapon.durability, weapon.maxDurability, stats.specialEffect);
     }
   }
 

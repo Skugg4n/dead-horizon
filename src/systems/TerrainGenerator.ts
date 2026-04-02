@@ -1,5 +1,5 @@
 // TerrainGenerator.ts
-// Procedurally generates terrain decorations for NightScene.
+// Procedurally generates terrain decorations for both DayScene and NightScene.
 // Each call produces a unique but deterministic layout based on a seed.
 // Supports zone variants: forest, city, military.
 //
@@ -8,29 +8,65 @@
 //  - Mossy stones (green-grey patches)
 //  - Detailed bushes (3-4 overlapping ellipses with highlights)
 //  - New elements: flowers, mushrooms, fallen logs, crates
+//
+// v1.8.8:
+//  - Added isDaytime parameter: brighter color palettes for daytime rendering.
+//    Both DayScene and NightScene now call generateTerrain with the same seed
+//    so decorations are identical within a run. Pass isDaytime=true from DayScene.
 
 import Phaser from 'phaser';
 import { SeededRandom } from '../utils/random';
 import type { TerrainResult, ZoneId } from '../config/types';
 
 // ---------------------------------------------------------------------------
+// Color utility
+// ---------------------------------------------------------------------------
+
+/**
+ * Brighten a packed RGB hex color by blending each channel toward 0xFF.
+ * factor=0 returns original, factor=1 returns white.
+ * Used to produce daytime-bright variants of night-tuned palettes.
+ */
+function lightenColor(hex: number, factor: number): number {
+  const r = (hex >> 16) & 0xFF;
+  const g = (hex >>  8) & 0xFF;
+  const b =  hex        & 0xFF;
+  const lr = Math.min(255, Math.round(r + (255 - r) * factor));
+  const lg = Math.min(255, Math.round(g + (255 - g) * factor));
+  const lb = Math.min(255, Math.round(b + (255 - b) * factor));
+  return (lr << 16) | (lg << 8) | lb;
+}
+
+/**
+ * Apply lightenColor to every element of a colour array.
+ * Returns a new array -- originals are not modified.
+ */
+function lightenPalette(palette: number[], factor: number): number[] {
+  return palette.map(c => lightenColor(c, factor));
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 /**
- * Generate terrain decorations and collision bodies for one night.
+ * Generate terrain decorations and collision bodies for one scene.
  *
  * @param scene        The active Phaser scene.
  * @param zone         Current zone ID ('forest' | 'city' | 'military').
  * @param basePosition Centre of the base in world coordinates.
- * @param seed         Integer seed -- use totalRuns * 31 + currentWave for
- *                     deterministic but nightly-varying results.
+ * @param seed         Integer seed -- use totalRuns * 31 for a deterministic
+ *                     layout that stays consistent between day and night within
+ *                     the same run. A new run gets a new seed (totalRuns changes).
+ * @param isDaytime    When true, use brighter colour palettes for the daytime
+ *                     DayScene. Defaults to false (original night palette).
  */
 export function generateTerrain(
   scene: Phaser.Scene,
   zone: ZoneId,
   basePosition: { x: number; y: number },
-  seed: number
+  seed: number,
+  isDaytime: boolean = false
 ): TerrainResult {
   const rng = new SeededRandom(seed);
 
@@ -47,12 +83,12 @@ export function generateTerrain(
 
   // Draw paths first (depth 1) so everything else renders on top
   for (let i = 0; i < counts.paths; i++) {
-    drawPath(scene, decorContainer, mapW, mapH, basePosition, rng, zone);
+    drawPath(scene, decorContainer, mapW, mapH, basePosition, rng, zone, isDaytime);
   }
 
   // Water zones (depth 2, slight transparency)
   for (let i = 0; i < counts.water; i++) {
-    drawWaterZone(scene, decorContainer, waterZones, mapW, mapH, basePosition, rng);
+    drawWaterZone(scene, decorContainer, waterZones, mapW, mapH, basePosition, rng, isDaytime);
   }
 
   // Ground shadow patches (dark ellipses under where trees will be placed -- depth 1)
@@ -60,42 +96,42 @@ export function generateTerrain(
 
   // Stones -- large ones get physics bodies (depth 2)
   for (let i = 0; i < counts.stones; i++) {
-    drawStone(scene, decorContainer, colliders, mapW, mapH, basePosition, rng, zone);
+    drawStone(scene, decorContainer, colliders, mapW, mapH, basePosition, rng, zone, isDaytime);
   }
 
   // Fallen logs (depth 2, visual only)
   for (let i = 0; i < counts.logs; i++) {
-    drawLog(scene, decorContainer, mapW, mapH, basePosition, rng);
+    drawLog(scene, decorContainer, mapW, mapH, basePosition, rng, isDaytime);
   }
 
   // Crates / debris near base (depth 2)
   for (let i = 0; i < counts.crates; i++) {
-    drawCrate(scene, decorContainer, mapW, mapH, basePosition, rng);
+    drawCrate(scene, decorContainer, mapW, mapH, basePosition, rng, isDaytime);
   }
 
   // Bushes (depth 3, no physics)
   for (let i = 0; i < counts.bushes; i++) {
-    drawBush(scene, decorContainer, mapW, mapH, basePosition, rng);
+    drawBush(scene, decorContainer, mapW, mapH, basePosition, rng, isDaytime);
   }
 
   // Stumps (depth 3, no physics)
   for (let i = 0; i < counts.stumps; i++) {
-    drawStump(scene, decorContainer, mapW, mapH, basePosition, rng);
+    drawStump(scene, decorContainer, mapW, mapH, basePosition, rng, isDaytime);
   }
 
   // Flowers (depth 2, very small)
   for (let i = 0; i < counts.flowers; i++) {
-    drawFlower(scene, decorContainer, mapW, mapH, basePosition, rng);
+    drawFlower(scene, decorContainer, mapW, mapH, basePosition, rng, isDaytime);
   }
 
   // Trees -- trunk at depth 3, crown at depth 8 (over everything for depth feel)
   for (let i = 0; i < counts.trees; i++) {
-    drawTree(scene, decorContainer, colliders, mapW, mapH, basePosition, rng, zone);
+    drawTree(scene, decorContainer, colliders, mapW, mapH, basePosition, rng, zone, isDaytime);
   }
 
   // Mushrooms (depth 2, placed near tree base positions -- but just random for now)
   for (let i = 0; i < counts.mushrooms; i++) {
-    drawMushroom(scene, decorContainer, mapW, mapH, basePosition, rng);
+    drawMushroom(scene, decorContainer, mapW, mapH, basePosition, rng, isDaytime);
   }
 
   return { colliders, waterZones, decorContainer };
@@ -236,7 +272,8 @@ function drawTree(
   mapH: number,
   basePosition: { x: number; y: number },
   rng: SeededRandom,
-  zone: ZoneId
+  zone: ZoneId,
+  isDaytime: boolean
 ): void {
   const pos = randomPos(mapW, mapH, basePosition, rng, true);
   if (!pos) return;
@@ -246,16 +283,30 @@ function drawTree(
   const trunkH = Math.round(20 * scale);
   const crownR  = Math.round(20 * scale);
 
+  // Daytime uses brighter trunk/crown colours; night uses darker muted tones.
+  const dayBright = isDaytime ? 0.30 : 0;
+
   // --- Colour palettes by zone ---
-  const trunkColors: Record<ZoneId, [number, number]> = {
+  const trunkColorsBase: Record<ZoneId, [number, number]> = {
     forest:   [0x5A3A1E, 0x3A2010],
     city:     [0x4A4030, 0x2A2018],
     military: [0x5A4A30, 0x3A2E18],
   };
-  const crownPalette: Record<ZoneId, number[]> = {
+  const crownPaletteBase: Record<ZoneId, number[]> = {
     forest:   [0x2A5A18, 0x336B20, 0x1E4410, 0x3A6E26, 0x254E14],
     city:     [0x3A4A22, 0x2A3A18, 0x4A5A2A],
     military: [0x4A5A30, 0x3A4A22, 0x566430],
+  };
+
+  const trunkColors: Record<ZoneId, [number, number]> = {
+    forest:   [lightenColor(trunkColorsBase.forest[0],   dayBright), lightenColor(trunkColorsBase.forest[1],   dayBright)],
+    city:     [lightenColor(trunkColorsBase.city[0],     dayBright), lightenColor(trunkColorsBase.city[1],     dayBright)],
+    military: [lightenColor(trunkColorsBase.military[0], dayBright), lightenColor(trunkColorsBase.military[1], dayBright)],
+  };
+  const crownPalette: Record<ZoneId, number[]> = {
+    forest:   lightenPalette(crownPaletteBase.forest,   dayBright),
+    city:     lightenPalette(crownPaletteBase.city,     dayBright),
+    military: lightenPalette(crownPaletteBase.military, dayBright),
   };
 
   const [trunkLight, trunkDark] = trunkColors[zone];
@@ -266,10 +317,12 @@ function drawTree(
   const c1 = palette[rng.nextInt(0, palette.length - 1)] ?? 0x336B20;
   const c2 = palette[rng.nextInt(0, palette.length - 1)] ?? 0x1E4410;
   const cShadow = 0x0F2808; // very dark green for shadow ellipse
+  // Daytime shadows are softer (more ambient light, less pronounced shadow)
+  const shadowAlpha = isDaytime ? 0.10 : 0.22;
 
   // --- Ground shadow under crown (depth 1 -- on the ground) ---
   const shadow = scene.add.graphics();
-  shadow.fillStyle(cShadow, 0.22);
+  shadow.fillStyle(cShadow, shadowAlpha);
   shadow.fillEllipse(0, 0, crownR * 2.2, crownR * 0.8);
   shadow.setDepth(1);
   container.add(shadow);
@@ -365,7 +418,8 @@ function drawStone(
   mapH: number,
   basePosition: { x: number; y: number },
   rng: SeededRandom,
-  zone: ZoneId
+  zone: ZoneId,
+  isDaytime: boolean
 ): void {
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
@@ -374,12 +428,14 @@ function drawStone(
   const rx = rng.nextFloat(large ? 14 : 6, large ? 24 : 13);
   const ry = rng.nextFloat(rx * 0.55, rx * 0.85);
 
-  const baseColor  = zone === 'city'     ? 0x707070 :
-                     zone === 'military' ? 0x8B7D5C : 0x888888;
-  const darkColor  = zone === 'city'     ? 0x505050 :
-                     zone === 'military' ? 0x6B5D3C : 0x606060;
-  const lightColor = zone === 'city'     ? 0x909090 :
-                     zone === 'military' ? 0xA09070 : 0xAAAAAA;
+  // Daytime stones are lighter/warmer; night stones are darker/cooler.
+  const dayFactor = isDaytime ? 0.22 : 0;
+  const baseColor  = lightenColor(zone === 'city'     ? 0x707070 :
+                                  zone === 'military' ? 0x8B7D5C : 0x888888, dayFactor);
+  const darkColor  = lightenColor(zone === 'city'     ? 0x505050 :
+                                  zone === 'military' ? 0x6B5D3C : 0x606060, dayFactor);
+  const lightColor = lightenColor(zone === 'city'     ? 0x909090 :
+                                  zone === 'military' ? 0xA09070 : 0xAAAAAA, dayFactor);
 
   const g = scene.add.graphics();
   // Main stone body
@@ -427,21 +483,25 @@ function drawBush(
   mapW: number,
   mapH: number,
   basePosition: { x: number; y: number },
-  rng: SeededRandom
+  rng: SeededRandom,
+  isDaytime: boolean
 ): void {
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
 
   const size = rng.nextFloat(9, 18);
-  const colorPalette = [0x2D5A1E, 0x3B6B28, 0x1E3D12, 0x4A5E2A, 0x355020];
+  // Daytime bushes use a brighter green palette
+  const dayFactor = isDaytime ? 0.28 : 0;
+  const colorPaletteBase = [0x2D5A1E, 0x3B6B28, 0x1E3D12, 0x4A5E2A, 0x355020];
+  const colorPalette = lightenPalette(colorPaletteBase, dayFactor);
   const base  = colorPalette[rng.nextInt(0, colorPalette.length - 1)] ?? 0x2D5A1E;
   const light = colorPalette[rng.nextInt(0, colorPalette.length - 1)] ?? 0x3B6B28;
   const dark  = colorPalette[rng.nextInt(0, colorPalette.length - 1)] ?? 0x1E3D12;
 
   const g = scene.add.graphics();
 
-  // Ground shadow
-  g.fillStyle(0x0A1E06, 0.2);
+  // Ground shadow (softer in daytime)
+  g.fillStyle(0x0A1E06, isDaytime ? 0.10 : 0.20);
   g.fillEllipse(2, size * 0.6, size * 2.2, size * 0.7);
 
   // Main bush body -- 3-4 overlapping ellipses
@@ -454,8 +514,8 @@ function drawBush(
   g.fillStyle(base, 0.55);
   g.fillEllipse(size * 0.1, -size * 0.4, size * 0.9, size * 0.75);
 
-  // Top highlight (lighter specular)
-  g.fillStyle(0x5A8030, 0.3);
+  // Top highlight (lighter specular -- brighter in daytime)
+  g.fillStyle(isDaytime ? 0x7AAA45 : 0x5A8030, isDaytime ? 0.45 : 0.30);
   g.fillEllipse(-size * 0.15, -size * 0.5, size * 0.8, size * 0.4);
 
   g.setDepth(3);
@@ -472,30 +532,32 @@ function drawStump(
   mapW: number,
   mapH: number,
   basePosition: { x: number; y: number },
-  rng: SeededRandom
+  rng: SeededRandom,
+  isDaytime: boolean
 ): void {
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
 
   const r = rng.nextFloat(7, 14);
+  const dayFactor = isDaytime ? 0.25 : 0;
 
   const g = scene.add.graphics();
-  // Drop shadow
-  g.fillStyle(0x0A1806, 0.25);
+  // Drop shadow (softer in daylight)
+  g.fillStyle(0x0A1806, isDaytime ? 0.12 : 0.25);
   g.fillEllipse(2, r * 0.6, r * 2.4, r * 0.8);
   // Outer bark ring
-  g.fillStyle(0x5A3D22);
+  g.fillStyle(lightenColor(0x5A3D22, dayFactor));
   g.fillCircle(0, 0, r);
   // Inner heartwood
-  g.fillStyle(0x7A5A38);
+  g.fillStyle(lightenColor(0x7A5A38, dayFactor));
   g.fillCircle(0, 0, r * 0.65);
   // Annual rings
-  g.lineStyle(1, 0x4A2E14, 0.6);
+  g.lineStyle(1, lightenColor(0x4A2E14, dayFactor), 0.6);
   g.strokeCircle(0, 0, r * 0.45);
-  g.lineStyle(1, 0x4A2E14, 0.35);
+  g.lineStyle(1, lightenColor(0x4A2E14, dayFactor), 0.35);
   g.strokeCircle(0, 0, r * 0.25);
   // Light spot (top-left reflected light)
-  g.fillStyle(0x9A7A54, 0.3);
+  g.fillStyle(lightenColor(0x9A7A54, dayFactor), isDaytime ? 0.5 : 0.3);
   g.fillEllipse(-r * 0.25, -r * 0.25, r * 0.5, r * 0.4);
 
   g.setDepth(3);
@@ -513,7 +575,8 @@ function drawWaterZone(
   mapW: number,
   mapH: number,
   basePosition: { x: number; y: number },
-  rng: SeededRandom
+  rng: SeededRandom,
+  isDaytime: boolean
 ): void {
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
@@ -522,17 +585,23 @@ function drawWaterZone(
   const ry = rng.nextFloat(13, 30);
 
   const g = scene.add.graphics();
-  // Muddy shore ring
-  g.fillStyle(0x2A1E0A, 0.5);
+  // Daytime water is a brighter blue; night water is dark and murky.
+  const shoreColor = isDaytime ? 0x6A5A30 : 0x2A1E0A;
+  const waterColor = isDaytime ? 0x3A8ABF : 0x0D2B4A;
+  const reflectA   = isDaytime ? 0x70C0F0 : 0x1F5A8A;
+  const reflectB   = isDaytime ? 0x90D0FF : 0x2A6A9A;
+
+  // Muddy/sandy shore ring
+  g.fillStyle(shoreColor, 0.5);
   g.fillEllipse(0, 0, rx * 2 + 8, ry * 2 + 6);
-  // Dark water body
-  g.fillStyle(0x0D2B4A, 0.8);
+  // Water body
+  g.fillStyle(waterColor, isDaytime ? 0.75 : 0.80);
   g.fillEllipse(0, 0, rx * 2, ry * 2);
   // Highlight reflection stripe
-  g.fillStyle(0x1F5A8A, 0.35);
+  g.fillStyle(reflectA, isDaytime ? 0.45 : 0.35);
   g.fillEllipse(-rx * 0.25, -ry * 0.35, rx * 0.9, ry * 0.45);
   // Second small highlight
-  g.fillStyle(0x2A6A9A, 0.2);
+  g.fillStyle(reflectB, isDaytime ? 0.30 : 0.20);
   g.fillEllipse(rx * 0.3, -ry * 0.1, rx * 0.4, ry * 0.25);
 
   g.setDepth(2);
@@ -557,9 +626,12 @@ function drawPath(
   mapH: number,
   basePosition: { x: number; y: number },
   rng: SeededRandom,
-  zone: ZoneId
+  zone: ZoneId,
+  isDaytime: boolean
 ): void {
-  const pathColor = zone === 'city' ? 0x3A3A3A : 0x2A1F0F;
+  // Daytime paths are lighter/dustier; night paths are very dark.
+  const nightColor = zone === 'city' ? 0x3A3A3A : 0x2A1F0F;
+  const pathColor  = isDaytime ? lightenColor(nightColor, 0.35) : nightColor;
   const pathW = rng.nextInt(8, 15);
 
   const edge = rng.nextInt(0, 3);
@@ -622,8 +694,11 @@ function drawFlower(
   mapW: number,
   mapH: number,
   basePosition: { x: number; y: number },
-  rng: SeededRandom
+  rng: SeededRandom,
+  isDaytime: boolean
 ): void {
+  // Flowers are already bright; in daytime just boost opacity slightly.
+  void isDaytime; // no color change needed -- flowers look fine day or night
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
 
@@ -662,8 +737,10 @@ function drawMushroom(
   mapW: number,
   mapH: number,
   basePosition: { x: number; y: number },
-  rng: SeededRandom
+  rng: SeededRandom,
+  isDaytime: boolean
 ): void {
+  void isDaytime; // mushroom colours are acceptable in both lighting conditions
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
 
@@ -710,7 +787,8 @@ function drawLog(
   mapW: number,
   mapH: number,
   basePosition: { x: number; y: number },
-  rng: SeededRandom
+  rng: SeededRandom,
+  isDaytime: boolean
 ): void {
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
@@ -719,9 +797,10 @@ function drawLog(
   const thickness = rng.nextFloat(7, 13);
   const angle = rng.nextFloat(-0.6, 0.6); // slight diagonal, never perfectly straight
 
-  const barkColor  = 0x5A3A1E;
-  const darkBark   = 0x3A2010;
-  const lightBark  = 0x7A5A38;
+  const dayFactor = isDaytime ? 0.25 : 0;
+  const barkColor  = lightenColor(0x5A3A1E, dayFactor);
+  const darkBark   = lightenColor(0x3A2010, dayFactor);
+  const lightBark  = lightenColor(0x7A5A38, dayFactor);
 
   const g = scene.add.graphics();
   const cos = Math.cos(angle);
@@ -784,7 +863,8 @@ function drawCrate(
   mapW: number,
   mapH: number,
   basePosition: { x: number; y: number },
-  rng: SeededRandom
+  rng: SeededRandom,
+  isDaytime: boolean
 ): void {
   const pos = randomPosNearBase(mapW, mapH, basePosition, rng);
   if (!pos) return;
@@ -793,9 +873,10 @@ function drawCrate(
   const h = rng.nextInt(8, 14);
   const isBroken = rng.chance(0.4);
 
-  const woodColor   = 0x8B6914;
-  const darkWood    = 0x5A4010;
-  const lightWood   = 0xC89030;
+  const dayFactor = isDaytime ? 0.20 : 0;
+  const woodColor  = lightenColor(0x8B6914, dayFactor);
+  const darkWood   = lightenColor(0x5A4010, dayFactor);
+  const lightWood  = lightenColor(0xC89030, dayFactor);
 
   const g = scene.add.graphics();
 
