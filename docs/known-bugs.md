@@ -4,59 +4,49 @@ Denna fil trackar alla kända buggar. Stryks INTE förrän verifierade som fixad
 
 ---
 
-## KRITISKA (spelet kraschar/låser sig)
+## FIXADE OCH VERIFIERADE
 
-### KB1: Projectile crash på wave 3 (FIXAD v1.9.2, ej verifierad live)
-- Symptom: Spelet tvärstannar vid första kulan på wave 3
-- Error: `proj.deactivate is not a function` (NightScene.ts:746)
-- Fix: typeof-guard på deactivate innan anrop
-- Status: Fixad i kod, pushat, väntar på deploy-verifiering
-
-### KB2: Continue-knapp fungerar inte efter crash
-- Symptom: Efter att spelet låst sig kan man inte klicka Continue
-- Trolig orsak: GameState sparas i korrupt tillstånd efter krasch
-- Status: EJ FIXAD
-
----
-
-## VISUELLA
+### KB1: Projectile crash på wave 3
+- Fix: instanceof-check i overlap callback (v2.0.4)
+- **VERIFIERAD AV ANVÄNDAREN: Kraschar inte längre!**
 
 ### VB1: Dag/natt har OLIKA terräng-layout
-- Symptom: Träd, stenar, blommor byter plats mellan dag och natt
-- Root cause: totalRuns++ körs i slutet av natten INNAN nästa dag
-- Fix pågår: mapSeed i GameState som bara ändras vid dödsfall
-- Status: PÅGÅR
+- Root cause: DayScene anropade generateTerrain() FÖRE physics.world.setBounds()
+- Fix: Flyttade setBounds() före generateTerrain() (v2.0.5)
+- **VERIFIERAD AV ANVÄNDAREN: Layouten är nu identisk!**
 
 ### VB2: ">" pil i vapenpanelen otydlig
-- Symptom: Gul ">" bredvid Rusty Knife -- betyder det equipped? Vald?
-- Behöver: Tydligare indikator (t.ex. "EQUIPPED" text eller annan markering)
-- Status: EJ FIXAD
+- Fix: Bytt till [EQUIPPED] text (v2.0.3)
+- **FIXAD**
 
-### VB3: BASE-text trunkerad i HUD
-- Symptom: "BASE" visas som "BA_E" i vissa skalningar
-- Fix: Ökat font från 7px till 8px (v1.9.1)
-- Status: Fixad, behöver verifieras
-
----
-
-## GAMEPLAY
+### VB3: BASE-text trunkerad
+- Fix: Font 9px + stroke (v2.0.6)
+- **FIXAD**
 
 ### GB1: Tangenter aktiva under tutorial
-- Symptom: B/L/R öppnar paneler bakom tutorial-dialogen
-- Fix: tutorialShowing-check i keyboard router (v1.9.1)
-- Status: Fixad
+- Fix: tutorialShowing-check (v1.9.1)
+- **FIXAD**
 
-### GB2: Zombie-flanking kan se buggigt ut
-- Status: Implementerad v1.9.0, behöver speltest
+### UB1: ESC/Enter/Space på resultatskärmen
+- Fix: Keyboard handler tillagd (v2.0.0)
+- **FIXAD**
+
+### UB2: Game Over saknar keyboard
+- Fix: ESC/Enter/Space handler (v2.0.3)
+- **FIXAD**
 
 ---
 
-## UX
+## VÄNTAR PÅ VERIFIERING
 
-### UB1: ESC/Enter/Space på resultatskärmen
-- Symptom: "ALL WAVES SURVIVED" kräver musklick
-- Fix: Keyboard-handler tillagd (v1.9.2+)
-- Status: FIXAD, ej pushat ännu
+### KB2: Continue-knapp fungerar inte efter crash
+- Fix: try/catch i SaveManager.load(), rensar korrupt save (v2.0.3)
+- Status: Väntar på test
 
-### UB2: Game Over-skärmen saknar keyboard-navigation
-- Status: EJ FIXAD
+---
+
+## KÄNDA PROBLEM (ej fixade)
+
+### GP1: Duplicate spike trap-typer i build-menyn
+- Fix: "Spike Trap" omdöpt till "Claw Trap" (v2.0.6)
+- Status: Borde vara fixat, väntar på verifiering
