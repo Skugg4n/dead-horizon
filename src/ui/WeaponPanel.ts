@@ -284,7 +284,7 @@ export class WeaponPanel {
         content.add(descText);
 
         // Cost display (8px, right-aligned)
-        const costLabel = `[${cost}p]`;
+        const costLabel = `${cost} parts`;
         const costText = this.scene.add.text(contentWidth, y, costLabel, {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '8px',
