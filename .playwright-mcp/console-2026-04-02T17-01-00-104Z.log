@@ -37,3 +37,7 @@ Error
 [   61020ms] [WARNING] AirEvent has been deprecated, please consider using `logJitneyEvent()` method to report Jitney event. @ https://a0.muscache.com/airbnb/static/packages/web/common/ecdc.cecde75fef.js:259
 [  121020ms] [WARNING] AirEvent has been deprecated, please consider using `logJitneyEvent()` method to report Jitney event. @ https://a0.muscache.com/airbnb/static/packages/web/common/ecdc.cecde75fef.js:259
 [  241023ms] [WARNING] AirEvent has been deprecated, please consider using `logJitneyEvent()` method to report Jitney event. @ https://a0.muscache.com/airbnb/static/packages/web/common/ecdc.cecde75fef.js:259
+[  301024ms] [WARNING] AirEvent has been deprecated, please consider using `logJitneyEvent()` method to report Jitney event. @ https://a0.muscache.com/airbnb/static/packages/web/common/ecdc.cecde75fef.js:259
+[  601029ms] [WARNING] AirEvent has been deprecated, please consider using `logJitneyEvent()` method to report Jitney event. @ https://a0.muscache.com/airbnb/static/packages/web/common/ecdc.cecde75fef.js:259
+[ 1800997ms] [WARNING] AirEvent has been deprecated, please consider using `logJitneyEvent()` method to report Jitney event. @ https://a0.muscache.com/airbnb/static/packages/web/common/ecdc.cecde75fef.js:259
+[ 3600976ms] [WARNING] AirEvent has been deprecated, please consider using `logJitneyEvent()` method to report Jitney event. @ https://a0.muscache.com/airbnb/static/packages/web/common/ecdc.cecde75fef.js:259

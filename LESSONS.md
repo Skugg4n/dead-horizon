@@ -182,6 +182,10 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 **Problem:** Road och base-area i NightScene/DayScene ritades med individuella `fillRect` per tile. Varje rect hade nagra pixels skillnad i farg vilket skapade ett rutmonster av bruna block.
 **Losning:** Ersatt med fa breda `fillRect` (ett per lager) som spanner hela kartbredden for vagen. Base-area ersatt med `fillEllipse` for en slat cirkel. Inget per-tile-loopar behovs langre for dessa former.
 
+### physics.world.setBounds MASTE anropas FORE generateTerrain
+**Problem:** DayScene anropade generateTerrain() FORE physics.world.setBounds(). TerrainGenerator laser scene.physics.world.bounds for att veta kartans dimensioner. Utan setBounds anvands Phasers default (800x600) istallet for kartans storlek (1280x960). NightScene hade ratt ordning. Resultatet: dekorationer placerades pa helt olika positioner.
+**Losning:** Flytta setBounds() FORE generateTerrain() i DayScene.createMap(). Larde oss: ordning spelar roll -- alla beroenden maste vara initialiserade FORE de anvands.
+
 ### Deploy failure: tester maste uppdateras vid typandringar
 **Problem:** CI/CD deploy failade tyst nar WeaponInstance.upgrades andrades fran string[] till WeaponUpgrade[]. Lokalt passerade testerna (genom att kora npm run test), men pa GitHub Actions anvandes en renare environment dar type-mismatch fangades.
 **Losning:** Nar du andrar dataformat (t.ex. string[] -> object[]), sok ALLTID igenom tests/-mappen efter alla tester som anvander gamla formatet. Kor `npm run test` lokalt och verifiera 283/283 INNAN push. Kontrollera GitHub Actions-status efter push.

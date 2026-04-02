@@ -1,0 +1,2 @@
+[      20ms] [WARNING] [2026-04-02T17:27:21.513Z]  @firebase/firestore: Firestore (11.10.0): enableIndexedDbPersistence() will be deprecated in the future, you can use `FirestoreSettings.cache` instead. @ https://trippy-road.web.app/assets/index-DkJSr-bf.js:275
+[     197ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ https://trippy-road.web.app/:0

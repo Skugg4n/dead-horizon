@@ -415,16 +415,20 @@ export class DayScene extends Phaser.Scene {
 
     // Grid overlay removed -- caused visible square pattern over terrain tiles
 
+    // IMPORTANT: setBounds MUST come before generateTerrain() because
+    // TerrainGenerator reads scene.physics.world.bounds to know map dimensions.
+    // Without this, DayScene uses default 800x600 while NightScene uses 1280x960,
+    // causing completely different decoration positions.
+    this.physics.world.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
+
     // ------------------------------------------------------------------
     // TERRAIN FEATURES (trees, rocks, bushes etc.) -- visual only, no colliders
     // Uses the same seed as NightScene so obstacles match.
     // ------------------------------------------------------------------
-    // mapSeed: persisted in GameState, constant within a run, changes only on death
     const seed = this.gameState.mapSeed;
     console.log(`[DayScene] terrain seed = ${seed}`);
     const basePos = { x: centerX, y: centerY };
     const terrainResult: TerrainResult = generateTerrain(this, this.gameState.zone, basePos, seed, true);
-    // Add only the visual decorations -- ignore colliders and waterZones (day is planning only)
     this.mapContainer.add(terrainResult.decorContainer);
 
     // ------------------------------------------------------------------
@@ -440,8 +444,6 @@ export class DayScene extends Phaser.Scene {
       fontSize: '8px',
       color: '#E8DCC8',
     }).setOrigin(0.5);
-
-    this.physics.world.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
   }
 
   private renderPlacedStructures(): void {
