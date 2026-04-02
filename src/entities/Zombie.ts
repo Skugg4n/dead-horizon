@@ -155,9 +155,24 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.basePosition = { x, y };
   }
 
-  /** No-op -- kept for API compatibility with WaveManager */
-  setMapSize(_width: number, _height: number): void {
-    // Wanderer behavior removed; map size no longer needed
+  private mapWidth: number = 1280;
+  private mapHeight: number = 960;
+  private flankTarget: { x: number; y: number } | null = null;
+
+  setMapSize(width: number, height: number): void {
+    this.mapWidth = width;
+    this.mapHeight = height;
+  }
+
+  /** Pick a flanking point: offset from base toward a random map edge */
+  private pickFlankTarget(): void {
+    if (!this.basePosition) return;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 120 + Math.random() * 200; // 120-320px from base center
+    this.flankTarget = {
+      x: Phaser.Math.Clamp(this.basePosition.x + Math.cos(angle) * dist, 32, this.mapWidth - 32),
+      y: Phaser.Math.Clamp(this.basePosition.y + Math.sin(angle) * dist, 32, this.mapHeight - 32),
+    };
   }
 
   getTarget(): Phaser.GameObjects.Sprite | null {
@@ -227,6 +242,16 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
         this.soundTarget = null;
         this.soundTargetTimer = 0;
       }
+    } else if (this.aggroType === 'wanderer' && this.basePosition) {
+      // Wanderers flank the base: move to offset points around it
+      if (!this.flankTarget) this.pickFlankTarget();
+      const ft = this.flankTarget ?? this.basePosition;
+      targetX = ft.x;
+      targetY = ft.y;
+
+      // When reaching flank point, pick a new one (creates circling behavior)
+      const distToFlank = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+      if (distToFlank < 30) this.pickFlankTarget();
     } else if (this.basePosition) {
       targetX = this.basePosition.x;
       targetY = this.basePosition.y;
@@ -444,6 +469,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.screamTimer = 0;
     this.pulseTimer = 0;
     this.aggroType = 'base_seeker';
+    this.flankTarget = null;
 
     // Spitter config
     this.spitterRange = config.range ?? 250;

@@ -150,8 +150,10 @@ export class WaveManager {
     const offsetX = (Math.random() - 0.5) * 100;
     const offsetY = (Math.random() - 0.5) * 100;
 
-    // All zombies target the base
-    const aggroType: 'base_seeker' | 'wanderer' = 'base_seeker';
+    // 70% base seekers, 30% flanking wanderers. Brutes/bosses always seek base.
+    const isBruteOrBoss = config.behavior === 'brute' || config.behavior === 'boss';
+    const aggroType: 'base_seeker' | 'wanderer' =
+      isBruteOrBoss ? 'base_seeker' : (Math.random() < 0.3 ? 'wanderer' : 'base_seeker');
 
     // Try to reuse an inactive zombie from the pool
     const existing = this.zombieGroup.getFirstDead(false) as Zombie | null;

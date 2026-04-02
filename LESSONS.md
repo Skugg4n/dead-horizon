@@ -134,7 +134,11 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ## Zombie aggro
 
 ### aggroType maste aterstalas vid reset()
-**Losning:** Nollstall `aggroType = 'base_seeker'` och `wanderTarget = null` i reset().
+**Losning:** Nollstall `aggroType = 'base_seeker'` och `flankTarget = null` i reset().
+
+### Wanderers v2 -- flanking istallet for planlost vandrande
+**Problem:** Forsta implementationen lat wanderers vandra langs kartkanterna. Sag ut som en bugg.
+**Losning (v1.9.0):** Wanderers valjer nu en "flank point" 120-320px fran basens centrum i slumpmassig riktning. Nar de nar punkten valjer de en ny. Resultatet ar att de cirklar runt basen och attackerar fran oventade vinklar -- ser intentionellt ut, inte buggigt.
 
 ---
 
