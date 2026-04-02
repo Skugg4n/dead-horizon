@@ -37,6 +37,15 @@ export class ResultScene extends Phaser.Scene {
 
     continueText.on('pointerover', () => continueText.setColor('#FFD700'));
     continueText.on('pointerout', () => continueText.setColor('#D4620B'));
-    continueText.on('pointerdown', () => this.scene.start('DayScene'));
+
+    const advance = () => this.scene.start('DayScene');
+    continueText.on('pointerdown', advance);
+
+    // ESC, Enter, Space to continue
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
+        advance();
+      }
+    });
   }
 }

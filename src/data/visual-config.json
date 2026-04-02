@@ -14,7 +14,12 @@
     "pillbox": "0x4A6741",
     "storage": "0x7B6B3A",
     "shelter": "0x5A4A3A",
-    "farm": "0x3A6B3A"
+    "farm": "0x3A6B3A",
+    "spike_strip": "0xAA2222",
+    "bear_trap": "0x885522",
+    "landmine": "0x555500",
+    "sandbags": "0xB8A060",
+    "oil_slick": "0x334455"
   },
   "damageFlash": {
     "color": "0xFF0000",

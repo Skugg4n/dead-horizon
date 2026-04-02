@@ -81,6 +81,32 @@
       "specialEffect": { "type": "cleave", "chance": 0.2, "value": 30, "duration": 0 }
     },
     {
+      "id": "machete",
+      "name": "Machete",
+      "class": "melee",
+      "damage": 28,
+      "range": 48,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 400,
+      "rarity": "uncommon",
+      "maxDurability": 55,
+      "specialEffect": { "type": "bleed", "chance": 0.35, "value": 8, "duration": 2000 }
+    },
+    {
+      "id": "katana",
+      "name": "Katana",
+      "class": "melee",
+      "damage": 30,
+      "range": 55,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 350,
+      "rarity": "rare",
+      "maxDurability": 30,
+      "specialEffect": { "type": "crit", "chance": 0.25, "value": 2, "duration": 0 }
+    },
+    {
       "id": "worn_pistol",
       "name": "Worn Pistol",
       "class": "pistol",
@@ -92,6 +118,45 @@
       "rarity": "common",
       "maxDurability": 40,
       "specialEffect": null
+    },
+    {
+      "id": "9mm_compact",
+      "name": "9mm Compact",
+      "class": "pistol",
+      "damage": 12,
+      "range": 180,
+      "noiseLevel": 2,
+      "ammoPerNight": 3,
+      "fireRate": 300,
+      "rarity": "common",
+      "maxDurability": 50,
+      "specialEffect": null
+    },
+    {
+      "id": "revolver",
+      "name": "Revolver",
+      "class": "pistol",
+      "damage": 22,
+      "range": 220,
+      "noiseLevel": 3,
+      "ammoPerNight": 2,
+      "fireRate": 700,
+      "rarity": "uncommon",
+      "maxDurability": 60,
+      "specialEffect": { "type": "knockback", "chance": 0.2, "value": 20, "duration": 0 }
+    },
+    {
+      "id": "silenced_pistol",
+      "name": "Silenced Pistol",
+      "class": "pistol",
+      "damage": 14,
+      "range": 190,
+      "noiseLevel": 0,
+      "ammoPerNight": 3,
+      "fireRate": 450,
+      "rarity": "rare",
+      "maxDurability": 35,
+      "specialEffect": { "type": "piercing", "chance": 0.15, "value": 0, "duration": 0 }
     },
     {
       "id": "hunting_rifle",
@@ -107,6 +172,45 @@
       "specialEffect": null
     },
     {
+      "id": "assault_rifle",
+      "name": "Assault Rifle",
+      "class": "rifle",
+      "damage": 15,
+      "range": 280,
+      "noiseLevel": 4,
+      "ammoPerNight": 5,
+      "fireRate": 250,
+      "rarity": "uncommon",
+      "maxDurability": 45,
+      "specialEffect": null
+    },
+    {
+      "id": "scoped_rifle",
+      "name": "Scoped Rifle",
+      "class": "rifle",
+      "damage": 30,
+      "range": 450,
+      "noiseLevel": 3,
+      "ammoPerNight": 2,
+      "fireRate": 1000,
+      "rarity": "rare",
+      "maxDurability": 30,
+      "specialEffect": { "type": "headshot", "chance": 0.2, "value": 2, "duration": 0 }
+    },
+    {
+      "id": "marksman_rifle",
+      "name": "Marksman Rifle",
+      "class": "rifle",
+      "damage": 35,
+      "range": 400,
+      "noiseLevel": 3,
+      "ammoPerNight": 2,
+      "fireRate": 900,
+      "rarity": "rare",
+      "maxDurability": 25,
+      "specialEffect": { "type": "piercing", "chance": 0.3, "value": 0, "duration": 0 }
+    },
+    {
       "id": "sawed_off",
       "name": "Sawed-Off Shotgun",
       "class": "shotgun",
@@ -118,6 +222,71 @@
       "rarity": "uncommon",
       "maxDurability": 30,
       "specialEffect": null
+    },
+    {
+      "id": "pump_shotgun",
+      "name": "Pump Shotgun",
+      "class": "shotgun",
+      "damage": 35,
+      "range": 150,
+      "noiseLevel": 5,
+      "ammoPerNight": 3,
+      "fireRate": 1100,
+      "rarity": "uncommon",
+      "maxDurability": 50,
+      "specialEffect": { "type": "knockback", "chance": 0.4, "value": 20, "duration": 0 }
+    },
+    {
+      "id": "combat_shotgun",
+      "name": "Combat Shotgun",
+      "class": "shotgun",
+      "damage": 28,
+      "range": 140,
+      "noiseLevel": 5,
+      "ammoPerNight": 4,
+      "fireRate": 600,
+      "rarity": "rare",
+      "maxDurability": 40,
+      "specialEffect": { "type": "incendiary", "chance": 0.25, "value": 40, "duration": 3000 }
+    },
+    {
+      "id": "pipe_bomb",
+      "name": "Pipe Bomb",
+      "class": "explosives",
+      "damage": 60,
+      "range": 200,
+      "noiseLevel": 8,
+      "ammoPerNight": 2,
+      "fireRate": 3000,
+      "rarity": "rare",
+      "maxDurability": 5,
+      "specialEffect": { "type": "cleave", "chance": 1.0, "value": 80, "duration": 0 }
+    },
+    {
+      "id": "molotov",
+      "name": "Molotov",
+      "class": "explosives",
+      "damage": 40,
+      "range": 180,
+      "noiseLevel": 6,
+      "ammoPerNight": 2,
+      "fireRate": 2500,
+      "rarity": "uncommon",
+      "maxDurability": 8,
+      "specialEffect": { "type": "incendiary", "chance": 1.0, "value": 40, "duration": 5000 }
+    },
+    {
+      "id": "grenade_launcher",
+      "name": "Grenade Launcher",
+      "class": "explosives",
+      "damage": 50,
+      "range": 300,
+      "noiseLevel": 8,
+      "ammoPerNight": 1,
+      "fireRate": 2000,
+      "rarity": "legendary",
+      "maxDurability": 15,
+      "specialEffect": { "type": "cleave", "chance": 1.0, "value": 100, "duration": 0 }
     }
   ]
 }

@@ -64,6 +64,62 @@
       "maxLevel": 3,
       "effect": "producesFood",
       "foodPerDay": 2
+    },
+    {
+      "id": "spike_strip",
+      "name": "Spike Strip",
+      "hp": 5,
+      "cost": { "scrap": 3 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "damagesAndCripples",
+      "trapDamage": 15,
+      "trapDurability": 5,
+      "crippleDuration": 3000
+    },
+    {
+      "id": "bear_trap",
+      "name": "Bear Trap",
+      "hp": 1,
+      "cost": { "scrap": 5, "parts": 1 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "damagesAndStuns",
+      "trapDamage": 25,
+      "stunDuration": 2000
+    },
+    {
+      "id": "landmine",
+      "name": "Landmine",
+      "hp": 1,
+      "cost": { "scrap": 4, "parts": 2 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "aoeExplosion",
+      "trapDamage": 50,
+      "aoeRadius": 60
+    },
+    {
+      "id": "sandbags",
+      "name": "Sandbags",
+      "hp": 50,
+      "cost": { "scrap": 3 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "slowsEnemies",
+      "slowFactor": 0.4
+    },
+    {
+      "id": "oil_slick",
+      "name": "Oil Slick",
+      "hp": 3,
+      "cost": { "food": 2 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "slowsEnemiesHeavy",
+      "slowFactor": 0.2,
+      "widthTiles": 3,
+      "nightDuration": 3
     }
   ]
 }

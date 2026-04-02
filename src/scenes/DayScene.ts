@@ -93,7 +93,7 @@ export class DayScene extends Phaser.Scene {
 
     // Load structure data and create BuildingManager
     interface StructuresFile { structures: StructureData[]; }
-    const typedStructures = structuresJson as StructuresFile;
+    const typedStructures = structuresJson as unknown as StructuresFile;
     const structureList = typedStructures.structures;
     this.buildingManager = new BuildingManager(this, this.gameState, structureList);
 
@@ -419,10 +419,9 @@ export class DayScene extends Phaser.Scene {
     // TERRAIN FEATURES (trees, rocks, bushes etc.) -- visual only, no colliders
     // Uses the same seed as NightScene so obstacles match.
     // ------------------------------------------------------------------
-    // Seed: totalRuns * 31 -- stays consistent between day and night within the same run.
-    // IMPORTANT: must match NightScene seed exactly so decorations appear on same positions.
-    const seed = (this.gameState.progress.totalRuns * 31) | 0;
-    console.log(`[DayScene] terrain seed = ${seed} (totalRuns=${this.gameState.progress.totalRuns})`);
+    // mapSeed: persisted in GameState, constant within a run, changes only on death
+    const seed = this.gameState.mapSeed;
+    console.log(`[DayScene] terrain seed = ${seed}`);
     const basePos = { x: centerX, y: centerY };
     const terrainResult: TerrainResult = generateTerrain(this, this.gameState.zone, basePos, seed, true);
     // Add only the visual decorations -- ignore colliders and waterZones (day is planning only)

@@ -1,5 +1,47 @@
 # Dead Horizon -- Changelog
 
+## [2.0.2] - 2026-04-02 17:30
+
+### Feature -- Nya fallor och hinder
+
+- `src/data/structures.json`: Lade till 5 nya strukturer: `spike_strip` (3 scrap, 5 anvandningar, 15 dmg + cripple 3s), `bear_trap` (5 scrap + 1 parts, 25 dmg + stun 2s, engangsfalla), `landmine` (4 scrap + 2 parts, 50 dmg AOE 60px radie, engangsfalla), `sandbags` (3 scrap, 50 HP, 60% slow), `oil_slick` (2 food, 80% slow i 3 tiles zon, varar 3 natter).
+- `src/data/base-levels.json`: Spike Strip och Sandbags las upp fran Tent (niva 0). Bear Trap, Landmine, Oil Slick las upp fran Camp (niva 1). Alla ingar i Outpost och Settlement ocksa.
+- `src/data/visual-config.json`: Lade till fallbackfarger for alla nya strukturtyper.
+- `src/systems/BuildingManager.ts`: Utokade `StructureData`-interfacet med nya falten: `trapDurability`, `crippleDuration`, `stunDuration`, `aoeRadius`, `slowFactor`, `widthTiles`, `nightDuration`.
+- `src/entities/Zombie.ts`: Lade till `crippleTimer` och `stunTimer` properties. Debuffs tickar i `update()`. Stun stoppar zombien helt (bla tint). Cripple halverar hastigheten. `applyCripple(ms)` och `applyStun(ms)` exponeras som publika metoder. Nollstalls i `reset()`.
+- `src/structures/SpikeStrip.ts`: Ny klass. Multi-use durability via `consumeUse()`. 15 dmg + cripple 3s per kontakt.
+- `src/structures/BearTrap.ts`: Ny klass. Engangsfalla, 25 dmg + stun 2s. `trigger()` forstorer direkt.
+- `src/structures/Landmine.ts`: Ny klass. AOE 50 dmg i 60px radie. `trigger()` emittar `landmine-exploded`-event.
+- `src/structures/Sandbags.ts`: Ny klass. 50 HP, 60% slow. Liknar Barricade men billigare och svagare.
+- `src/structures/OilSlick.ts`: Ny klass. 80% slow i 3 tiles bredd. `containsPoint()` for bred overlap. `consumeNight()` for natt-varaktighet.
+- `src/scenes/NightScene.ts`: Importerade alla 5 nya strukturklasser. Arrays + cleanup i `checkZombieStructureInteractions()`. `landmine-exploded`-listener AOE-skadar alla zombies inom radie. `createStructures()` initierar alla typer fran JSON.
+
+## [2.0.1] - 2026-04-02 17:15
+
+### Feature -- 13 nya vapen + ranged specialeffekter
+
+- `src/data/weapons.json`: Lade till 13 nya vapen (totalt 22). Melee: Machete (uncommon, bleed 35%), Katana (rare, crit 25%). Pistol: 9mm Compact (common), Revolver (uncommon, knockback 20%), Silenced Pistol (rare, piercing 15%). Rifle: Assault Rifle (uncommon), Scoped Rifle (rare, headshot 20%), Marksman Rifle (rare, piercing 30%). Shotgun: Pump Shotgun (uncommon, knockback 40%), Combat Shotgun (rare, incendiary 25%). Explosives (ny vapenklass): Pipe Bomb (rare, cleave 80px), Molotov (uncommon, incendiary 5s), Grenade Launcher (legendary, cleave 100px).
+- `src/config/types.ts`: Utokade `WeaponSpecialEffect.type` med fyra nya effect-typer: `crit` (melee crit-chans 2x dmg), `piercing` (projektil passerar igenom zombie), `headshot` (ranged crit 2x dmg), `incendiary` (skapar brannzon med DOT).
+- `src/data/loot-tables.json`: Uppdaterade `weaponDrops` med alla 22 vapen. Rarity styr drop-chans: common 15%, uncommon 8%, rare 3%, legendary 1%. Explosives hittas pa military/armory/city_ruins.
+- `src/entities/Projectile.ts`: Lade till `specialEffect: WeaponSpecialEffect | null` pa Projectile-klassen. `fire()` tar nu emot specialEffect som valfri parameter.
+- `src/scenes/NightScene.ts`: Ny `calcRangedDamage(proj)` -- applicerar headshot/crit-multiplikator fore takeDamage(). Ny `applyRangedSpecialEffect(zombie, proj, effect)` -- hanterar knockback (ranged), incendiary (brannzon Graphics-cirkel med DOT 5dmg/s, ticker-loop, fade-out), cleave (explosives AOE med flash-animation), crit/headshot/piercing guards. Collision-callbacken for projektil-zombie uppdaterad: piercing-projektiler deaktiveras INTE vid traff. `applyMeleeSpecialEffect()` utokad med `crit`-case. `fireProjectile()` skickar nu med specialEffect till `Projectile.fire()`.
+
+### Fix -- Pre-existing TypeScript-fel (parallell stash)
+- `src/scenes/DayScene.ts`: Andrade `structuresJson as StructuresFile` till `structuresJson as unknown as StructuresFile` for att tysta overlap-cast-fel fran optional cost-properties i JSON.
+- `src/structures/SpikeStrip.ts`: Bytte `get active()` accessor (ogiltig override av Phaser Graphics) till `isAlive()` metod. Bytte `maxUses`-parameter till `_maxUses` for att tysta oanvand-variabel-fel.
+- `src/systems/SaveManager.ts`: Tog bort oanvanda `WeaponUpgrade`/`WeaponUpgradeType` imports.
+- `src/scenes/NightScene.ts`: Bytte namn pa de fem nya traps-arrayerna till `_spikeStrips`, `_bearTraps`, `_landmines`, `_sandbags`, `_oilSlicks` (prefix _) sa TypeScript accepterar dem som "write-only placeholders" for framtida interaktionslogik.
+
+## [2.0.0] - 2026-04-02 16:30
+
+### Feature -- Multi-niva upgrade-system
+
+- `src/data/upgrades.json` (NY FIL): Definierar 8 upgrade-typer med eskalerande kostnad och effekt per niva. Varje upgrade har `maxLevel` (2 eller 3), `costs[]` och `values[]` per niva, samt `applicableTo` (vapenklasser). Upgrades: damage_boost, reinforcement, sharpening, suppressor, extended_mag, scope, quick_grip, serrated_edge.
+- `src/config/types.ts`: Utokade `WeaponUpgradeType` med 3 nya typer (sharpening, quick_grip, serrated_edge). Lade till `WeaponUpgrade { id, level }` interface (ersatter string). Lade till `UpgradeDefinition` interface for upgrades.json-data. `WeaponInstance.upgrades` andrad fran `WeaponUpgradeType[]` till `WeaponUpgrade[]`.
+- `src/systems/WeaponManager.ts`: `getWeaponStats()` applicerar nu upgrade-niva via values[level-1]: damage_boost, reinforcement, suppressor, extended_mag, scope, quick_grip hanteras. Returnerar nu aven `ammoPerNight` och `maxDurability` i stats-objektet. Ny metod `getAvailableUpgradesForWeapon()` filtrerar pa vapentyp och slot-begransning (max 3). Ny metod `upgradeNew()` installerar eller hojer niva. Ny metod `getUpgradeLevel()`. Legacy `upgrade()`/`canUpgrade()` delegerar till ny logik.
+- `src/ui/WeaponPanel.ts`: Visar installerade upgrades med niva-indikator (t.ex. "Damage Boost[**o]" = niva 2 av 3). Upgrade-listan visar nasta nivas effekt och kostnad. MAX visas nar max niva nads. Slot-raknarare synlig (Slots: 2/3). Efter kop stanns upgrade-menyn oppen sa spelaren kan foga fler uppgraderingar.
+- `src/systems/SaveManager.ts`: Ny `migrateUpgrades()` funktion konverterar gamla string[]-upgrades till WeaponUpgrade[]-format. Kors automatiskt pa varje vapen vid load().
+
 ## [1.9.1] - 2026-04-02 15:45
 
 ### Fixed -- Dag/Natt layout-diskrepans

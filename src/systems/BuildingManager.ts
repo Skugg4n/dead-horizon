@@ -13,6 +13,18 @@ export interface StructureData {
   effect: string;
   trapDamage?: number;
   foodPerDay?: number;
+  // Spike Strip
+  trapDurability?: number;
+  crippleDuration?: number;
+  // Bear Trap
+  stunDuration?: number;
+  // Landmine
+  aoeRadius?: number;
+  // Sandbags / Oil Slick
+  slowFactor?: number;
+  // Oil Slick
+  widthTiles?: number;
+  nightDuration?: number;
 }
 
 /**

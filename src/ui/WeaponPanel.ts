@@ -3,9 +3,22 @@ import Phaser from 'phaser';
 import { WeaponManager } from '../systems/WeaponManager';
 import { UIPanel } from './UIPanel';
 import { renderResourceCosts } from './resourceIcons';
-import type { WeaponInstance, WeaponUpgradeType, GameState } from '../config/types';
+import type { WeaponInstance, WeaponUpgradeType, UpgradeDefinition, GameState } from '../config/types';
 
 const PANEL_WIDTH = 360;
+
+// Build a star-string showing current and remaining levels, e.g. "**o" for level 2 of 3
+function starLabel(current: number, max: number): string {
+  return '*'.repeat(current) + 'o'.repeat(max - current);
+}
+
+// Resolve the description template with the actual value at a given level
+function resolveDescription(def: UpgradeDefinition, level: number): string {
+  const val = def.values[level - 1] ?? 0;
+  return def.description
+    .replace('{percent}', String(val))
+    .replace('{value}', String(val));
+}
 
 export class WeaponPanel {
   private scene: Phaser.Scene;
@@ -66,7 +79,7 @@ export class WeaponPanel {
       return;
     }
 
-    const weaponHeight = 70;
+    const weaponHeight = 80;
     weapons.forEach((weapon, i) => {
       const y = i * weaponHeight;
       this.renderWeaponEntry(content, weapon, y, i === equippedIdx);
@@ -90,7 +103,7 @@ export class WeaponPanel {
     // Hover background
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x333333, 0);
-    bg.fillRect(-4, y - 2, contentWidth + 8, 66);
+    bg.fillRect(-4, y - 2, contentWidth + 8, 76);
     content.add(bg);
 
     // Equipped indicator
@@ -119,20 +132,27 @@ export class WeaponPanel {
     const lvlLine = weapon.level >= 5
       ? `Lv${weapon.level} MAX`
       : `Lv${weapon.level} XP:${weapon.xp}/${xpNeeded}`;
-    const lvlText = this.scene.add.text(0, y + 28, lvlLine, {
+    const lvlText = this.scene.add.text(0, y + 27, lvlLine, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#6B6B6B',
     });
     content.add(lvlText);
 
-    // Upgrades display (8px label)
+    // Installed upgrades with star-level indicators (8px label)
     if (weapon.upgrades.length > 0) {
-      const upgradeStr = weapon.upgrades.join(', ');
-      const upgText = this.scene.add.text(0, y + 40, `Mods: ${upgradeStr}`, {
+      const slotsFree = WeaponManager.getMaxUpgradesPerWeapon() - weapon.upgrades.length;
+      const upgradeStrs = weapon.upgrades.map(u => {
+        const def = WeaponManager.getUpgradeDef(u.id);
+        if (!def) return u.id;
+        return `${def.name}[${starLabel(u.level, def.maxLevel)}]`;
+      });
+      const slotsTag = slotsFree > 0 ? ` +${slotsFree}` : ' FULL';
+      const upgText = this.scene.add.text(0, y + 39, upgradeStrs.join(' ') + slotsTag, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
+        fontSize: '7px',
         color: '#7B9FCF',
+        wordWrap: { width: contentWidth - 80 },
       });
       content.add(upgText);
     }
@@ -164,9 +184,9 @@ export class WeaponPanel {
     }
 
     // Upgrade button (opens inline upgrade list)
-    const availableUpgrades = this.getAvailableUpgrades(weapon);
+    const availableUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(weapon);
     if (availableUpgrades.length > 0) {
-      const btnY = weapon.durability < weapon.maxDurability ? y + 26 : y + 14;
+      const btnY = weapon.durability < weapon.maxDurability ? y + 28 : y + 14;
       const upgradeBtn = this.scene.add.text(contentWidth - 70, btnY, '[UPGRADE]', {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
@@ -183,24 +203,19 @@ export class WeaponPanel {
 
     // Make the whole entry hoverable
     bg.setInteractive(
-      new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, 66),
+      new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, 76),
       Phaser.Geom.Rectangle.Contains,
     );
     bg.on('pointerover', () => {
       bg.clear();
       bg.fillStyle(0x444444, 0.5);
-      bg.fillRect(-4, y - 2, contentWidth + 8, 66);
+      bg.fillRect(-4, y - 2, contentWidth + 8, 76);
     });
     bg.on('pointerout', () => {
       bg.clear();
       bg.fillStyle(0x333333, 0);
-      bg.fillRect(-4, y - 2, contentWidth + 8, 66);
+      bg.fillRect(-4, y - 2, contentWidth + 8, 76);
     });
-  }
-
-  private getAvailableUpgrades(weapon: WeaponInstance): WeaponUpgradeType[] {
-    const allUpgrades: WeaponUpgradeType[] = ['damage_boost', 'suppressor', 'extended_mag', 'scope', 'reinforcement'];
-    return allUpgrades.filter(u => !weapon.upgrades.includes(u));
   }
 
   private showUpgradeOptions(weapon: WeaponInstance): void {
@@ -208,25 +223,38 @@ export class WeaponPanel {
     content.removeAll(true);
 
     const contentWidth = PANEL_WIDTH - 24;
-    const available = this.getAvailableUpgrades(weapon);
+    const available = this.weaponManager.getAvailableUpgradesForWeapon(weapon);
+    const weaponName = WeaponManager.getWeaponData(weapon.weaponId)?.name ?? weapon.weaponId;
 
     // Title for upgrade mode (10px)
-    const title = this.scene.add.text(0, 0, `Upgrade ${WeaponManager.getWeaponData(weapon.weaponId)?.name ?? weapon.weaponId}`, {
+    const title = this.scene.add.text(0, 0, `Upgrade ${weaponName}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#FFD700',
     });
     content.add(title);
 
-    const entrySpacing = 55;
+    // Slot usage summary (8px label)
+    const slotsUsed = weapon.upgrades.length;
+    const slotsTotal = WeaponManager.getMaxUpgradesPerWeapon();
+    const slotSummary = this.scene.add.text(0, 14, `Slots: ${slotsUsed}/${slotsTotal}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    });
+    content.add(slotSummary);
 
-    available.forEach((upgradeType, i) => {
-      const y = 20 + i * entrySpacing;
-      const upgradeData = WeaponManager.getUpgradeData(upgradeType);
-      if (!upgradeData) return;
+    const entrySpacing = 58;
 
-      const canAfford = this.gameState.inventory.resources.parts >= upgradeData.partsCost;
-      const color = canAfford ? '#E8DCC8' : '#6B6B6B';
+    available.forEach((def: UpgradeDefinition, i: number) => {
+      const y = 28 + i * entrySpacing;
+      const currentLevel = this.weaponManager.getUpgradeLevel(weapon, def.id as WeaponUpgradeType);
+      const nextLevel = currentLevel + 1;
+      const cost = def.costs[currentLevel] ?? 0;
+      const canAfford = this.gameState.inventory.resources.parts >= cost;
+      const isMaxed = currentLevel >= def.maxLevel;
+
+      const baseColor = canAfford ? '#E8DCC8' : '#6B6B6B';
 
       // Hover background
       const bg = this.scene.add.graphics();
@@ -234,53 +262,67 @@ export class WeaponPanel {
       bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
       content.add(bg);
 
-      // Upgrade name + description with cost on same line (9px body)
-      const costLabel = `[${upgradeData.partsCost} parts]`;
-      const entry = this.scene.add.text(0, y, `${upgradeData.name} - ${upgradeData.description}`, {
+      // Upgrade name + current star level (9px body)
+      const levelTag = isMaxed
+        ? `${def.name} MAX`
+        : `${def.name} [${starLabel(currentLevel, def.maxLevel)}]`;
+      const nameEntry = this.scene.add.text(0, y, levelTag, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
-        color,
-        wordWrap: { width: contentWidth - 10 },
+        color: isMaxed ? '#6B6B6B' : baseColor,
       });
-      content.add(entry);
+      content.add(nameEntry);
 
-      // Cost label right-aligned on same line as name (9px body)
-      const costText = this.scene.add.text(contentWidth, y, costLabel, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color,
-      });
-      costText.setOrigin(1, 0);
-      content.add(costText);
+      if (!isMaxed) {
+        // Next level description (8px body)
+        const nextDesc = resolveDescription(def, nextLevel);
+        const descText = this.scene.add.text(0, y + 13, `> ${nextDesc}`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#AAB8C2',
+        });
+        content.add(descText);
 
-      if (canAfford) {
-        bg.setInteractive(
-          new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, entrySpacing - 4),
-          Phaser.Geom.Rectangle.Contains,
-        );
-        if (bg.input) bg.input.cursor = 'pointer';
-        bg.on('pointerover', () => {
-          bg.clear();
-          bg.fillStyle(0x444444, 0.5);
-          bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
-          entry.setColor('#FFD700');
+        // Cost display (8px, right-aligned)
+        const costLabel = `[${cost}p]`;
+        const costText = this.scene.add.text(contentWidth, y, costLabel, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: baseColor,
         });
-        bg.on('pointerout', () => {
-          bg.clear();
-          bg.fillStyle(0x333333, 0);
-          bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
-          entry.setColor('#E8DCC8');
-        });
-        bg.on('pointerdown', () => {
-          this.weaponManager.upgrade(weapon.id, upgradeType);
-          this.onResourceChange();
-          this.rebuild();
-        });
+        costText.setOrigin(1, 0);
+        content.add(costText);
+
+        if (canAfford) {
+          bg.setInteractive(
+            new Phaser.Geom.Rectangle(-4, y - 2, contentWidth + 8, entrySpacing - 4),
+            Phaser.Geom.Rectangle.Contains,
+          );
+          if (bg.input) bg.input.cursor = 'pointer';
+          bg.on('pointerover', () => {
+            bg.clear();
+            bg.fillStyle(0x444444, 0.5);
+            bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
+            nameEntry.setColor('#FFD700');
+          });
+          bg.on('pointerout', () => {
+            bg.clear();
+            bg.fillStyle(0x333333, 0);
+            bg.fillRect(-4, y - 2, contentWidth + 8, entrySpacing - 4);
+            nameEntry.setColor('#E8DCC8');
+          });
+          bg.on('pointerdown', () => {
+            this.weaponManager.upgradeNew(weapon.id, def.id as WeaponUpgradeType);
+            this.onResourceChange();
+            // Re-open upgrade list so player can keep upgrading
+            this.showUpgradeOptions(weapon);
+          });
+        }
       }
     });
 
     // Back button (9px body)
-    const backY = 20 + available.length * entrySpacing + 8;
+    const backY = 28 + available.length * entrySpacing + 8;
     const backBtn = this.scene.add.text(0, backY, '[ BACK ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',

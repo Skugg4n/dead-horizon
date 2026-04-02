@@ -9,6 +9,11 @@ import { SaveManager } from '../systems/SaveManager';
 import { Barricade } from '../structures/Barricade';
 import { Wall } from '../structures/Wall';
 import { Trap } from '../structures/Trap';
+import { SpikeStrip } from '../structures/SpikeStrip';
+import { BearTrap } from '../structures/BearTrap';
+import { Landmine } from '../structures/Landmine';
+import { Sandbags } from '../structures/Sandbags';
+import { OilSlick } from '../structures/OilSlick';
 import { HUD } from '../ui/HUD';
 import { WeaponManager } from '../systems/WeaponManager';
 import { SkillManager } from '../systems/SkillManager';
@@ -65,6 +70,12 @@ export class NightScene extends Phaser.Scene {
   private barricades: Barricade[] = [];
   private walls: Wall[] = [];
   private traps: Trap[] = [];
+  // New trap/hazard arrays -- populated in create(), used by future interaction loops
+  private _spikeStrips: SpikeStrip[] = [];
+  private _bearTraps: BearTrap[] = [];
+  private _landmines: Landmine[] = [];
+  private _sandbags: Sandbags[] = [];
+  private _oilSlicks: OilSlick[] = [];
   private wallBodies!: Phaser.Physics.Arcade.StaticGroup;
   private fogOfWar!: FogOfWar;
   private fpsText: Phaser.GameObjects.Text | null = null;
@@ -501,10 +512,9 @@ export class NightScene extends Phaser.Scene {
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
     const basePos = { x: mapPixelWidth / 2, y: mapPixelHeight / 2 };
 
-    // Seed: totalRuns * 31 -- stays consistent between day and night within the same run.
-    // IMPORTANT: must match DayScene seed exactly so decorations appear on same positions.
-    const seed = (this.gameState.progress.totalRuns * 31) | 0;
-    console.log(`[NightScene] terrain seed = ${seed} (totalRuns=${this.gameState.progress.totalRuns})`);
+    // mapSeed: persisted in GameState, constant within a run, changes only on death
+    const seed = this.gameState.mapSeed;
+    console.log(`[NightScene] terrain seed = ${seed}`);
 
     this.terrainResult = generateTerrain(this, this.gameState.zone, basePos, seed);
   }
@@ -513,9 +523,21 @@ export class NightScene extends Phaser.Scene {
     this.barricades = [];
     this.walls = [];
     this.traps = [];
+    this._spikeStrips = [];
+    this._bearTraps = [];
+    this._landmines = [];
+    this._sandbags = [];
+    this._oilSlicks = [];
 
     const trapDef = structuresData.structures.find(s => s.id === 'trap');
     const defaultTrapDamage = trapDef && 'trapDamage' in trapDef ? (trapDef as { trapDamage: number }).trapDamage : 20;
+
+    // Read new trap definitions from structures.json
+    const spikeStripDef = structuresData.structures.find(s => s.id === 'spike_strip');
+    const bearTrapDef   = structuresData.structures.find(s => s.id === 'bear_trap');
+    const landmineDef   = structuresData.structures.find(s => s.id === 'landmine');
+    const sandbagsDef   = structuresData.structures.find(s => s.id === 'sandbags');
+    const oilSlickDef   = structuresData.structures.find(s => s.id === 'oil_slick');
 
     for (const structure of this.gameState.base.structures) {
       switch (structure.structureId) {
@@ -542,6 +564,42 @@ export class NightScene extends Phaser.Scene {
         case 'trap': {
           const trap = new Trap(this, structure, defaultTrapDamage);
           this.traps.push(trap);
+          break;
+        }
+        case 'spike_strip': {
+          // Read config from JSON; fall back to spec values if missing
+          const dmg    = (spikeStripDef as { trapDamage?: number } | undefined)?.trapDamage ?? 15;
+          const dur    = (spikeStripDef as { crippleDuration?: number } | undefined)?.crippleDuration ?? 3000;
+          const uses   = (spikeStripDef as { trapDurability?: number } | undefined)?.trapDurability ?? 5;
+          const strip  = new SpikeStrip(this, structure, dmg, dur, uses);
+          this._spikeStrips.push(strip);
+          break;
+        }
+        case 'bear_trap': {
+          const dmg    = (bearTrapDef as { trapDamage?: number } | undefined)?.trapDamage ?? 25;
+          const stun   = (bearTrapDef as { stunDuration?: number } | undefined)?.stunDuration ?? 2000;
+          const bt     = new BearTrap(this, structure, dmg, stun);
+          this._bearTraps.push(bt);
+          break;
+        }
+        case 'landmine': {
+          const dmg    = (landmineDef as { trapDamage?: number } | undefined)?.trapDamage ?? 50;
+          const radius = (landmineDef as { aoeRadius?: number } | undefined)?.aoeRadius ?? 60;
+          const mine   = new Landmine(this, structure, dmg, radius);
+          this._landmines.push(mine);
+          break;
+        }
+        case 'sandbags': {
+          const slow   = (sandbagsDef as { slowFactor?: number } | undefined)?.slowFactor ?? 0.4;
+          const bags   = new Sandbags(this, structure, slow);
+          this._sandbags.push(bags);
+          break;
+        }
+        case 'oil_slick': {
+          const slow   = (oilSlickDef as { slowFactor?: number } | undefined)?.slowFactor ?? 0.2;
+          const width  = (oilSlickDef as { widthTiles?: number } | undefined)?.widthTiles ?? 3;
+          const slick  = new OilSlick(this, structure, slow, width);
+          this._oilSlicks.push(slick);
           break;
         }
         default: {
@@ -657,8 +715,20 @@ export class NightScene extends Phaser.Scene {
         if (!proj.active || !zombie.active) return;
         if (typeof proj.deactivate !== 'function') { _proj.destroy(); return; }
 
-        zombie.takeDamage(proj.damage);
-        proj.deactivate();
+        // Apply ranged special effects before damage to allow crit/headshot multiplier
+        const finalDamage = this.calcRangedDamage(proj);
+        zombie.takeDamage(finalDamage);
+
+        // Piercing: projectile passes through the zombie -- do NOT deactivate
+        const isPiercing = proj.specialEffect?.type === 'piercing';
+        if (!isPiercing) {
+          proj.deactivate();
+        }
+
+        // Apply on-hit ranged effects that require a zombie target (knockback, incendiary)
+        if (proj.specialEffect && zombie.active) {
+          this.applyRangedSpecialEffect(zombie, proj, proj.specialEffect);
+        }
       },
     );
 
@@ -864,6 +934,8 @@ export class NightScene extends Phaser.Scene {
       AudioManager.stopAmbient();
       this.gameState.progress.totalKills += this.kills;
       this.gameState.progress.totalRuns++;
+      // New "parallel dimension" -- randomize map seed on death
+      this.gameState.mapSeed = Math.floor(Math.random() * 100000);
       this.gameState.inventory.loadedAmmo = this.loadedAmmo;
       this.decreaseUsedWeaponDurability();
       this.skillManager.syncToState(this.gameState);
@@ -950,6 +1022,22 @@ export class NightScene extends Phaser.Scene {
         // Count the spawned enemy for wave tracking
         this.waveManager.addExtraEnemy();
       }
+    });
+
+    // Landmine AOE: damage all zombies within explosion radius
+    this.events.on('landmine-exploded', (cx: number, cy: number, damage: number, radius: number) => {
+      // Visual: orange burst particles at explosion center
+      this.trapEmitter.emitParticleAt(cx, cy, 20);
+
+      // Damage every active zombie within radius
+      this.zombieGroup.getChildren().forEach(child => {
+        const z = child as Zombie;
+        if (!z.active) return;
+        const dist = Phaser.Math.Distance.Between(z.x, z.y, cx, cy);
+        if (dist <= radius) {
+          z.takeDamage(damage);
+        }
+      });
     });
   }
 
@@ -1148,24 +1236,24 @@ export class NightScene extends Phaser.Scene {
     );
 
     if (stats.weaponClass === 'shotgun') {
-      // Shotgun fires a spread of 3 pellets
+      // Shotgun fires a spread of 3 pellets -- each pellet carries the special effect
       const spreadAngles = [angle - 0.15, angle, angle + 0.15];
       for (const a of spreadAngles) {
-        this.fireProjectile(a, Math.round(stats.damage / 3));
+        this.fireProjectile(a, Math.round(stats.damage / 3), stats.specialEffect);
       }
     } else {
-      this.fireProjectile(angle, stats.damage);
+      this.fireProjectile(angle, stats.damage, stats.specialEffect);
     }
   }
 
-  private fireProjectile(angle: number, damage: number): void {
+  private fireProjectile(angle: number, damage: number, specialEffect: WeaponSpecialEffect | null = null): void {
     const existing = this.projectileGroup.getFirstDead(false) as Projectile | null;
     if (existing) {
-      existing.fire(this.player.x, this.player.y, angle, damage);
+      existing.fire(this.player.x, this.player.y, angle, damage, specialEffect);
     } else {
       const proj = new Projectile(this, this.player.x, this.player.y);
       this.projectileGroup.add(proj);
-      proj.fire(this.player.x, this.player.y, angle, damage);
+      proj.fire(this.player.x, this.player.y, angle, damage, specialEffect);
     }
   }
 
@@ -1253,6 +1341,169 @@ export class NightScene extends Phaser.Scene {
         });
         break;
       }
+
+      case 'crit': {
+        // Double damage on a chance roll -- damage already applied, so deal the bonus portion
+        // effect.value = multiplier (e.g. 2 means 2x, so bonus = 1x base)
+        const equipped2 = this.weaponManager.getEquipped();
+        if (equipped2) {
+          const baseDmg = this.weaponManager.getWeaponStats(equipped2).damage;
+          const bonusDmg = Math.round(baseDmg * (effect.value - 1));
+          zombie.takeDamage(bonusDmg);
+          if (zombie.active) this.bloodEmitter.emitParticleAt(zombie.x, zombie.y, 8);
+        }
+        break;
+      }
+
+      // These types are handled by applyRangedSpecialEffect -- no-op here to satisfy exhaustive switch
+      case 'piercing':
+      case 'headshot':
+      case 'incendiary':
+        break;
+    }
+  }
+
+  /**
+   * Calculate final damage for a ranged projectile hit.
+   * Handles crit/headshot: if the effect triggers, damage is multiplied.
+   * Called before zombie.takeDamage() in the collision callback.
+   */
+  private calcRangedDamage(proj: Projectile): number {
+    const effect = proj.specialEffect;
+    if (!effect) return proj.damage;
+
+    if ((effect.type === 'headshot' || effect.type === 'crit') && Math.random() <= effect.chance) {
+      // effect.value is the damage multiplier (e.g. 2 = double damage)
+      return Math.round(proj.damage * effect.value);
+    }
+
+    return proj.damage;
+  }
+
+  /**
+   * Apply ranged special effects that act on the zombie or world after a projectile hit.
+   * piercing is handled in the collision callback (skip deactivate).
+   * headshot/crit bonus damage is handled in calcRangedDamage.
+   * knockback and incendiary are applied here.
+   */
+  private applyRangedSpecialEffect(zombie: Zombie, proj: Projectile, effect: WeaponSpecialEffect): void {
+    if (Math.random() > effect.chance) return; // Chance roll failed
+
+    switch (effect.type) {
+      case 'knockback': {
+        // Push zombie away from projectile direction
+        const angle = angleBetween(proj.x, proj.y, zombie.x, zombie.y);
+        const kbVx = Math.cos(angle) * effect.value * 10;
+        const kbVy = Math.sin(angle) * effect.value * 10;
+        zombie.setVelocity(kbVx, kbVy);
+        this.time.delayedCall(150, () => {
+          if (zombie.active) zombie.setVelocity(0, 0);
+        });
+        break;
+      }
+
+      case 'incendiary': {
+        // Create a burn zone: a Graphics circle that deals DOT to zombies inside it
+        // effect.value = radius in pixels, effect.duration = zone lifetime in ms
+        const burnRadius = effect.value;
+        const burnDuration = effect.duration > 0 ? effect.duration : 3000;
+        const burnDmgPerTick = 5; // damage per tick
+        const tickInterval = 1000; // ms between damage ticks
+
+        const zone = this.add.graphics();
+        zone.setDepth(3);
+        // Draw outer glow and inner fire circle
+        zone.fillStyle(0xFF4400, 0.35);
+        zone.fillCircle(0, 0, burnRadius);
+        zone.lineStyle(2, 0xFF8800, 0.7);
+        zone.strokeCircle(0, 0, burnRadius);
+        zone.setPosition(zombie.x, zombie.y);
+
+        // Flicker tween for visual feedback
+        this.tweens.add({
+          targets: zone,
+          alpha: { from: 0.8, to: 0.4 },
+          duration: 400,
+          yoyo: true,
+          repeat: Math.floor(burnDuration / 800),
+        });
+
+        // DOT ticker: damage all zombies inside the burn zone each tick
+        let elapsed = 0;
+        const ticker = this.time.addEvent({
+          delay: tickInterval,
+          loop: true,
+          callback: () => {
+            elapsed += tickInterval;
+            this.zombieGroup.getChildren().forEach(child => {
+              const z = child as Zombie;
+              if (!z.active) return;
+              const dist = distanceBetween(z.x, z.y, zone.x, zone.y);
+              if (dist <= burnRadius) {
+                z.takeDamage(burnDmgPerTick);
+                if (z.active) this.bloodEmitter.emitParticleAt(z.x, z.y, 2);
+              }
+            });
+            if (elapsed >= burnDuration) {
+              ticker.remove();
+              this.tweens.add({
+                targets: zone,
+                alpha: 0,
+                duration: 400,
+                onComplete: () => zone.destroy(),
+              });
+            }
+          },
+        });
+        break;
+      }
+
+      case 'cleave': {
+        // Explosives AOE: damage all zombies within effect.value pixels of the impact point
+        const aoeRadius = effect.value;
+        const equipped3 = this.weaponManager.getEquipped();
+        const aoeDmg = equipped3
+          ? Math.round(this.weaponManager.getWeaponStats(equipped3).damage * 0.7)
+          : 10;
+        // Visual flash at impact point
+        const flash = this.add.graphics();
+        flash.setDepth(10);
+        flash.fillStyle(0xFFAA00, 0.7);
+        flash.fillCircle(0, 0, aoeRadius * 0.5);
+        flash.setPosition(proj.x, proj.y);
+        this.tweens.add({
+          targets: flash,
+          alpha: 0,
+          scaleX: 2,
+          scaleY: 2,
+          duration: 300,
+          onComplete: () => flash.destroy(),
+        });
+        // Apply AOE damage to all zombies in radius
+        this.zombieGroup.getChildren().forEach(child => {
+          const z = child as Zombie;
+          if (!z.active) return;
+          const dist = distanceBetween(z.x, z.y, proj.x, proj.y);
+          if (dist <= aoeRadius) {
+            z.takeDamage(aoeDmg);
+            if (z.active) this.bloodEmitter.emitParticleAt(z.x, z.y, 4);
+          }
+        });
+        break;
+      }
+
+      // crit, headshot: damage multiplier applied in calcRangedDamage -- nothing more to do
+      // piercing: handled in collision callback
+      case 'crit':
+      case 'headshot':
+      case 'piercing':
+        break;
+
+      // These are melee-only effects -- should not appear on ranged weapons, guard anyway
+      case 'bleed':
+      case 'cripple':
+      case 'stun':
+        break;
     }
   }
 
@@ -1263,11 +1514,16 @@ export class NightScene extends Phaser.Scene {
     }
   }
 
-  // 5D: Check zombie overlap with barricades and traps each frame
+  // 5D: Check zombie overlap with barricades, traps, and new trap types each frame
   private checkZombieStructureInteractions(): void {
     // Clean up inactive structures once per frame (not per-zombie)
-    this.barricades = this.barricades.filter(b => b && b.active);
-    this.traps = this.traps.filter(t => t && t.active);
+    this.barricades  = this.barricades.filter(b => b && b.active);
+    this.traps       = this.traps.filter(t => t && t.active);
+    this._spikeStrips = this._spikeStrips.filter(s => s && s.active);
+    this._bearTraps   = this._bearTraps.filter(b => b && b.active);
+    this._landmines   = this._landmines.filter(m => m && m.active);
+    this._sandbags    = this._sandbags.filter(s => s && s.active);
+    this._oilSlicks   = this._oilSlicks.filter(o => o && o.active);
 
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
@@ -1304,6 +1560,48 @@ export class NightScene extends Phaser.Scene {
         }
       }
 
+      // Sandbags interaction: cheap slow zone, brutes can destroy
+      for (let i = this._sandbags.length - 1; i >= 0; i--) {
+        const bags = this._sandbags[i];
+        if (!bags) continue;
+
+        const sx = bags.structureInstance.x;
+        const sy = bags.structureInstance.y;
+
+        if (
+          zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
+          zombie.y >= sy && zombie.y <= sy + TILE_SIZE
+        ) {
+          const factor = bags.getSlowFactor();
+          const body = zombie.body;
+          if (body) {
+            body.velocity.x *= factor;
+            body.velocity.y *= factor;
+          }
+
+          if (zombie.canAttackStructure()) {
+            const destroyed = bags.takeDamage(zombie.structureDamage);
+            zombie.resetStructureAttackCooldown();
+            if (destroyed) {
+              this._sandbags.splice(i, 1);
+            }
+          }
+        }
+      }
+
+      // Oil Slick interaction: heavy slow in wide zone (zombies walk in unaware)
+      for (const slick of this._oilSlicks) {
+        if (!slick) continue;
+        if (slick.containsPoint(zombie.x, zombie.y)) {
+          const factor = slick.getSlowFactor();
+          const body = zombie.body;
+          if (body) {
+            body.velocity.x *= factor;
+            body.velocity.y *= factor;
+          }
+        }
+      }
+
       // Trap interaction: damage zombies walking over traps
       for (let i = this.traps.length - 1; i >= 0; i--) {
         const trap = this.traps[i];
@@ -1328,6 +1626,76 @@ export class NightScene extends Phaser.Scene {
           if (destroyed) {
             this.traps.splice(i, 1);
           }
+        }
+      }
+
+      // Spike Strip interaction: damage + cripple (-50% speed), multi-use durability
+      for (let i = this._spikeStrips.length - 1; i >= 0; i--) {
+        const strip = this._spikeStrips[i];
+        if (!strip) continue;
+
+        const sx = strip.structureInstance.x;
+        const sy = strip.structureInstance.y;
+
+        if (
+          zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
+          zombie.y >= sy && zombie.y <= sy + TILE_SIZE
+        ) {
+          zombie.takeDamage(strip.getDamage());
+          zombie.applyCripple(strip.crippleDuration);
+          this.trapEmitter.emitParticleAt(
+            strip.structureInstance.x + TILE_SIZE / 2,
+            strip.structureInstance.y + TILE_SIZE / 2,
+            4,
+          );
+          const destroyed = strip.consumeUse();
+          if (destroyed) {
+            this._spikeStrips.splice(i, 1);
+          }
+        }
+      }
+
+      // Bear Trap interaction: heavy damage + stun, single use
+      for (let i = this._bearTraps.length - 1; i >= 0; i--) {
+        const bt = this._bearTraps[i];
+        if (!bt) continue;
+
+        const bx = bt.structureInstance.x;
+        const by = bt.structureInstance.y;
+
+        if (
+          zombie.x >= bx && zombie.x <= bx + TILE_SIZE &&
+          zombie.y >= by && zombie.y <= by + TILE_SIZE
+        ) {
+          zombie.takeDamage(bt.getDamage());
+          zombie.applyStun(bt.stunDuration);
+          this.trapEmitter.emitParticleAt(
+            bt.structureInstance.x + TILE_SIZE / 2,
+            bt.structureInstance.y + TILE_SIZE / 2,
+            8,
+          );
+          bt.trigger();
+          this._bearTraps.splice(i, 1);
+        }
+      }
+
+      // Landmine interaction: AOE explosion, single use
+      // Only trigger once per zombie per frame; break after first mine detected
+      for (let i = this._landmines.length - 1; i >= 0; i--) {
+        const mine = this._landmines[i];
+        if (!mine) continue;
+
+        const mx = mine.structureInstance.x;
+        const my = mine.structureInstance.y;
+
+        if (
+          zombie.x >= mx && zombie.x <= mx + TILE_SIZE &&
+          zombie.y >= my && zombie.y <= my + TILE_SIZE
+        ) {
+          // trigger() emits 'landmine-exploded' event that NightScene listens to
+          mine.trigger();
+          this._landmines.splice(i, 1);
+          break; // one mine trigger per zombie per frame
         }
       }
     });

@@ -69,6 +69,10 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   // Death state flag to prevent double kills
   private deathStarted = false;
 
+  // Speed debuff timers (ms remaining). Multiple debuffs stack to worst.
+  private crippleTimer: number = 0;   // -50% speed
+  private stunTimer: number = 0;      // 0% speed (full stop)
+
   // Pulsing tint for boss/screamer
   private pulseTimer: number = 0;
   private baseTint: number | null = null;
@@ -197,6 +201,22 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.structureAttackCooldown = Math.max(0, this.structureAttackCooldown - delta);
 
+    // Tick speed debuffs
+    if (this.stunTimer > 0) {
+      this.stunTimer = Math.max(0, this.stunTimer - delta);
+      // Fully stopped while stunned -- tint blue to signal
+      if (this.stunTimer > 0) {
+        this.setVelocity(0, 0);
+        this.setTint(0x4488FF);
+        return;
+      }
+      // Stun expired -- restore tint
+      this.restoreTint();
+    }
+    if (this.crippleTimer > 0) {
+      this.crippleTimer = Math.max(0, this.crippleTimer - delta);
+    }
+
     // Boss pulsing glow
     if (this.behavior === 'boss') {
       this.updateBossPulse(delta);
@@ -267,15 +287,16 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       targetY = this.target.y;
     }
 
-    // Move toward target
+    // Move toward target -- apply cripple debuff if active (-50% speed)
     const angle = Phaser.Math.Angle.Between(
       this.x, this.y,
       targetX, targetY
     );
+    const speedMult = this.crippleTimer > 0 ? 0.5 : 1.0;
 
     this.setVelocity(
-      Math.cos(angle) * this.moveSpeed,
-      Math.sin(angle) * this.moveSpeed
+      Math.cos(angle) * this.moveSpeed * speedMult,
+      Math.sin(angle) * this.moveSpeed * speedMult
     );
 
     this.playWalkAnim();
@@ -369,6 +390,27 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
 
   resetStructureAttackCooldown(): void {
     this.structureAttackCooldown = enemiesData.structureAttackCooldown;
+  }
+
+  /**
+   * Apply cripple debuff: -50% speed for durationMs.
+   * Refreshes timer if already crippled.
+   */
+  applyCripple(durationMs: number): void {
+    this.crippleTimer = Math.max(this.crippleTimer, durationMs);
+  }
+
+  /**
+   * Apply stun debuff: full stop for durationMs.
+   * Refreshes timer if already stunned.
+   */
+  applyStun(durationMs: number): void {
+    this.stunTimer = Math.max(this.stunTimer, durationMs);
+  }
+
+  /** Returns true if zombie is currently fully stunned */
+  isStunned(): boolean {
+    return this.stunTimer > 0;
   }
 
   /** Quick red pulse + scale bump when attacking; plays attack anim if available */
@@ -470,6 +512,8 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.pulseTimer = 0;
     this.aggroType = 'base_seeker';
     this.flankTarget = null;
+    this.crippleTimer = 0;
+    this.stunTimer = 0;
 
     // Spitter config
     this.spitterRange = config.range ?? 250;

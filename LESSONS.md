@@ -110,6 +110,10 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 **Problem:** WeaponManager.getWeaponStats() itererade `weapon.upgrades` (for...of) men faltet saknades i saves fran pre-v1.4. Resulterade i "Cannot read properties of undefined (reading Symbol.iterator)".
 **Losning:** SaveManager.load() maste normalisera VARJE weapon-objekt: `upgrades: w.upgrades ?? []`. Samma monster galler StructureInstance.hp/maxHp -- normalisera med fallback 100 om saknas. Regel: nar ett nytt falt laggs till pa en sub-objekt i en array (weapons[], structures[]), maste SaveManager.load() patcha VARJE element i arrayen, inte bara top-level-objektet.
 
+### Migration av upgrades-format (string[] till WeaponUpgrade[])
+**Problem:** Saves fran v1.4-v1.9 sparar upgrades som `string[]` (t.ex. `["damage_boost"]`). Fran v2.0 ar formatet `WeaponUpgrade[]` (t.ex. `[{ id: "damage_boost", level: 1 }]`). Utan migration kraschar alla saves som forstoker iterera upgrade.id.
+**Losning:** SaveManager.load() anropar `migrateUpgrades(w.upgrades ?? [])` for varje vapen. Funktionen kontrollerar om varje element ar en strang (gammalt format) eller ett objekt (nytt format) och konverterar strings till `{ id, level: 1 }`. Monstret: migrering maste ske INNE i weapons.map() -- samma plats dar upgrades normaliseras.
+
 ### Spitter-krasch (spelare redan dod)
 **Problem:** Spitter-projektil traffade spelare efter spelarens dod. takeDamage pa forstord sprite kraschade.
 **Losning:** Lagg till `!this.player.active` guard i alla overlap-callbacks som anropar player.takeDamage().
@@ -177,6 +181,18 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Per-tile fillRect skapar synliga seams i vag och base-area
 **Problem:** Road och base-area i NightScene/DayScene ritades med individuella `fillRect` per tile. Varje rect hade nagra pixels skillnad i farg vilket skapade ett rutmonster av bruna block.
 **Losning:** Ersatt med fa breda `fillRect` (ett per lager) som spanner hela kartbredden for vagen. Base-area ersatt med `fillEllipse` for en slat cirkel. Inget per-tile-loopar behovs langre for dessa former.
+
+---
+
+## Vapen och projektiler
+
+### Ranged specialeffekter kräver specialEffect-fält pa Projectile
+**Problem:** NightScene's collision-callback for projektil-zombie behover veta vilken specialeffekt projektilen bar (piercing = hoppa over deactivate, incendiary = skapa brannzon). Men Projectile-klassen hade bara `damage`.
+**Losning:** Lagg till `specialEffect: WeaponSpecialEffect | null` pa Projectile-klassen. `fire()` tar emot det som valfri parameter. `fireProjectile()` i NightScene skickar med `stats.specialEffect`. Collision-callback laser `proj.specialEffect` och kallar `applyRangedSpecialEffect()`.
+
+### Phaser Graphics -- get active() kan inte overrida property
+**Problem:** `get active(): boolean { return super.active && ... }` i en klass som extends `Phaser.GameObjects.Graphics` ger TS2611 (defined as property, not accessor) och TS2855 (not accessible via super).
+**Losning:** Byt till en vanlig metod, t.ex. `isAlive(): boolean`. Anropande kod maste uppdateras fran `.active` till `.isAlive()`.
 
 ### Dag/Natt visuell layout-diskrepans
 **Problem:** DayScene och NightScene anvande identisk seed till generateTerrain() men såg anda olika ut. Orsaken var att DayScene hade EXTRA hardkodad dekorationskod (14 buskar/blommor/stenar langs kartkanterna) som INTE existerade i NightScene.

@@ -1,7 +1,31 @@
-import type { GameState, CharacterType, SkillType, ResourceType, ZoneId } from '../config/types';
+import type { GameState, CharacterType, SkillType, ResourceType, ZoneId, WeaponUpgrade, WeaponUpgradeType } from '../config/types';
 import { GAME_VERSION, PLAYER_MAX_HP, BASE_MAX_HP } from '../config/constants';
 
 const SAVE_KEY = 'dead-horizon-save';
+
+/**
+ * Migrate a single weapon's upgrades array from the old string[] format
+ * (pre-v2.0) to the new WeaponUpgrade[] format.
+ *
+ * Old format example: ["damage_boost", "scope"]
+ * New format example: [{ id: "damage_boost", level: 1 }, { id: "scope", level: 1 }]
+ *
+ * If the array already contains objects we leave them untouched.
+ */
+function migrateUpgrades(raw: unknown[]): WeaponUpgrade[] {
+  return raw.map(entry => {
+    if (typeof entry === 'string') {
+      // Legacy string entry -- treat as level 1 of that upgrade type
+      return { id: entry as WeaponUpgradeType, level: 1 };
+    }
+    // Already an object (new format)
+    const u = entry as { id?: unknown; level?: unknown };
+    return {
+      id: (u.id ?? '') as WeaponUpgradeType,
+      level: typeof u.level === 'number' ? u.level : 1,
+    };
+  });
+}
 
 function createDefaultState(): GameState {
   return {
@@ -69,6 +93,7 @@ function createDefaultState(): GameState {
       totalKills: 0,
     },
     zone: 'forest' as ZoneId,
+    mapSeed: Math.floor(Math.random() * 100000),
     achievements: [],
     stats: {
       structuresPlaced: 0,
@@ -107,12 +132,13 @@ function load(): GameState {
           ...defaults.inventory,
           ...(saved.inventory ?? {}),
           resources: { ...defaults.inventory.resources, ...(saved.inventory?.resources ?? {}) },
-          // Ensure every weapon has the 'upgrades' array -- old saves (pre-v1.4) stored
-          // weapons without this field, causing WeaponManager.getWeaponStats() to crash
-          // when iterating upgrades.
+          // Ensure every weapon has a valid WeaponUpgrade[] upgrades array.
+          // Old saves (pre-v1.4) had no upgrades field at all.
+          // Saves from v1.4-v1.9 stored upgrades as string[].
+          // New saves (v2.0+) store upgrades as WeaponUpgrade[].
           weapons: (saved.inventory?.weapons ?? defaults.inventory.weapons).map(w => ({
             ...w,
-            upgrades: w.upgrades ?? [],
+            upgrades: migrateUpgrades(w.upgrades ?? []),
           })),
           loadedAmmo: saved.inventory?.loadedAmmo ?? defaults.inventory.loadedAmmo,
         },
@@ -133,6 +159,8 @@ function load(): GameState {
         map: { ...defaults.map, ...(saved.map ?? {}) },
         stats: { ...defaults.stats, ...(saved.stats ?? {}) },
         zoneProgress: saved.zoneProgress ?? defaults.zoneProgress,
+        // Migration: old saves lack mapSeed -- generate one
+        mapSeed: (saved as { mapSeed?: number }).mapSeed ?? Math.floor(Math.random() * 100000),
         achievements: saved.achievements ?? defaults.achievements,
         refugees: saved.refugees ?? defaults.refugees,
       };

@@ -47,7 +47,32 @@ export interface AchievementData {
   };
 }
 
-export type WeaponUpgradeType = 'damage_boost' | 'suppressor' | 'extended_mag' | 'scope' | 'reinforcement';
+export type WeaponUpgradeType =
+  | 'damage_boost'
+  | 'suppressor'
+  | 'extended_mag'
+  | 'scope'
+  | 'reinforcement'
+  | 'sharpening'
+  | 'quick_grip'
+  | 'serrated_edge';
+
+// One upgrade slot on a weapon instance -- tracks which upgrade and its current level (1-based)
+export interface WeaponUpgrade {
+  id: WeaponUpgradeType;
+  level: number; // 1..maxLevel for this upgrade type
+}
+
+// Upgrade definition loaded from upgrades.json
+export interface UpgradeDefinition {
+  id: WeaponUpgradeType;
+  name: string;
+  description: string; // template: {percent} or {value} placeholder
+  maxLevel: number;
+  costs: number[];   // costs[i] = parts cost to reach level i+1
+  values: number[];  // values[i] = effect magnitude at level i+1
+  applicableTo: WeaponClass[];
+}
 
 export interface SkillEffects {
   [effectName: string]: number;
@@ -69,10 +94,10 @@ export interface CharacterData {
 }
 
 export interface WeaponSpecialEffect {
-  type: 'bleed' | 'knockback' | 'cripple' | 'stun' | 'cleave';
+  type: 'bleed' | 'knockback' | 'cripple' | 'stun' | 'cleave' | 'crit' | 'piercing' | 'headshot' | 'incendiary';
   chance: number;   // 0-1 probability to trigger
-  value: number;    // bleed: extra damage, knockback: pixels, cripple: speed multiplier (0-1), stun: unused, cleave: radius
-  duration: number; // milliseconds -- bleed: dot interval, cripple/stun: how long the debuff lasts
+  value: number;    // bleed: extra damage, knockback: pixels, cripple: speed multiplier (0-1), stun: unused, cleave/incendiary: radius, crit/headshot: damage multiplier
+  duration: number; // milliseconds -- bleed: dot interval, cripple/stun: how long the debuff lasts, incendiary: burn zone duration
 }
 
 export interface WeaponData {
@@ -89,6 +114,7 @@ export interface WeaponData {
   specialEffect: WeaponSpecialEffect | null;
 }
 
+// Legacy type -- kept only for SaveManager migration path; new code uses WeaponUpgrade[]
 export interface WeaponUpgradeData {
   id: WeaponUpgradeType;
   name: string;
@@ -104,7 +130,9 @@ export interface WeaponInstance {
   xp: number;
   durability: number;
   maxDurability: number;
-  upgrades: WeaponUpgradeType[];
+  // Each entry = one upgrade slot (max 3 slots per weapon).
+  // Level inside WeaponUpgrade is 1-based (1 = first tier, maxLevel = fully upgraded).
+  upgrades: WeaponUpgrade[];
 }
 
 export interface RefugeeInstance {
@@ -164,6 +192,8 @@ export interface GameState {
     totalKills: number;
   };
   zone: ZoneId;
+  // Terrain seed: stays constant within a run (day+night), changes only on death
+  mapSeed: number;
   achievements: string[];
   stats: {
     structuresPlaced: number;

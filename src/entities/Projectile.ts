@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
 import weaponsData from '../data/weapons.json';
+import type { WeaponSpecialEffect } from '../config/types';
 
 const PROJECTILE_SPEED = weaponsData.projectileSpeed;
 const PROJECTILE_LIFESPAN = weaponsData.projectileLifespan;
 
 export class Projectile extends Phaser.Physics.Arcade.Sprite {
   damage: number = 0;
+  // Special effect carried by this projectile -- set when fired, read by NightScene on hit
+  specialEffect: WeaponSpecialEffect | null = null;
   private lifeTimer: number = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -17,11 +20,12 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite {
     this.setVisible(false);
   }
 
-  fire(x: number, y: number, angle: number, damage: number): void {
+  fire(x: number, y: number, angle: number, damage: number, specialEffect: WeaponSpecialEffect | null = null): void {
     this.setPosition(x, y);
     this.setActive(true);
     this.setVisible(true);
     this.damage = damage;
+    this.specialEffect = specialEffect;
     this.lifeTimer = PROJECTILE_LIFESPAN;
 
     this.setVelocity(

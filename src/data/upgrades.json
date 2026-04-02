@@ -1,0 +1,76 @@
+{
+  "upgrades": [
+    {
+      "id": "damage_boost",
+      "name": "Damage Boost",
+      "description": "+{percent}% damage",
+      "maxLevel": 3,
+      "costs": [3, 6, 12],
+      "values": [15, 30, 50],
+      "applicableTo": ["melee", "pistol", "rifle", "shotgun", "explosives"]
+    },
+    {
+      "id": "reinforcement",
+      "name": "Reinforcement",
+      "description": "+{percent}% durability",
+      "maxLevel": 3,
+      "costs": [2, 5, 10],
+      "values": [25, 50, 100],
+      "applicableTo": ["melee", "pistol", "rifle", "shotgun", "explosives"]
+    },
+    {
+      "id": "sharpening",
+      "name": "Sharpening",
+      "description": "+{percent}% crit chance",
+      "maxLevel": 3,
+      "costs": [2, 4, 8],
+      "values": [10, 20, 35],
+      "applicableTo": ["melee"]
+    },
+    {
+      "id": "suppressor",
+      "name": "Suppressor",
+      "description": "-{value} noise",
+      "maxLevel": 2,
+      "costs": [4, 8],
+      "values": [1, 2],
+      "applicableTo": ["pistol", "rifle", "shotgun"]
+    },
+    {
+      "id": "extended_mag",
+      "name": "Extended Mag",
+      "description": "-{percent}% ammo use",
+      "maxLevel": 3,
+      "costs": [3, 7, 14],
+      "values": [20, 40, 60],
+      "applicableTo": ["pistol", "rifle", "shotgun", "explosives"]
+    },
+    {
+      "id": "scope",
+      "name": "Scope",
+      "description": "+{percent}% range",
+      "maxLevel": 3,
+      "costs": [3, 6, 12],
+      "values": [15, 30, 50],
+      "applicableTo": ["pistol", "rifle"]
+    },
+    {
+      "id": "quick_grip",
+      "name": "Quick Grip",
+      "description": "-{percent}% fire rate",
+      "maxLevel": 3,
+      "costs": [3, 6, 12],
+      "values": [15, 25, 40],
+      "applicableTo": ["melee", "pistol", "rifle", "shotgun", "explosives"]
+    },
+    {
+      "id": "serrated_edge",
+      "name": "Serrated Edge",
+      "description": "Adds bleed effect",
+      "maxLevel": 2,
+      "costs": [4, 8],
+      "values": [15, 25],
+      "applicableTo": ["melee"]
+    }
+  ]
+}
