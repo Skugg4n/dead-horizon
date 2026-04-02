@@ -706,14 +706,16 @@ export class NightScene extends Phaser.Scene {
 
   private setupCollisions(): void {
     // Projectile hits zombie
+    // IMPORTANT: Phaser overlap callback argument order is NOT guaranteed.
+    // We must use instanceof to identify which is the Projectile and which is the Zombie.
     this.physics.add.overlap(
       this.projectileGroup,
       this.zombieGroup,
-      (_proj, _zombie) => {
-        const proj = _proj as Projectile;
-        const zombie = _zombie as Zombie;
+      (_a, _b) => {
+        const proj = (_a instanceof Projectile ? _a : _b) as Projectile;
+        const zombie = (_a instanceof Zombie ? _a : _b) as Zombie;
+        if (!(proj instanceof Projectile) || !(zombie instanceof Zombie)) return;
         if (!proj.active || !zombie.active) return;
-        if (typeof proj.deactivate !== 'function') { _proj.destroy(); return; }
 
         // Apply ranged special effects before damage to allow crit/headshot multiplier
         const finalDamage = this.calcRangedDamage(proj);
@@ -807,18 +809,13 @@ export class NightScene extends Phaser.Scene {
     );
 
     // Spitter projectile hits player
+    // IMPORTANT: argument order not guaranteed -- use instanceof
     this.physics.add.overlap(
       this.spitterProjectileGroup,
       this.player,
-      (_proj) => {
-        const proj = _proj as Projectile;
-        if (!this.player.active) return;
-        // Guard: overlap may fire on non-Projectile objects
-        if (typeof proj.deactivate !== 'function') {
-          (proj as Phaser.GameObjects.GameObject).destroy();
-          return;
-        }
-        if (!proj.active) return;
+      (_a, _b) => {
+        const proj = (_a instanceof Projectile ? _a : _b instanceof Projectile ? _b : null);
+        if (!proj || !this.player.active || !proj.active) return;
         this.player.takeDamage(proj.damage);
         proj.deactivate();
       },
