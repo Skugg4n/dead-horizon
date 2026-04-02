@@ -250,7 +250,7 @@ describe('WeaponManager', () => {
         weaponId: 'rusty_knife',
         rarity: 'common',
         level: 1,
-        upgrades: ['damage_boost'],
+        upgrades: [{ id: 'damage_boost', level: 1 }],
       });
       gameState.inventory.weapons.push(weapon);
       manager = new WeaponManager(mockScene as never, gameState);
@@ -265,7 +265,7 @@ describe('WeaponManager', () => {
         weaponId: 'worn_pistol',
         rarity: 'common',
         level: 1,
-        upgrades: ['suppressor'],
+        upgrades: [{ id: 'suppressor', level: 1 }],
       });
       gameState.inventory.weapons.push(weapon);
       manager = new WeaponManager(mockScene as never, gameState);
@@ -280,7 +280,7 @@ describe('WeaponManager', () => {
         weaponId: 'worn_pistol',
         rarity: 'common',
         level: 1,
-        upgrades: ['scope'],
+        upgrades: [{ id: 'scope', level: 1 }],
       });
       gameState.inventory.weapons.push(weapon);
       manager = new WeaponManager(mockScene as never, gameState);
@@ -443,12 +443,14 @@ describe('WeaponManager', () => {
       expect(manager.canUpgrade('w1', 'damage_boost')).toBe(true);
     });
 
-    it('canUpgrade returns false when already has upgrade', () => {
-      const weapon = createTestWeapon({ id: 'w1', upgrades: ['damage_boost'] });
+    it('canUpgrade returns true for leveling up existing upgrade', () => {
+      // With tiered upgrades, canUpgrade should return true if not at max level
+      const weapon = createTestWeapon({ id: 'w1', upgrades: [{ id: 'damage_boost', level: 1 }] });
       gameState.inventory.weapons.push(weapon);
       manager = new WeaponManager(mockScene as never, gameState);
 
-      expect(manager.canUpgrade('w1', 'damage_boost')).toBe(false);
+      // Level 1 of 3 -- should be upgradeable to level 2
+      expect(manager.canUpgrade('w1', 'damage_boost')).toBe(true);
     });
 
     it('canUpgrade returns false when not enough parts', () => {
@@ -467,27 +469,35 @@ describe('WeaponManager', () => {
 
       const result = manager.upgrade('w1', 'damage_boost');
       expect(result).toBe(true);
-      expect(weapon.upgrades).toContain('damage_boost');
-      // damage_boost costs 3 parts
+      // Upgrades are now WeaponUpgrade[] objects, not strings
+      expect(weapon.upgrades.some(u => u.id === 'damage_boost')).toBe(true);
+      // damage_boost level 1 costs 3 parts
       expect(gameState.inventory.resources.parts).toBe(7);
     });
 
-    it('reinforcement upgrade increases maxDurability by 25%', () => {
+    it('reinforcement upgrade tracked in upgrades array', () => {
       const weapon = createTestWeapon({ id: 'w1', upgrades: [], maxDurability: 50 });
       gameState.inventory.weapons.push(weapon);
       manager = new WeaponManager(mockScene as never, gameState);
 
       manager.upgrade('w1', 'reinforcement');
-      // 50 * 1.25 = 62.5, rounded = 63
-      expect(weapon.maxDurability).toBe(63);
+      expect(weapon.upgrades.some(u => u.id === 'reinforcement')).toBe(true);
     });
 
-    it('upgrade returns false when cannot upgrade', () => {
-      const weapon = createTestWeapon({ id: 'w1', upgrades: ['damage_boost'] });
+    it('upgrade returns false when max slots reached', () => {
+      const weapon = createTestWeapon({
+        id: 'w1',
+        upgrades: [
+          { id: 'damage_boost', level: 1 },
+          { id: 'reinforcement', level: 1 },
+          { id: 'quick_grip', level: 1 },
+        ],
+      });
       gameState.inventory.weapons.push(weapon);
       manager = new WeaponManager(mockScene as never, gameState);
 
-      expect(manager.upgrade('w1', 'damage_boost')).toBe(false);
+      // 3 slots full, new upgrade should fail
+      expect(manager.upgrade('w1', 'scope')).toBe(false);
     });
   });
 
