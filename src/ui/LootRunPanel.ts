@@ -359,7 +359,11 @@ export class LootRunPanel {
       const thresholds: Record<string, number> = {
         nearby_houses: 50,
         abandoned_store: 70,
+        city_ruins: 60,
+        hospital: 65,
+        police_station: 80,
         military_outpost: 100,
+        armory: 120,
       };
       const threshold = thresholds[this.selectedDestination.id] ?? 50;
 

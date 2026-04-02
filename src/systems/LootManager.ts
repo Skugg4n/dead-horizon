@@ -22,6 +22,7 @@ import weaponsJson from '../data/weapons.json';
 
 export interface LootDestination {
   id: string;
+  zone: string;
   name: string;
   apCost: number;
   encounterChance: number;
@@ -72,8 +73,16 @@ export class LootManager {
     this.gameState = gameState;
   }
 
+  /**
+   * Returns destinations filtered to the current zone.
+   * Falls back to all destinations if no matching zone entries exist.
+   */
   getDestinations(): LootDestination[] {
-    return destinations;
+    const currentZone = this.gameState.zone;
+    const zoneDestinations = destinations.filter(d => d.zone === currentZone);
+    // Safety fallback: if the zone has no destinations (e.g. old save with unknown zone)
+    // return all destinations so the player is never stuck with an empty list.
+    return zoneDestinations.length > 0 ? zoneDestinations : destinations;
   }
 
   /**

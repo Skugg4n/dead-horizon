@@ -210,9 +210,9 @@ export class RefugeeManager {
     }
   }
 
-  // Get refugees that can be stationed in pillboxes (healthy, not on other critical jobs)
+  // Get refugees assigned to pillbox duty (job === 'pillbox' and healthy)
   getPillboxRefugees(): RefugeeInstance[] {
-    return this.refugees.filter(r => r.status === 'healthy');
+    return this.refugees.filter(r => r.job === 'pillbox' && r.status === 'healthy');
   }
 
   syncToState(): void {

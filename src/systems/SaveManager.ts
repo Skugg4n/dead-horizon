@@ -50,7 +50,7 @@ function createDefaultState(): GameState {
         scrap: 10,
         food: 5,
         ammo: 10,
-        parts: 0,
+        parts: 2,
         meds: 2,
       } as Record<ResourceType, number>,
       loadedAmmo: 0,

@@ -138,6 +138,14 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ---
 
+## Loot System
+
+### Zone-specifika destinationer -- fallback vid okand zon
+**Problem:** Om en gammal save har en zon som inte langre matchar nagot zone-falt i loot-tables.json returneras en tom lista, och spelaren ser inga destinationer att valja.
+**Losning:** `LootManager.getDestinations()` kollar om filterresultatet ar tomt och faller tillbaka pa hela listan. Alltid ha ett fallback-steg nar man filtrerar data baserat pa spelstatus.
+
+---
+
 ## UI
 
 ### Dialog/panel overflow -- berakna hojd dynamiskt

@@ -1,5 +1,27 @@
 # Dead Horizon -- Changelog
 
+## [1.8.9] - 2026-04-02 14:30
+
+### Fixed -- B3: Pillbox UI och logik
+
+- `src/ui/RefugeePanel.ts`: Lade till 'pillbox' i JOB_BUTTONS-arrayen (visas som 'GUARD'-knapp). Refugees kan nu tilldelas pillbox-jobb via UI.
+- `src/systems/RefugeeManager.ts`: `getPillboxRefugees()` filtrerar nu korrekt pa `job === 'pillbox' && status === 'healthy'` istallet for att returnera alla friska refugees. Forhindrar att refugees pa pillbox-jobb aven raknas som scavengers.
+
+### Feature -- Zone-specifika loot-destinationer
+
+- `src/data/loot-tables.json`: Lade till `zone`-falt pa varje destination. Nya destinationer: `city_ruins` (City, 3 AP), `hospital` (City, 4 AP), `police_station` (City, 5 AP), `armory` (Military, 5 AP). `abandoned_store` andrades till 5 AP (fran 3). `military_outpost` andrades till 4 AP (fran 5). Varje destination har rimliga loot-tabeller for sin zon.
+- `src/systems/LootManager.ts`: `getDestinations()` filtrerar nu pa `gameState.zone`. Fallback till alla destinationer om ingen matchar (t.ex. gamla saves).
+- `src/ui/LootRunPanel.ts`: Visar automatiskt bara destinationer for aktuell zon (via `lootManager.getDestinations()`). Encounter-thresholds utokade med nya destinations-ID.
+- `src/config/constants.ts`: `ENCOUNTER_THRESHOLDS` utokad med alla nya destinations-ID.
+
+### Balans -- Startresurser
+
+- `src/systems/SaveManager.ts`: `createDefaultState()` -- `parts` andrad fran 0 till 2 sa crafting ar tillganglig direkt fran start.
+
+### Note -- F5 Zombie aggro 70/30 (ignorerad)
+
+- Feature F5 implementeras INTE. Enligt LESSONS.md orsakar wanderer-zombies forvirring for spelaren. Alla zombies gar mot basen. aggroType-propertyn bevaras men sats alltid till 'base_seeker'.
+
 ## [1.9.3] - 2026-04-02
 
 ### Changed -- Forbattrade sprites for spelare, zombies, baser och strukturer

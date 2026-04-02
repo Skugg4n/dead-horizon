@@ -104,8 +104,9 @@ export class CraftingManager {
         for (const w of walls) {
           if (w.hp < target.hp) target = w;
         }
-        target.hp = Math.min(target.maxHp + recipe.result.amount, target.hp + recipe.result.amount);
+        // Increase maxHp first, then heal (capped at new maxHp)
         target.maxHp += recipe.result.amount;
+        target.hp = Math.min(target.maxHp, target.hp + recipe.result.amount);
         break;
       }
       case 'heal_refugee': {

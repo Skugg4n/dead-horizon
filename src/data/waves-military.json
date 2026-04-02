@@ -45,7 +45,7 @@
         { "type": "spitter", "count": 10, "spawnDelay": 1800 },
         { "type": "brute", "count": 10, "spawnDelay": 2000 },
         { "type": "screamer", "count": 4, "spawnDelay": 3500 },
-        { "type": "boss", "count": 1, "spawnDelay": 8000 }
+        { "type": "brute_boss", "count": 1, "spawnDelay": 8000 }
       ]
     }
   ]

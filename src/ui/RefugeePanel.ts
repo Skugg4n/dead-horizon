@@ -15,7 +15,7 @@ const ROW_HEIGHT = 68;
 const PORTRAIT_R = 14;
 
 // Jobs shown as buttons (loot_run is not assignable via button)
-const JOB_BUTTONS: RefugeeJob[] = ['gather_food', 'gather_scrap', 'repair', 'rest'];
+const JOB_BUTTONS: RefugeeJob[] = ['gather_food', 'gather_scrap', 'repair', 'rest', 'pillbox'];
 
 const JOB_LABELS: Record<RefugeeJob, string> = {
   gather_food: 'FOOD',
@@ -23,6 +23,7 @@ const JOB_LABELS: Record<RefugeeJob, string> = {
   repair: 'FIX',
   rest: 'REST',
   loot_run: 'LOOT',
+  pillbox: 'GUARD',
 };
 
 // Status -> portrait fill colour

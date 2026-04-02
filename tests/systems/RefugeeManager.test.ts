@@ -494,10 +494,11 @@ describe('RefugeeManager', () => {
   });
 
   describe('getPillboxRefugees', () => {
-    it('returns only healthy refugees', () => {
+    it('returns only healthy refugees with pillbox job', () => {
       gameState.refugees = [
-        createTestRefugee({ id: 'r1', status: 'healthy' }),
-        createTestRefugee({ id: 'r2', name: 'Raven', status: 'injured' }),
+        createTestRefugee({ id: 'r1', status: 'healthy', job: 'pillbox' }),
+        createTestRefugee({ id: 'r2', name: 'Raven', status: 'injured', job: 'pillbox' }),
+        createTestRefugee({ id: 'r3', status: 'healthy', job: 'gather_food' }),
       ];
       manager = new RefugeeManager(mockScene as never, gameState);
 

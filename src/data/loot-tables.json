@@ -1,18 +1,19 @@
 {
   "weaponDrops": [
-    { "weaponId": "rusty_knife",   "chance": 0.08, "destinations": ["nearby_houses", "abandoned_store"] },
-    { "weaponId": "hunting_knife", "chance": 0.06, "destinations": ["nearby_houses", "abandoned_store", "military_outpost"] },
-    { "weaponId": "baseball_bat",  "chance": 0.07, "destinations": ["nearby_houses", "abandoned_store"] },
-    { "weaponId": "crowbar",       "chance": 0.05, "destinations": ["nearby_houses", "abandoned_store", "military_outpost"] },
-    { "weaponId": "two_by_four",   "chance": 0.09, "destinations": ["nearby_houses", "abandoned_store"] },
-    { "weaponId": "fire_axe",      "chance": 0.03, "destinations": ["military_outpost"] },
-    { "weaponId": "worn_pistol",   "chance": 0.05, "destinations": ["nearby_houses", "abandoned_store", "military_outpost"] },
-    { "weaponId": "hunting_rifle", "chance": 0.03, "destinations": ["military_outpost"] },
-    { "weaponId": "sawed_off",     "chance": 0.03, "destinations": ["abandoned_store", "military_outpost"] }
+    { "weaponId": "rusty_knife",   "chance": 0.08, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "weaponId": "hunting_knife", "chance": 0.06, "destinations": ["nearby_houses", "abandoned_store", "military_outpost", "armory"] },
+    { "weaponId": "baseball_bat",  "chance": 0.07, "destinations": ["nearby_houses", "abandoned_store", "city_ruins", "police_station"] },
+    { "weaponId": "crowbar",       "chance": 0.05, "destinations": ["nearby_houses", "abandoned_store", "military_outpost", "city_ruins"] },
+    { "weaponId": "two_by_four",   "chance": 0.09, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "weaponId": "fire_axe",      "chance": 0.03, "destinations": ["military_outpost", "armory", "police_station"] },
+    { "weaponId": "worn_pistol",   "chance": 0.05, "destinations": ["nearby_houses", "abandoned_store", "military_outpost", "police_station", "armory"] },
+    { "weaponId": "hunting_rifle", "chance": 0.03, "destinations": ["military_outpost", "armory"] },
+    { "weaponId": "sawed_off",     "chance": 0.03, "destinations": ["abandoned_store", "military_outpost", "police_station"] }
   ],
   "destinations": [
     {
       "id": "nearby_houses",
+      "zone": "forest",
       "name": "Nearby Houses",
       "apCost": 3,
       "encounterChance": 0.2,
@@ -25,8 +26,9 @@
     },
     {
       "id": "abandoned_store",
+      "zone": "forest",
       "name": "Abandoned Store",
-      "apCost": 3,
+      "apCost": 5,
       "encounterChance": 0.3,
       "loot": [
         { "resource": "scrap", "min": 8, "max": 20, "chance": 0.8 },
@@ -36,15 +38,68 @@
       ]
     },
     {
-      "id": "military_outpost",
-      "name": "Military Outpost",
+      "id": "city_ruins",
+      "zone": "city",
+      "name": "City Ruins",
+      "apCost": 3,
+      "encounterChance": 0.35,
+      "loot": [
+        { "resource": "scrap", "min": 8, "max": 18, "chance": 0.85 },
+        { "resource": "food", "min": 1, "max": 5, "chance": 0.5 },
+        { "resource": "ammo", "min": 2, "max": 6, "chance": 0.4 },
+        { "resource": "parts", "min": 1, "max": 3, "chance": 0.3 }
+      ]
+    },
+    {
+      "id": "hospital",
+      "zone": "city",
+      "name": "Hospital",
+      "apCost": 4,
+      "encounterChance": 0.45,
+      "loot": [
+        { "resource": "meds", "min": 3, "max": 8, "chance": 0.9 },
+        { "resource": "food", "min": 1, "max": 4, "chance": 0.4 },
+        { "resource": "scrap", "min": 2, "max": 8, "chance": 0.6 },
+        { "resource": "parts", "min": 1, "max": 2, "chance": 0.3 }
+      ]
+    },
+    {
+      "id": "police_station",
+      "zone": "city",
+      "name": "Police Station",
       "apCost": 5,
+      "encounterChance": 0.55,
+      "loot": [
+        { "resource": "ammo", "min": 5, "max": 14, "chance": 0.85 },
+        { "resource": "scrap", "min": 5, "max": 15, "chance": 0.7 },
+        { "resource": "meds", "min": 1, "max": 4, "chance": 0.4 },
+        { "resource": "parts", "min": 1, "max": 3, "chance": 0.35 }
+      ]
+    },
+    {
+      "id": "military_outpost",
+      "zone": "military",
+      "name": "Military Outpost",
+      "apCost": 4,
       "encounterChance": 0.6,
       "loot": [
         { "resource": "scrap", "min": 10, "max": 25, "chance": 0.7 },
         { "resource": "ammo", "min": 5, "max": 15, "chance": 0.8 },
         { "resource": "parts", "min": 1, "max": 4, "chance": 0.5 },
         { "resource": "meds", "min": 2, "max": 5, "chance": 0.4 }
+      ]
+    },
+    {
+      "id": "armory",
+      "zone": "military",
+      "name": "Armory",
+      "apCost": 5,
+      "encounterChance": 0.7,
+      "loot": [
+        { "resource": "ammo", "min": 10, "max": 25, "chance": 0.9 },
+        { "resource": "parts", "min": 2, "max": 6, "chance": 0.7 },
+        { "resource": "scrap", "min": 8, "max": 20, "chance": 0.6 },
+        { "resource": "meds", "min": 2, "max": 6, "chance": 0.45 }
       ]
     }
   ]

@@ -8,7 +8,7 @@ export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
 export type RefugeeStatus = 'healthy' | 'injured' | 'away';
 
-export type RefugeeJob = 'gather_food' | 'gather_scrap' | 'loot_run' | 'repair' | 'rest';
+export type RefugeeJob = 'gather_food' | 'gather_scrap' | 'loot_run' | 'repair' | 'rest' | 'pillbox';
 
 export type CharacterType = 'scavenger' | 'engineer' | 'soldier' | 'medic';
 
