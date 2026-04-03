@@ -16,26 +16,34 @@ export class GameOverScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#1A1A2E');
 
-    this.add.text(centerX, centerY - 60, 'YOU DIED', {
+    this.add.text(centerX, centerY - 80, 'YOU DIED', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '14px',
+      fontSize: '18px',
       color: '#8B0000',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY - 10, 'But you keep everything...', {
+    this.add.text(centerX, centerY - 30, 'But in a parallel universe\nyou are alive to fight\nanother night.', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '14px',
+      fontSize: '9px',
+      color: '#6B8B6B',
+      align: 'center',
+      lineSpacing: 4,
+    }).setOrigin(0.5);
+
+    this.add.text(centerX, centerY + 30, 'You keep all your gear.', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
       color: '#6B6B6B',
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY + 20, `Wave ${data.wave ?? '?'} -- ${data.kills ?? 0} kills`, {
+    this.add.text(centerX, centerY + 55, `Wave ${data.wave ?? '?'} -- ${data.kills ?? 0} kills`, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '12px',
+      fontSize: '10px',
       color: '#E8DCC8',
     }).setOrigin(0.5);
 
     // "Try again" appears after 3 seconds -- prevents accidental skip from combat keys
-    const retryText = this.add.text(centerX, centerY + 70, '', {
+    const retryText = this.add.text(centerX, centerY + 90, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '14px',
       color: '#D4620B',
