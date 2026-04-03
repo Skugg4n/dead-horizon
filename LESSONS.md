@@ -192,6 +192,18 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ---
 
+## Auto-load ammo system
+
+### autoLoadAmmo() maste koras EFTER weaponManager skapas
+**Problem:** autoLoadAmmo() behovar WeaponManager for att slå upp ammoPerNight per vapen (via WeaponManager.getWeaponData()). Logiken kan inte koras fore weaponManager-instansiering.
+**Losning:** Placera autoLoadAmmo()-anropet direkt efter `this.weaponManager = new WeaponManager(...)` och EquipmentPanel.autoEquipIfNeeded(). Returvarde (loaded ammo) tilldelas this.loadedAmmo.
+
+### HUD.updateWeapon kallas fran NightScene med PRIMARY-vakpen
+**Problem:** Efter redesignen visar slot [1] alltid primary-vapnet, slot [2] alltid secondary -- oavsett vilket som ar aktivt. setActiveSlot(1|2) lyfter fram aktivt tangent-nummer.
+**Losning:** updateWeaponHUD() i NightScene uppdaterar bada slots separat: updateWeapon() for primary, updateSecondaryWeapon() for secondary. jamfor activeWeapon.id mot primaryWeaponId for att avgora vilket slot som ar aktivt.
+
+---
+
 ## Vapen och projektiler
 
 ### Ranged specialeffekter kräver specialEffect-fält pa Projectile
@@ -205,3 +217,7 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Dag/Natt visuell layout-diskrepans
 **Problem:** DayScene och NightScene anvande identisk seed till generateTerrain() men såg anda olika ut. Orsaken var att DayScene hade EXTRA hardkodad dekorationskod (14 buskar/blommor/stenar langs kartkanterna) som INTE existerade i NightScene.
 **Losning:** Ta bort all scen-specifik dekorationskod. ALL dekoration ska komma fran TerrainGenerator.generateTerrain() (samma funktion, samma seed). Lagg till console.log for seed i bada scenerna (`[DayScene] terrain seed = X`, `[NightScene] terrain seed = X`) sa man kan verifiera att de matchar.
+
+### Toolbar null-gap-pattern orsakar array-typ-fel vid toolbar-refactor
+**Problem:** Toolbar-arrayen hade typen `(ToolbarButton | null)[]` med null-entries for visuella gap. Nar man refactorar toolbar (tar bort knappar) maste man ocksa ta bort null-entries och uppdatera loopen som hoppade over dem.
+**Losning:** Byt till enkel `ToolbarButton[]` utan nulls. Berakna totalWidth med `(n-1) * gap` istallet. Loopen behovar inte langre noll-check.

@@ -1,15 +1,17 @@
-// EquipmentPanel -- lets the player choose which 2 weapons to carry into the night.
+// EquipmentPanel -- choose which 2 weapons to carry into the night, and manage all weapons.
 // PRIMARY slot = key 1 in NightScene, SECONDARY slot = key 2.
 // Open with Q in DayScene toolbar.
+// Includes repair and upgrade functionality (replaces separate WeaponPanel).
 
 import Phaser from 'phaser';
 import { UIPanel } from './UIPanel';
 import { WeaponManager } from '../systems/WeaponManager';
-import type { GameState, WeaponInstance } from '../config/types';
+import { renderResourceCosts } from './resourceIcons';
+import type { GameState, WeaponInstance, WeaponUpgradeType, UpgradeDefinition } from '../config/types';
 
-const PANEL_WIDTH = 360;
+const PANEL_WIDTH = 380;
 
-// Rarity color mapping -- matches WeaponPanel style
+// Rarity color mapping
 const RARITY_COLORS: Record<string, string> = {
   common: '#E8DCC8',
   uncommon: '#4CAF50',
@@ -17,23 +19,31 @@ const RARITY_COLORS: Record<string, string> = {
   legendary: '#FFD700',
 };
 
-/**
- * Build a compact one-line summary for a weapon slot row.
- * Example: "Rusty Knife [common] DMG:15"
- */
-function weaponSummary(weapon: WeaponInstance, manager: WeaponManager): string {
-  const stats = manager.getWeaponStats(weapon);
-  const data = WeaponManager.getWeaponData(weapon.weaponId);
-  const name = data?.name ?? weapon.weaponId;
-  return `${name} [${weapon.rarity}] DMG:${stats.damage}`;
+// Build level label e.g. "Lv 2/3"
+function levelLabel(current: number, max: number): string {
+  return `Lv ${current}/${max}`;
+}
+
+// Resolve upgrade description template
+function resolveDescription(def: UpgradeDefinition, level: number): string {
+  const val = def.values[level - 1] ?? 0;
+  return def.description
+    .replace('{percent}', String(val))
+    .replace('{value}', String(val));
 }
 
 type Slot = 'primary' | 'secondary';
 
-/** Internal view state: either the default two-slot view or the picker for one slot. */
+/**
+ * View state machine:
+ *  - default: shows slots + storage list
+ *  - picker: choose weapon for a slot
+ *  - upgrade: inline upgrade options for a specific weapon
+ */
 type ViewState =
   | { mode: 'default' }
-  | { mode: 'picker'; slot: Slot };
+  | { mode: 'picker'; slot: Slot }
+  | { mode: 'upgrade'; weaponId: string };
 
 export class EquipmentPanel {
   private scene: Phaser.Scene;
@@ -41,13 +51,26 @@ export class EquipmentPanel {
   private gameState: GameState;
   private panel: UIPanel;
   private viewState: ViewState = { mode: 'default' };
+  private currentAP: () => number;
+  private spendAP: (cost: number) => void;
+  private onResourceChange: () => void;
 
-  constructor(scene: Phaser.Scene, weaponManager: WeaponManager, gameState: GameState) {
+  constructor(
+    scene: Phaser.Scene,
+    weaponManager: WeaponManager,
+    gameState: GameState,
+    currentAP: () => number = () => 0,
+    spendAP: (cost: number) => void = () => { /* no-op */ },
+    onResourceChange: () => void = () => { /* no-op */ },
+  ) {
     this.scene = scene;
     this.weaponManager = weaponManager;
     this.gameState = gameState;
+    this.currentAP = currentAP;
+    this.spendAP = spendAP;
+    this.onResourceChange = onResourceChange;
 
-    this.panel = new UIPanel(scene, 'EQUIPMENT', PANEL_WIDTH, 420);
+    this.panel = new UIPanel(scene, 'EQUIPMENT', PANEL_WIDTH, 480);
     this.rebuild();
   }
 
@@ -75,8 +98,7 @@ export class EquipmentPanel {
   handleKey(key: string): boolean {
     if (!this.panel.isVisible()) return false;
     if (key === 'Escape') {
-      if (this.viewState.mode === 'picker') {
-        // Back to default view on Escape inside picker
+      if (this.viewState.mode !== 'default') {
         this.viewState = { mode: 'default' };
         this.rebuild();
       } else {
@@ -88,14 +110,20 @@ export class EquipmentPanel {
   }
 
   // ---------------------------------------------------------------------------
-  // Internal rebuild -- renders either the two-slot overview or the weapon picker
+  // Internal rebuild -- renders current viewState
   // ---------------------------------------------------------------------------
 
   private rebuild(): void {
-    if (this.viewState.mode === 'default') {
-      this.buildDefaultView();
-    } else {
-      this.buildPickerView(this.viewState.slot);
+    switch (this.viewState.mode) {
+      case 'default':
+        this.buildDefaultView();
+        break;
+      case 'picker':
+        this.buildPickerView(this.viewState.slot);
+        break;
+      case 'upgrade':
+        this.buildUpgradeView(this.viewState.weaponId);
+        break;
     }
   }
 
@@ -121,12 +149,10 @@ export class EquipmentPanel {
       const portrait = this.scene.add.image(PANEL_WIDTH / 2 - 12, 32, portraitKey);
       portrait.setDisplaySize(48, 48);
       content.add(portrait);
-      // Gold border
       const border = this.scene.add.graphics();
       border.lineStyle(2, 0xC5A030);
       border.strokeRect(PANEL_WIDTH / 2 - 12 - 24, 32 - 24, 48, 48);
       content.add(border);
-      // Character name
       const charName = this.gameState.player.character.charAt(0).toUpperCase()
         + this.gameState.player.character.slice(1);
       const nameText = this.scene.add.text(PANEL_WIDTH / 2 - 12, 62, charName, {
@@ -135,23 +161,23 @@ export class EquipmentPanel {
         color: '#C5A030',
       }).setOrigin(0.5, 0);
       content.add(nameText);
-      y = 78;
+      y = 82;
     }
 
     // ---- PRIMARY slot ----
-    y = this.renderSlotRow(content, 'PRIMARY', primaryWeapon, 'primary', y);
-    y += 16;
+    y = this.renderSlotRow(content, 'PRIMARY [1]', primaryWeapon, 'primary', y);
+    y += 12;
 
     // ---- SECONDARY slot ----
-    y = this.renderSlotRow(content, 'SECONDARY', secondaryWeapon, 'secondary', y);
-    y += 20;
+    y = this.renderSlotRow(content, 'SECONDARY [2]', secondaryWeapon, 'secondary', y);
+    y += 16;
 
     // ---- Divider ----
     const divider = this.scene.add.graphics();
     divider.lineStyle(1, 0x444444, 1);
     divider.lineBetween(0, y, PANEL_WIDTH - 24, y);
     content.add(divider);
-    y += 8;
+    y += 10;
 
     // ---- Storage list (weapons not equipped) ----
     const storageWeapons = weapons.filter(
@@ -160,7 +186,7 @@ export class EquipmentPanel {
 
     const storageHeader = this.scene.add.text(
       0, y,
-      `STORAGE: (${storageWeapons.length} weapon${storageWeapons.length !== 1 ? 's' : ''})`,
+      `STORAGE (${storageWeapons.length} weapon${storageWeapons.length !== 1 ? 's' : ''})`,
       {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
@@ -174,23 +200,24 @@ export class EquipmentPanel {
       const emptyText = this.scene.add.text(0, y, '  (all weapons equipped)', {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
-        color: '#6B6B6B',
+        color: '#555555',
       });
       content.add(emptyText);
     } else {
       for (const w of storageWeapons) {
-        const data = WeaponManager.getWeaponData(w.weaponId);
-        const name = data?.name ?? w.weaponId;
-        const color = RARITY_COLORS[w.rarity] ?? '#E8DCC8';
-        const entry = this.scene.add.text(0, y, `  - ${name} [${w.rarity}]`, {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '8px',
-          color,
-        });
-        content.add(entry);
-        y += 14;
+        y = this.renderStorageEntry(content, w, y);
       }
     }
+
+    // ---- Stats footer ----
+    y += 8;
+    const ammoInfo = this.scene.add.text(0, y, `AMMO: ${this.gameState.inventory.resources.ammo} (auto-loaded at night)`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#4A90D9',
+      wordWrap: { width: PANEL_WIDTH - 24 },
+    });
+    content.add(ammoInfo);
   }
 
   /**
@@ -216,7 +243,7 @@ export class EquipmentPanel {
     y += 14;
 
     // Weapon info box
-    const boxH = 26;
+    const boxH = weapon ? 44 : 26;
     const boxW = contentWidth - 32; // leave room for [>] button
 
     const boxBg = this.scene.add.graphics();
@@ -231,20 +258,66 @@ export class EquipmentPanel {
       const data = WeaponManager.getWeaponData(weapon.weaponId);
       const name = data?.name ?? weapon.weaponId;
       const color = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
+      const isBroken = this.weaponManager.isBroken(weapon);
 
-      const nameText = this.scene.add.text(4, y + 4, `${name} [${weapon.rarity}]`, {
+      const nameText = this.scene.add.text(4, y + 3, `${name} [${weapon.rarity}]`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
-        color,
+        color: isBroken ? '#F44336' : color,
       });
       content.add(nameText);
 
-      const dmgText = this.scene.add.text(4, y + 16, `DMG:${stats.damage}  RNG:${stats.range}`, {
+      const dmgText = this.scene.add.text(4, y + 15, `DMG:${stats.damage} RNG:${stats.range} DUR:${weapon.durability}/${weapon.maxDurability}`, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: '#8A8A8A',
+        fontSize: '7px',
+        color: isBroken ? '#F44336' : '#8A8A8A',
       });
       content.add(dmgText);
+
+      // Repair button (if damaged)
+      if (weapon.durability < weapon.maxDurability) {
+        const canRepair = this.currentAP() >= 1 && this.gameState.inventory.resources.parts >= 1;
+        const repairColor = canRepair ? '#4CAF50' : '#555555';
+        const repairBtn = this.scene.add.text(4, y + 28, '[REPAIR]', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: repairColor,
+        });
+        content.add(repairBtn);
+        if (canRepair) {
+          repairBtn.setInteractive({ useHandCursor: true });
+          repairBtn.on('pointerover', () => repairBtn.setColor('#FFD700'));
+          repairBtn.on('pointerout', () => repairBtn.setColor('#4CAF50'));
+          repairBtn.on('pointerdown', () => {
+            if (this.weaponManager.repair(weapon.id)) {
+              this.spendAP(1);
+              this.onResourceChange();
+              this.rebuild();
+            }
+          });
+        }
+        // Cost hint
+        renderResourceCosts(this.scene, content, { parts: 1 }, 68, y + 28, repairColor);
+      }
+
+      // Upgrade button
+      const availableUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(weapon);
+      if (availableUpgrades.length > 0) {
+        const upgBtnX = weapon.durability < weapon.maxDurability ? 140 : 4;
+        const upgBtnY = weapon.durability < weapon.maxDurability ? y + 28 : y + 28;
+        const upgradeBtn = this.scene.add.text(upgBtnX, upgBtnY, '[UPGRADE]', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: '#4A90D9',
+        }).setInteractive({ useHandCursor: true });
+        upgradeBtn.on('pointerover', () => upgradeBtn.setColor('#FFD700'));
+        upgradeBtn.on('pointerout', () => upgradeBtn.setColor('#4A90D9'));
+        upgradeBtn.on('pointerdown', () => {
+          this.viewState = { mode: 'upgrade', weaponId: weapon.id };
+          this.rebuild();
+        });
+        content.add(upgradeBtn);
+      }
     } else {
       const emptyText = this.scene.add.text(4, y + 9, '(empty)', {
         fontFamily: '"Press Start 2P", monospace',
@@ -268,7 +341,7 @@ export class EquipmentPanel {
     if (btnBg.input) btnBg.input.cursor = 'pointer';
     content.add(btnBg);
 
-    const btnLabel = this.scene.add.text(btnX + 14, y + 13, '[>]', {
+    const btnLabel = this.scene.add.text(btnX + 14, y + boxH / 2, '[>]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#4A90D9',
@@ -299,6 +372,116 @@ export class EquipmentPanel {
     return y + boxH;
   }
 
+  /**
+   * Render one storage entry row with EQUIP and UPGRADE buttons.
+   * Returns new y.
+   */
+  private renderStorageEntry(
+    content: Phaser.GameObjects.Container,
+    w: WeaponInstance,
+    y: number,
+  ): number {
+    const contentWidth = PANEL_WIDTH - 24;
+    const rowH = 32;
+
+    const data = WeaponManager.getWeaponData(w.weaponId);
+    const name = data?.name ?? w.weaponId;
+    const color = RARITY_COLORS[w.rarity] ?? '#E8DCC8';
+    const stats = this.weaponManager.getWeaponStats(w);
+    const isBroken = this.weaponManager.isBroken(w);
+
+    // Row background
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x222222, 0);
+    bg.fillRect(0, y, contentWidth, rowH);
+    content.add(bg);
+
+    // Name + stats
+    const nameText = this.scene.add.text(0, y + 2, `${name} [${w.rarity}]`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: isBroken ? '#F44336' : color,
+    });
+    content.add(nameText);
+
+    const statsText = this.scene.add.text(0, y + 16, `DMG:${stats.damage} DUR:${w.durability}/${w.maxDurability}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '7px',
+      color: '#6B6B6B',
+    });
+    content.add(statsText);
+
+    // EQUIP button (right area)
+    const equipBtn = this.scene.add.text(contentWidth - 60, y + 4, '[EQUIP]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#E07030',
+    }).setInteractive({ useHandCursor: true });
+    equipBtn.on('pointerover', () => equipBtn.setColor('#FFD700'));
+    equipBtn.on('pointerout', () => equipBtn.setColor('#E07030'));
+    equipBtn.on('pointerdown', () => {
+      // Equip to first available slot
+      const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
+      if (!primaryWeaponId) {
+        this.gameState.equipped.primaryWeaponId = w.id;
+      } else if (!secondaryWeaponId) {
+        this.gameState.equipped.secondaryWeaponId = w.id;
+      } else {
+        // Replace primary
+        this.gameState.equipped.primaryWeaponId = w.id;
+      }
+      this.rebuild();
+    });
+    content.add(equipBtn);
+
+    // UPGRADE button
+    const availUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(w);
+    if (availUpgrades.length > 0) {
+      const upgBtn = this.scene.add.text(contentWidth - 60, y + 18, '[UPGRADE]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#4A90D9',
+      }).setInteractive({ useHandCursor: true });
+      upgBtn.on('pointerover', () => upgBtn.setColor('#FFD700'));
+      upgBtn.on('pointerout', () => upgBtn.setColor('#4A90D9'));
+      upgBtn.on('pointerdown', () => {
+        this.viewState = { mode: 'upgrade', weaponId: w.id };
+        this.rebuild();
+      });
+      content.add(upgBtn);
+    }
+
+    // REPAIR button (if damaged)
+    if (w.durability < w.maxDurability) {
+      const canRepair = this.currentAP() >= 1 && this.gameState.inventory.resources.parts >= 1;
+      const repairBtn = this.scene.add.text(
+        availUpgrades.length > 0 ? contentWidth - 120 : contentWidth - 60,
+        y + 18,
+        '[REPAIR]',
+        {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: canRepair ? '#4CAF50' : '#555555',
+        }
+      );
+      content.add(repairBtn);
+      if (canRepair) {
+        repairBtn.setInteractive({ useHandCursor: true });
+        repairBtn.on('pointerover', () => repairBtn.setColor('#FFD700'));
+        repairBtn.on('pointerout', () => repairBtn.setColor('#4CAF50'));
+        repairBtn.on('pointerdown', () => {
+          if (this.weaponManager.repair(w.id)) {
+            this.spendAP(1);
+            this.onResourceChange();
+            this.rebuild();
+          }
+        });
+      }
+    }
+
+    return y + rowH + 2;
+  }
+
   // ---------------------------------------------------------------------------
   // Picker view: shows all weapons, click one to equip it in the selected slot
   // ---------------------------------------------------------------------------
@@ -313,7 +496,6 @@ export class EquipmentPanel {
 
     let y = 0;
 
-    // Header
     const header = this.scene.add.text(
       0, y,
       `Select ${slot.toUpperCase()} weapon:`,
@@ -326,18 +508,16 @@ export class EquipmentPanel {
     content.add(header);
     y += 18;
 
-    // Option to clear the slot (set to null)
+    // Option to clear the slot
     y = this.renderPickerEntry(content, null, slot, otherSlotId, y);
     y += 4;
 
-    // All weapons
     for (const w of weapons) {
       y = this.renderPickerEntry(content, w, slot, otherSlotId, y);
     }
 
     y += 8;
 
-    // Back button
     const backBtn = this.scene.add.text(0, y, '[ BACK ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
@@ -352,12 +532,6 @@ export class EquipmentPanel {
     content.add(backBtn);
   }
 
-  /**
-   * Render one entry in the picker list.
-   * weapon=null means "clear slot".
-   * otherSlotId: the weapon id currently equipped in the other slot (shown grayed).
-   * Returns new y.
-   */
   private renderPickerEntry(
     content: Phaser.GameObjects.Container,
     weapon: WeaponInstance | null,
@@ -368,10 +542,8 @@ export class EquipmentPanel {
     const contentWidth = PANEL_WIDTH - 24;
     const rowH = 28;
 
-    // Gray out if this weapon is already equipped in the OTHER slot
     const isBlockedByOther = weapon !== null && weapon.id === otherSlotId;
 
-    // Determine current text
     let rowText: string;
     let rowColor: string;
 
@@ -383,7 +555,10 @@ export class EquipmentPanel {
       rowText = `  ${data?.name ?? weapon.weaponId} [${weapon.rarity}] -- IN OTHER SLOT`;
       rowColor = '#444444';
     } else {
-      rowText = `  ${weaponSummary(weapon, this.weaponManager)}`;
+      const stats = this.weaponManager.getWeaponStats(weapon);
+      const data = WeaponManager.getWeaponData(weapon.weaponId);
+      const name = data?.name ?? weapon.weaponId;
+      rowText = `  ${name} [${weapon.rarity}] DMG:${stats.damage}`;
       rowColor = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
     }
 
@@ -399,7 +574,6 @@ export class EquipmentPanel {
     });
     content.add(txt);
 
-    // Only interactive if not blocked
     if (!isBlockedByOther) {
       bg.setInteractive(
         new Phaser.Geom.Rectangle(0, y, contentWidth, rowH),
@@ -430,13 +604,138 @@ export class EquipmentPanel {
   }
 
   // ---------------------------------------------------------------------------
+  // Upgrade view: inline upgrade options for a specific weapon
+  // ---------------------------------------------------------------------------
+
+  private buildUpgradeView(weaponId: string): void {
+    const content = this.panel.getContentContainer();
+    content.removeAll(true);
+
+    const weapon = this.gameState.inventory.weapons.find(w => w.id === weaponId);
+    if (!weapon) {
+      this.viewState = { mode: 'default' };
+      this.rebuild();
+      return;
+    }
+
+    const contentWidth = PANEL_WIDTH - 24;
+    const available = this.weaponManager.getAvailableUpgradesForWeapon(weapon);
+    const weaponName = WeaponManager.getWeaponData(weapon.weaponId)?.name ?? weapon.weaponId;
+
+    let y = 0;
+
+    const title = this.scene.add.text(0, y, `Upgrade: ${weaponName}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '10px',
+      color: '#FFD700',
+    });
+    content.add(title);
+    y += 16;
+
+    const slotsUsed = weapon.upgrades.length;
+    const slotsTotal = WeaponManager.getMaxUpgradesPerWeapon();
+    const slotSummary = this.scene.add.text(0, y, `Slots: ${slotsUsed}/${slotsTotal}  PARTS: ${this.gameState.inventory.resources.parts}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#6B6B6B',
+    });
+    content.add(slotSummary);
+    y += 18;
+
+    const entrySpacing = 58;
+
+    available.forEach((def: UpgradeDefinition, i: number) => {
+      const entryY = y + i * entrySpacing;
+      const currentLevel = this.weaponManager.getUpgradeLevel(weapon, def.id as WeaponUpgradeType);
+      const nextLevel = currentLevel + 1;
+      const cost = def.costs[currentLevel] ?? 0;
+      const canAfford = this.gameState.inventory.resources.parts >= cost;
+      const isMaxed = currentLevel >= def.maxLevel;
+
+      const baseColor = canAfford ? '#E8DCC8' : '#6B6B6B';
+
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(0x333333, 0);
+      bg.fillRect(-4, entryY - 2, contentWidth + 8, entrySpacing - 4);
+      content.add(bg);
+
+      const levelTag = isMaxed
+        ? `${def.name} MAX`
+        : currentLevel === 0
+          ? `${def.name} NEW`
+          : `${def.name} [${levelLabel(currentLevel, def.maxLevel)}]`;
+
+      const nameEntry = this.scene.add.text(0, entryY, levelTag, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: isMaxed ? '#6B6B6B' : baseColor,
+      });
+      content.add(nameEntry);
+
+      if (!isMaxed) {
+        const nextDesc = resolveDescription(def, nextLevel);
+        const descText = this.scene.add.text(0, entryY + 13, `-- ${nextDesc}`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#AAB8C2',
+        });
+        content.add(descText);
+
+        const costLabel = `${cost} parts`;
+        const costText = this.scene.add.text(contentWidth, entryY, costLabel, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: baseColor,
+        });
+        costText.setOrigin(1, 0);
+        content.add(costText);
+
+        if (canAfford) {
+          bg.setInteractive(
+            new Phaser.Geom.Rectangle(-4, entryY - 2, contentWidth + 8, entrySpacing - 4),
+            Phaser.Geom.Rectangle.Contains,
+          );
+          if (bg.input) bg.input.cursor = 'pointer';
+          bg.on('pointerover', () => {
+            bg.clear();
+            bg.fillStyle(0x444444, 0.5);
+            bg.fillRect(-4, entryY - 2, contentWidth + 8, entrySpacing - 4);
+            nameEntry.setColor('#FFD700');
+          });
+          bg.on('pointerout', () => {
+            bg.clear();
+            bg.fillStyle(0x333333, 0);
+            bg.fillRect(-4, entryY - 2, contentWidth + 8, entrySpacing - 4);
+            nameEntry.setColor('#E8DCC8');
+          });
+          bg.on('pointerdown', () => {
+            this.weaponManager.upgradeNew(weapon.id, def.id as WeaponUpgradeType);
+            this.onResourceChange();
+            this.buildUpgradeView(weaponId);
+          });
+        }
+      }
+    });
+
+    const backY = y + available.length * entrySpacing + 8;
+    const backBtn = this.scene.add.text(0, backY, '[ BACK ]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#D4620B',
+    }).setInteractive({ useHandCursor: true });
+    backBtn.on('pointerover', () => backBtn.setColor('#FFD700'));
+    backBtn.on('pointerout', () => backBtn.setColor('#D4620B'));
+    backBtn.on('pointerdown', () => {
+      this.viewState = { mode: 'default' };
+      this.rebuild();
+    });
+    content.add(backBtn);
+  }
+
+  // ---------------------------------------------------------------------------
   // Equip logic
   // ---------------------------------------------------------------------------
 
-  /**
-   * Assign a weapon instance id (or null) to the given slot in gameState.equipped.
-   * The change is persisted when DayScene saves at end of day.
-   */
   private equipWeaponInSlot(slot: Slot, weaponId: string | null): void {
     if (slot === 'primary') {
       this.gameState.equipped.primaryWeaponId = weaponId;
@@ -453,9 +752,6 @@ export class EquipmentPanel {
    * If both equipped slots are null or point to non-existent weapons,
    * auto-populate them with the top-2 weapons by damage.
    * Returns true if any slot was changed.
-   *
-   * This ensures backward-compatible saves (which have no equipped field)
-   * still work on the first night.
    */
   static autoEquipIfNeeded(gameState: GameState, manager: WeaponManager): boolean {
     const weapons = gameState.inventory.weapons;
@@ -464,14 +760,12 @@ export class EquipmentPanel {
     const ids = new Set(weapons.map(w => w.id));
     const { primaryWeaponId, secondaryWeaponId } = gameState.equipped;
 
-    // Check if current equipped ids are still valid
     const primaryOk = primaryWeaponId !== null && ids.has(primaryWeaponId);
     const secondaryOk = secondaryWeaponId !== null && ids.has(secondaryWeaponId);
 
-    if (primaryOk && secondaryOk) return false; // both already set
-    if (primaryOk && weapons.length <= 1) return false; // only one weapon and it is equipped
+    if (primaryOk && secondaryOk) return false;
+    if (primaryOk && weapons.length <= 1) return false;
 
-    // Sort weapons by effective damage descending
     const sorted = [...weapons].sort((a, b) => {
       const da = manager.getWeaponStats(a).damage;
       const db = manager.getWeaponStats(b).damage;
@@ -481,7 +775,6 @@ export class EquipmentPanel {
     let changed = false;
 
     if (!primaryOk) {
-      // Pick the best weapon not already in secondary
       const pick = sorted.find(w => w.id !== gameState.equipped.secondaryWeaponId) ?? sorted[0];
       if (pick) {
         gameState.equipped.primaryWeaponId = pick.id;
@@ -490,7 +783,6 @@ export class EquipmentPanel {
     }
 
     if (!secondaryOk && sorted.length >= 2) {
-      // Pick the best weapon not in primary
       const pick = sorted.find(w => w.id !== gameState.equipped.primaryWeaponId);
       if (pick) {
         gameState.equipped.secondaryWeaponId = pick.id;

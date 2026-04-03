@@ -1,5 +1,66 @@
 # Dead Horizon -- Changelog
 
+## [2.2.0] - 2026-04-02 (uppdaterad 2026-04-02)
+
+### Feature -- Inventory redesign fas 2 (toolbar-forenkling + tooltips)
+
+**DayScene toolbar -- 6 knappar:**
+- Toolbar har nu exakt 6 knappar: BUILD (B), EQUIP (Q), CRAFT (C), LOOT (L), REFUGEES (R), END DAY (E).
+- AMMO-knapp borttagen (ammo auto-laddas vid nattstart).
+- WEAPONS-knapp borttagen (EQUIP-panelen hanterar allt vapen-relaterat).
+- SKILLS-knapp borttagen fran toolbar (fortfarande tillganglig via S-tangent).
+- Jamnare spacing: 16px gap mellan knappar, inga null-gaps.
+
+**Tutorial-text uppdaterad:**
+- "LOAD AMMO"-steget ersatt med "AMMO" som forklarar auto-laddning.
+
+**Resource tooltips:**
+- Hover over resurs-sektion i botten-baren visar tooltip med forklaring.
+- SCRAP: "Build structures and barricades".
+- FOOD: "Refugees eat 1 per day each".
+- AMMO: "Auto-loaded at night. 0 = melee only".
+- PARTS: "Upgrade and repair weapons".
+- MEDS: "Heal injured refugees (REST job)".
+
+---
+
+## [2.2.0] - 2026-04-02
+
+### Feature -- Inventory redesign fas 1
+
+**Auto-load ammo vid nattstart (NightScene.ts):**
+- `autoLoadAmmo()` beraknar ammoPerNight for varje equipped ranged vapen.
+- Drar totalt belopp fran `gameState.inventory.resources.ammo`.
+- Om inte tillrackligt ammo: visar varning "Low ammo! Pistol: OK, Rifle: NO AMMO" i 3s.
+- `gameState.inventory.loadedAmmo` anvands inte langre for manuell laddning.
+- Sparar gameState direkt efter avdrag.
+
+**Ta bort AMMO-knapp fran DayScene toolbar (DayScene.ts):**
+- AMMO-knapp (A) borttagen fran toolbar och keyboard-router.
+- WEAPONS-knapp (W) borttagen fran toolbar.
+- Toolbar har nu 6 knappar: BUILD, EQUIP, CRAFT, REFUGEES, LOOT RUN, SKILLS, END DAY.
+- Import av `loadAmmo` och `WeaponPanel` borttagen.
+
+**EquipmentPanel slår ihop EQUIP + WEAPONS (EquipmentPanel.ts):**
+- [REPAIR] knapp per vapen (kostar 1 AP + 1 parts) i default-vy och storage-lista.
+- [UPGRADE] knapp per vapen oppnar inline upgrade-vy (identisk logik som gamla WeaponPanel).
+- Storage-lista visar [EQUIP], [REPAIR], [UPGRADE] per vapen.
+- Konstruktorn accepterar nu `currentAP`, `spendAP`, `onResourceChange` callbacks.
+- Ny ViewState 'upgrade' med `weaponId` falt.
+
+**Dual weapon HUD (HUD.ts):**
+- Bottom-bar visar nu BADA equipped vapen med tangent-nummer [1] och [2].
+- BOTTOM_H okad till 48px for att rymma tva rader.
+- `updateSecondaryWeapon(name, dur, maxDur)` -- ny metod for sekundarvapen.
+- `setActiveSlot(1|2)` -- markerar aktivt tangent-nummer med guld.
+- NightScene.updateWeaponHUD() uppdaterar bada slots och anropar setActiveSlot().
+
+**Ammo-varning vid nattstart:**
+- Om ammo inte racker visas "Low ammo! [vapen]: OK/NO AMMO" i 3 sekunder.
+- Varning visas 200ms efter scen-start (nar HUD ar redo).
+
+**AmmoLoader.ts behalles:** Filen finns kvar men anvands inte langre av DayScene.
+
 ## [2.1.0] - 2026-04-02
 
 ### Feature -- Equipment panel (2 vapen-slots)

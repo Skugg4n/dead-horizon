@@ -124,8 +124,8 @@ export class NightScene extends Phaser.Scene {
     this.gameState = SaveManager.load();
     this.kills = 0;
     this.shootCooldown = 0;
-    this.loadedAmmo = this.gameState.inventory.loadedAmmo;
     this.weaponUsedThisNight = new Set();
+    // Auto-load ammo: calculated after weaponManager is created (see below)
     this.fogPenalty = data?.fogPenalty ?? 0;
     this.playerTookDamage = false;
     this.meleeKillsThisNight = 0;
@@ -167,6 +167,10 @@ export class NightScene extends Phaser.Scene {
     // Auto-equip the two best weapons if the player has not manually equipped.
     // This runs every night so newly found weapons are considered.
     EquipmentPanel.autoEquipIfNeeded(this.gameState, this.weaponManager);
+
+    // Auto-load ammo: calculate ammoPerNight for each equipped ranged weapon,
+    // deduct from stockpile, track per-weapon status for warning display.
+    this.loadedAmmo = this.autoLoadAmmo();
 
     // Set the active weapon to the primary equipped slot so key 1 is correct on start.
     this.syncEquippedSlotToWeaponManager();
@@ -1129,13 +1133,73 @@ export class NightScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Auto-load ammo from stockpile for all equipped ranged weapons at night start.
+   * Deducts from gameState.inventory.resources.ammo.
+   * Saves updated resources so ammo is correctly consumed.
+   * Returns total loaded ammo (same pool shared between both weapons).
+   */
+  private autoLoadAmmo(): number {
+    const weapons = this.gameState.inventory.weapons;
+    const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
+    const equippedIds = [primaryWeaponId, secondaryWeaponId].filter((id): id is string => id !== null);
+
+    let totalAmmoNeeded = 0;
+    const weaponAmmoNeeds: { name: string; ammoPerNight: number }[] = [];
+
+    for (const id of equippedIds) {
+      const instance = weapons.find(w => w.id === id);
+      if (!instance) continue;
+      const data = WeaponManager.getWeaponData(instance.weaponId);
+      if (!data || data.ammoPerNight <= 0) continue; // melee = 0
+      weaponAmmoNeeds.push({ name: data.name, ammoPerNight: data.ammoPerNight });
+      totalAmmoNeeded += data.ammoPerNight;
+    }
+
+    if (totalAmmoNeeded === 0) {
+      // All equipped weapons are melee -- no ammo needed
+      return 0;
+    }
+
+    const available = this.gameState.inventory.resources.ammo;
+    const toLoad = Math.min(available, totalAmmoNeeded);
+
+    // Deduct from stockpile
+    this.gameState.inventory.resources.ammo -= toLoad;
+    // Persist the deduction immediately (night-start save)
+    SaveManager.save(this.gameState);
+
+    // Build warning message if ammo was insufficient
+    if (toLoad < totalAmmoNeeded) {
+      // Show which weapons got loaded / ran dry
+      const parts: string[] = [];
+      let remaining = toLoad;
+      for (const wn of weaponAmmoNeeds) {
+        if (remaining >= wn.ammoPerNight) {
+          parts.push(`${wn.name}: OK`);
+          remaining -= wn.ammoPerNight;
+        } else {
+          parts.push(`${wn.name}: NO AMMO`);
+        }
+      }
+      // Delay message so HUD is ready
+      this.time.delayedCall(200, () => {
+        if (this.hud) {
+          this.hud.showMessage(`Low ammo! ${parts.join(', ')}`);
+        }
+      });
+    }
+
+    return toLoad;
+  }
+
   /** Show NO AMMO warning if the currently equipped weapon is ranged and out of ammo. */
   private checkAmmoWarning(): void {
     const w = this.weaponManager.getEquipped();
     if (w) {
       const s = this.weaponManager.getWeaponStats(w);
       if (s.weaponClass !== 'melee' && this.loadedAmmo <= 0) {
-        this.hud.showMessage('NO AMMO! Load in Day phase.');
+        this.hud.showMessage('NO AMMO -- switch to melee!');
         AudioManager.play('ui_error');
       }
     }
@@ -1180,11 +1244,39 @@ export class NightScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Refresh the bottom HUD weapon display.
+   * Slot [1] always shows primaryWeaponId, slot [2] always shows secondaryWeaponId.
+   * The active slot label is highlighted gold.
+   */
   private updateWeaponHUD(): void {
-    const weapon = this.weaponManager.getEquipped();
-    if (weapon) {
-      const stats = this.weaponManager.getWeaponStats(weapon);
-      this.hud.updateWeapon(stats.name, weapon.durability, weapon.maxDurability, stats.specialEffect);
+    const weapons = this.gameState.inventory.weapons;
+    const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
+
+    const primaryWeapon = primaryWeaponId ? weapons.find(w => w.id === primaryWeaponId) ?? null : null;
+    const secondaryWeapon = secondaryWeaponId ? weapons.find(w => w.id === secondaryWeaponId) ?? null : null;
+
+    // Slot 1: primary
+    if (primaryWeapon) {
+      const stats = this.weaponManager.getWeaponStats(primaryWeapon);
+      this.hud.updateWeapon(stats.name, primaryWeapon.durability, primaryWeapon.maxDurability, stats.specialEffect);
+    } else {
+      this.hud.updateWeapon('--', 0, 1);
+    }
+
+    // Slot 2: secondary
+    if (secondaryWeapon) {
+      const stats = this.weaponManager.getWeaponStats(secondaryWeapon);
+      this.hud.updateSecondaryWeapon(stats.name, secondaryWeapon.durability, secondaryWeapon.maxDurability);
+    } else {
+      this.hud.updateSecondaryWeapon(null);
+    }
+
+    // Determine active slot number for highlighting
+    const activeWeapon = this.weaponManager.getEquipped();
+    if (activeWeapon) {
+      const isPrimary = activeWeapon.id === primaryWeaponId;
+      this.hud.setActiveSlot(isPrimary ? 1 : 2);
     }
   }
 

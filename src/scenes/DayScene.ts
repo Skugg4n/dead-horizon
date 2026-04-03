@@ -3,9 +3,7 @@ import { SaveManager } from '../systems/SaveManager';
 import { BuildingManager, type StructureData } from '../systems/BuildingManager';
 import { WeaponManager } from '../systems/WeaponManager';
 import { RefugeeManager } from '../systems/RefugeeManager';
-import { loadAmmo } from '../systems/AmmoLoader';
 import { ActionPointBar } from '../ui/ActionPointBar';
-import { WeaponPanel } from '../ui/WeaponPanel';
 import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { RefugeePanel } from '../ui/RefugeePanel';
 import { LootRunPanel } from '../ui/LootRunPanel';
@@ -39,7 +37,6 @@ export class DayScene extends Phaser.Scene {
   private gameState!: GameState;
   private buildingManager!: BuildingManager;
   private weaponManager!: WeaponManager;
-  private weaponPanel!: WeaponPanel;
   private equipmentPanel!: EquipmentPanel;
   private skillManager!: SkillManager;
   private skillPanel!: SkillPanel;
@@ -132,7 +129,9 @@ export class DayScene extends Phaser.Scene {
 
     // Weapon system
     this.weaponManager = new WeaponManager(this, this.gameState);
-    this.weaponPanel = new WeaponPanel(
+
+    // Equipment panel (Q) -- equip slots + repair + upgrade for all weapons
+    this.equipmentPanel = new EquipmentPanel(
       this,
       this.weaponManager,
       this.gameState,
@@ -143,11 +142,6 @@ export class DayScene extends Phaser.Scene {
       },
       () => this.updateResourceDisplay(),
     );
-    this.addToUI(this.weaponPanel.getContainer());
-    this.addToUI(this.weaponPanel.getPanel().getBackdrop());
-
-    // Equipment panel (Q key) -- choose which 2 weapons to carry into the night
-    this.equipmentPanel = new EquipmentPanel(this, this.weaponManager, this.gameState);
     this.addToUI(this.equipmentPanel.getContainer());
     this.addToUI(this.equipmentPanel.getPanel().getBackdrop());
 
@@ -576,7 +570,9 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(barBg);
 
     // Button definitions: label, icon key, theme color, callback, shortcut key
-    // Order: BUILD | AMMO | WEAPONS | CRAFT | gap | REFUGEES | LOOT RUN | gap | SKILLS | END DAY
+    // Order: BUILD | EQUIP | CRAFT | LOOT | REFUGEES | END DAY
+    // AMMO and WEAPONS removed (ammo auto-loads at night, EQUIP covers weapon management)
+    // SKILLS removed from toolbar -- accessible via keyboard S shortcut
     interface ToolbarButton {
       label: string;
       iconKey: string;
@@ -585,36 +581,19 @@ export class DayScene extends Phaser.Scene {
       shortcut?: string;
     }
 
-    const buttons: (ToolbarButton | null)[] = [
+    const buttons: ToolbarButton[] = [
       { label: 'BUILD', iconKey: 'icon_build', color: 0x4CAF50, onClick: () => this.toggleBuildMenu(), shortcut: 'B' },
-      { label: 'AMMO', iconKey: 'icon_ammo', color: 0x4A90D9, onClick: () => {
-        if (this.currentAP < 1) { this.showInfo('Not enough AP!'); return; }
-        const result = loadAmmo(this.gameState, 1);
-        if (result.success) {
-          this.currentAP -= 1;
-          this.apBar.update(this.currentAP);
-          this.updateResourceDisplay();
-        }
-        this.showInfo(result.message);
-      }, shortcut: 'A' },
-      { label: 'WEAPONS', iconKey: 'icon_weapons', color: 0xC5A030, onClick: () => this.weaponPanel.toggle(), shortcut: 'W' },
       { label: 'EQUIP', iconKey: 'icon_weapons', color: 0xE07030, onClick: () => this.equipmentPanel.toggle(), shortcut: 'Q' },
       { label: 'CRAFT', iconKey: 'icon_craft', color: 0xD4A030, onClick: () => this.craftingPanel.toggle(), shortcut: 'C' },
-      null, // gap
+      { label: 'LOOT', iconKey: 'icon_lootrun', color: 0xD4A030, onClick: () => this.lootRunPanel.toggle(), shortcut: 'L' },
       { label: 'REFUGEES', iconKey: 'icon_refugees', color: 0x8B6FC0, onClick: () => this.refugeePanel.toggle(), shortcut: 'R' },
-      { label: 'LOOT RUN', iconKey: 'icon_lootrun', color: 0xD4A030, onClick: () => this.lootRunPanel.toggle(), shortcut: 'L' },
-      null, // gap
-      { label: 'SKILLS', iconKey: 'icon_skills', color: 0xC5A030, onClick: () => this.skillPanel.toggle(), shortcut: 'S' },
       { label: 'END DAY', iconKey: 'icon_endday', color: 0xD4620B, onClick: () => this.showEndDayConfirmation(), shortcut: 'E' },
     ];
 
-    // Calculate positions: real buttons get evenly distributed, nulls are gaps
-    const realButtons = buttons.filter(b => b !== null) as ToolbarButton[];
+    // Calculate positions: 6 evenly spaced buttons, no gaps
     const BUTTON_SIZE = 36;
-    const totalButtons = realButtons.length; // 8
-    const totalGaps = 2; // two null gaps
-    const GAP_WIDTH = 16;
-    const totalWidth = totalButtons * BUTTON_SIZE + (totalButtons - 1 - totalGaps) * 8 + totalGaps * GAP_WIDTH;
+    const totalButtons = buttons.length; // 6
+    const totalWidth = totalButtons * BUTTON_SIZE + (totalButtons - 1) * 16;
     const startX = Math.floor((GAME_WIDTH - totalWidth) / 2);
 
     // Shared tooltip text (reused, only one visible at a time)
@@ -629,13 +608,9 @@ export class DayScene extends Phaser.Scene {
 
     let curX = startX;
     for (const entry of buttons) {
-      if (entry === null) {
-        curX += GAP_WIDTH;
-        continue;
-      }
       const shortcutHint = entry.shortcut ? ` [${entry.shortcut}]` : '';
       this.createIconButton(entry.iconKey, entry.label + shortcutHint, entry.color, curX, TOOLBAR_Y + 6, BUTTON_SIZE, entry.onClick, tooltip);
-      curX += BUTTON_SIZE + 8;
+      curX += BUTTON_SIZE + 16;
     }
   }
 
@@ -745,6 +720,25 @@ export class DayScene extends Phaser.Scene {
     const cap = this.getResourceCap();
     const res = this.gameState.inventory.resources;
 
+    // Tooltip texts for each resource type (shown on hover)
+    const RESOURCE_TOOLTIPS: Record<ResourceType, string> = {
+      scrap: 'SCRAP: Build structures and barricades',
+      food: 'FOOD: Refugees eat 1 per day each',
+      ammo: 'AMMO: Auto-loaded at night. 0 = melee only',
+      parts: 'PARTS: Upgrade and repair weapons',
+      meds: 'MEDS: Heal injured refugees (REST job)',
+    };
+
+    // Shared tooltip label (only one shown at a time)
+    const resTooltip = this.add.text(0, RES_BAR_Y - 6, '', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '7px',
+      color: '#E8DCC8',
+      backgroundColor: '#111111',
+      padding: { x: 4, y: 2 },
+    }).setOrigin(0.5, 1).setDepth(120).setVisible(false);
+    this.addToUI(resTooltip);
+
     // Separators
     const sep = this.add.graphics();
     sep.lineStyle(1, 0x333333, 1);
@@ -762,6 +756,24 @@ export class DayScene extends Phaser.Scene {
       const value = res[type];
       const centerX = sectionWidth * i + sectionWidth / 2;
       const centerY = RES_BAR_Y + RES_BAR_H / 2;
+      const tooltipText = RESOURCE_TOOLTIPS[type];
+
+      // Invisible hover zone for the whole section
+      const hoverZone = this.add.zone(
+        sectionWidth * i,
+        RES_BAR_Y,
+        sectionWidth,
+        RES_BAR_H,
+      ).setOrigin(0, 0).setDepth(101).setInteractive();
+      hoverZone.on('pointerover', () => {
+        resTooltip.setText(tooltipText);
+        resTooltip.setPosition(centerX, RES_BAR_Y - 2);
+        resTooltip.setVisible(true);
+      });
+      hoverZone.on('pointerout', () => {
+        resTooltip.setVisible(false);
+      });
+      this.addToUI(hoverZone);
 
       // Try to show 16x16 icon left of number
       const hasIcon = this.textures.exists(iconKey) && this.textures.get(iconKey).key !== '__MISSING';
@@ -1077,9 +1089,6 @@ export class DayScene extends Phaser.Scene {
         if (this.equipmentPanel.isVisible()) {
           if (this.equipmentPanel.handleKey(key)) return;
         }
-        if (this.weaponPanel.isVisible()) {
-          if (this.weaponPanel.handleKey(key)) return;
-        }
         if (this.craftingPanel.isVisible()) {
           if (this.craftingPanel.handleKey(key)) return;
         }
@@ -1132,18 +1141,6 @@ export class DayScene extends Phaser.Scene {
         const upper = key.toUpperCase();
         switch (upper) {
           case 'B': this.toggleBuildMenu(); break;
-          case 'A': {
-            if (this.currentAP < 1) { this.showInfo('Not enough AP!'); break; }
-            const result = loadAmmo(this.gameState, 1);
-            if (result.success) {
-              this.currentAP -= 1;
-              this.apBar.update(this.currentAP);
-              this.updateResourceDisplay();
-            }
-            this.showInfo(result.message);
-            break;
-          }
-          case 'W': this.weaponPanel.toggle(); break;
           case 'Q': this.equipmentPanel.toggle(); break;
           case 'C': this.craftingPanel.toggle(); break;
           case 'R': this.refugeePanel.toggle(); break;
@@ -1648,7 +1645,7 @@ export class DayScene extends Phaser.Scene {
     const steps = [
       { title: 'DAY PHASE', text: 'You have 12 Action Points\nto prepare for the night.' },
       { title: 'BUILD', text: 'Use the BUILD menu to place\nbarricades, walls and traps\naround your base.' },
-      { title: 'LOAD AMMO', text: 'Open WEAPONS and load ammo\ninto your guns. Costs 1 AP.\nNo ammo = melee only!' },
+      { title: 'AMMO', text: 'Ammo is loaded AUTOMATICALLY\nat the start of each night.\nCollect more ammo via LOOT runs.' },
       { title: 'LOOT RUNS', text: 'Send expeditions to find\nscrap, food, ammo and meds.\nCosts 3-5 AP.' },
       { title: 'END DAY', text: 'When ready, press END DAY.\nNight begins immediately.\nGood luck.' },
     ];

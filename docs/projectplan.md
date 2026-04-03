@@ -314,6 +314,17 @@ Dessa features implementeras baserat på feedback och prioritet:
 - [ ] Shared bases/screenshots (framtida)
 - [x] Achievements
 
+### 6G: Inventory-redesign (v2.2.0)
+- [x] Auto-load ammo vid nattstart (ta bort manuell AMMO-knapp)
+- [x] Ta bort WEAPONS-knapp, sla ihop i EQUIP-panel
+- [x] EquipmentPanel: repair + upgrade direkt i panel
+- [x] Dual weapon HUD -- visa bada vapen i bottom-bar
+- [x] Ammo-varning vid nattstart om ammo inte racker
+- [x] Toolbar: 6 knappar (BUILD, EQUIP, CRAFT, LOOT, REFUGEES, END DAY)
+- [x] Resource tooltips pa resursbaren (hover)
+- [x] Tutorial-text uppdaterad: auto-ammo istallet for manuell laddning
+- [ ] Meds-kostnad tydlig i RefugeePanel (fas 3)
+
 ---
 
 ## Milstolpar
