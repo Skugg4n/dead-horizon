@@ -1,5 +1,41 @@
 # Dead Horizon -- Changelog
 
+## [2.1.0] - 2026-04-02
+
+### Feature -- Equipment panel (2 vapen-slots)
+
+**Ny typ i GameState (types.ts):**
+- Lade till `equipped: { primaryWeaponId: string | null; secondaryWeaponId: string | null }` pa `GameState`. Primary = tangent 1, secondary = tangent 2 i nattfasen.
+
+**SaveManager.ts:**
+- `createDefaultState()`: equipped initieras med null/null.
+- `load()`: migrerar gamla saves -- saknas equipped-faltet sätts det till null/null och auto-equip körs vid nästa nattstart.
+
+**Ny fil src/ui/EquipmentPanel.ts:**
+- UIPanel-baserad panel med two-slot-vy (PRIMARY / SECONDARY) och weapon picker.
+- Klick pa [>] intill en slot öppnar picker med alla vapen; vapen i andra sloten visas gråat.
+- Storage-lista visar vapen som inte är equipped.
+- Statisk metod `autoEquipIfNeeded()` väljer de 2 vapnen med högst damage om slots är tomma.
+- Escape i picker-vy går tillbaka till default-vy (inte stänger panelen).
+
+**DayScene.ts:**
+- Importerar och instansierar EquipmentPanel efter WeaponPanel.
+- EQUIP-knapp tillagd i toolbar (shortcut Q) med orangeröd temafärg.
+- Q-tangent i keyboard-routern (kontrollerar equipmentPanel.handleKey() bland öppna paneler).
+
+**NightScene.ts:**
+- Importerar EquipmentPanel.
+- Anropar `EquipmentPanel.autoEquipIfNeeded()` direkt efter WeaponManager skapas.
+- Ny `syncEquippedSlotToWeaponManager()` sätter aktiv index till primary-sloten vid start.
+- Ny `getEquippedIndexForSlot(1|2)` löser upp slot-nummer till inventory-index.
+- `setupWeaponKeys()` omskriven: om equipped finns ger key 1 primary och key 2 secondary. Annars faller koden tillbaka på gammalt beteende (keys 1-5 = alla vapen).
+- Ny `checkAmmoWarning()` extraherar den återanvända ammo-varningslogiken.
+
+**src/config/constants.ts:**
+- GAME_VERSION: 2.0.9 -> 2.1.0
+
+### Bump -- Version 2.0.9 -> 2.1.0
+
 ## [2.0.6] - 2026-04-02
 
 ### Fix -- TB1: Textläsbarhet genomgång

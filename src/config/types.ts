@@ -178,6 +178,12 @@ export interface GameState {
     resources: Record<ResourceType, number>;
     loadedAmmo: number;
   };
+  // Which weapon instances are carried into the night (primary = key 1, secondary = key 2).
+  // null means the slot is empty. Populated by EquipmentPanel or auto-equip logic.
+  equipped: {
+    primaryWeaponId: string | null;
+    secondaryWeaponId: string | null;
+  };
   base: {
     structures: StructureInstance[];
     level: number;

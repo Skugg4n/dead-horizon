@@ -151,6 +151,7 @@ Mål: Djupare stridssystem och karaktärsprogression.
 - [x] 3A.5 Durability-system (sjunker per natt, reparera med Parts)
 - [x] 3A.6 Siffertangenter för vapenval
 - [x] 3A.7 WeaponPanel i DayScene
+- [x] 3A.8 EquipmentPanel -- 2 vapen-slots (primary/secondary), Q-tangent, auto-equip
 
 ### 3B: Ljud-mekanik
 

@@ -6,6 +6,7 @@ import { RefugeeManager } from '../systems/RefugeeManager';
 import { loadAmmo } from '../systems/AmmoLoader';
 import { ActionPointBar } from '../ui/ActionPointBar';
 import { WeaponPanel } from '../ui/WeaponPanel';
+import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { RefugeePanel } from '../ui/RefugeePanel';
 import { LootRunPanel } from '../ui/LootRunPanel';
 import { LootManager } from '../systems/LootManager';
@@ -39,6 +40,7 @@ export class DayScene extends Phaser.Scene {
   private buildingManager!: BuildingManager;
   private weaponManager!: WeaponManager;
   private weaponPanel!: WeaponPanel;
+  private equipmentPanel!: EquipmentPanel;
   private skillManager!: SkillManager;
   private skillPanel!: SkillPanel;
   private refugeeManager!: RefugeeManager;
@@ -143,6 +145,11 @@ export class DayScene extends Phaser.Scene {
     );
     this.addToUI(this.weaponPanel.getContainer());
     this.addToUI(this.weaponPanel.getPanel().getBackdrop());
+
+    // Equipment panel (Q key) -- choose which 2 weapons to carry into the night
+    this.equipmentPanel = new EquipmentPanel(this, this.weaponManager, this.gameState);
+    this.addToUI(this.equipmentPanel.getContainer());
+    this.addToUI(this.equipmentPanel.getPanel().getBackdrop());
 
     // Skill system
     this.skillManager = new SkillManager(this, this.gameState);
@@ -591,6 +598,7 @@ export class DayScene extends Phaser.Scene {
         this.showInfo(result.message);
       }, shortcut: 'A' },
       { label: 'WEAPONS', iconKey: 'icon_weapons', color: 0xC5A030, onClick: () => this.weaponPanel.toggle(), shortcut: 'W' },
+      { label: 'EQUIP', iconKey: 'icon_weapons', color: 0xE07030, onClick: () => this.equipmentPanel.toggle(), shortcut: 'Q' },
       { label: 'CRAFT', iconKey: 'icon_craft', color: 0xD4A030, onClick: () => this.craftingPanel.toggle(), shortcut: 'C' },
       null, // gap
       { label: 'REFUGEES', iconKey: 'icon_refugees', color: 0x8B6FC0, onClick: () => this.refugeePanel.toggle(), shortcut: 'R' },
@@ -1065,6 +1073,9 @@ export class DayScene extends Phaser.Scene {
         }
 
         // 2. Open panels get next shot
+        if (this.equipmentPanel.isVisible()) {
+          if (this.equipmentPanel.handleKey(key)) return;
+        }
         if (this.weaponPanel.isVisible()) {
           if (this.weaponPanel.handleKey(key)) return;
         }
@@ -1132,6 +1143,7 @@ export class DayScene extends Phaser.Scene {
             break;
           }
           case 'W': this.weaponPanel.toggle(); break;
+          case 'Q': this.equipmentPanel.toggle(); break;
           case 'C': this.craftingPanel.toggle(); break;
           case 'R': this.refugeePanel.toggle(); break;
           case 'L': this.lootRunPanel.toggle(); break;

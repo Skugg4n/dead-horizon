@@ -16,6 +16,7 @@ import { Sandbags } from '../structures/Sandbags';
 import { OilSlick } from '../structures/OilSlick';
 import { HUD } from '../ui/HUD';
 import { WeaponManager } from '../systems/WeaponManager';
+import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { SkillManager } from '../systems/SkillManager';
 import { ZoneManager } from '../systems/ZoneManager';
 import { AchievementManager } from '../systems/AchievementManager';
@@ -162,6 +163,14 @@ export class NightScene extends Phaser.Scene {
 
     this.resourceManager = new ResourceManager(this, this.gameState);
     this.weaponManager = new WeaponManager(this, this.gameState);
+
+    // Auto-equip the two best weapons if the player has not manually equipped.
+    // This runs every night so newly found weapons are considered.
+    EquipmentPanel.autoEquipIfNeeded(this.gameState, this.weaponManager);
+
+    // Set the active weapon to the primary equipped slot so key 1 is correct on start.
+    this.syncEquippedSlotToWeaponManager();
+
     this.soundMechanic = new SoundMechanic(this, this.zombieGroup);
     this.skillManager = new SkillManager(this, this.gameState);
     this.zoneManager = new ZoneManager(this, this.gameState);
@@ -1040,24 +1049,71 @@ export class NightScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Map gameState.equipped primary/secondary ids to the actual inventory index
+   * and tell WeaponManager which index is active. Falls back to index 0.
+   */
+  private syncEquippedSlotToWeaponManager(): void {
+    const weapons = this.gameState.inventory.weapons;
+    const primaryId = this.gameState.equipped.primaryWeaponId;
+    const primaryIdx = primaryId ? weapons.findIndex(w => w.id === primaryId) : -1;
+    // Start with primary (slot 0). If not found fall back to 0.
+    this.weaponManager.switchWeapon(primaryIdx >= 0 ? primaryIdx : 0);
+  }
+
+  /**
+   * Resolve which inventory index corresponds to an equipped slot (1 or 2).
+   * Returns -1 when the slot is empty or the weapon no longer exists.
+   */
+  private getEquippedIndexForSlot(slotNumber: 1 | 2): number {
+    const weapons = this.gameState.inventory.weapons;
+    const id = slotNumber === 1
+      ? this.gameState.equipped.primaryWeaponId
+      : this.gameState.equipped.secondaryWeaponId;
+    if (!id) return -1;
+    return weapons.findIndex(w => w.id === id);
+  }
+
   private setupWeaponKeys(): void {
     if (!this.input.keyboard) return;
-    // Number keys 1-5 to switch weapons
-    for (let i = 1; i <= 5; i++) {
-      const key = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE + (i - 1));
-      key.on('down', () => {
-        this.weaponManager.switchWeapon(i - 1);
-        this.updateWeaponHUD();
-        // Show ammo warning if switching to ranged weapon with no ammo
-        const w = this.weaponManager.getEquipped();
-        if (w) {
-          const s = this.weaponManager.getWeaponStats(w);
-          if (s.weaponClass !== 'melee' && this.loadedAmmo <= 0) {
-            this.hud.showMessage('NO AMMO! Load in Day phase.');
-            AudioManager.play('ui_error');
-          }
+
+    // Key 1 = primary equipped weapon, key 2 = secondary equipped weapon.
+    // If no equipped set exists (fallback), keys 1-5 map to all inventory weapons.
+    const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
+    const hasEquipped = primaryWeaponId !== null || secondaryWeaponId !== null;
+
+    if (hasEquipped) {
+      // Slot 1: primary
+      const key1 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
+      key1.on('down', () => {
+        const idx = this.getEquippedIndexForSlot(1);
+        if (idx >= 0) {
+          this.weaponManager.switchWeapon(idx);
+          this.updateWeaponHUD();
+          this.checkAmmoWarning();
         }
       });
+
+      // Slot 2: secondary
+      const key2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO);
+      key2.on('down', () => {
+        const idx = this.getEquippedIndexForSlot(2);
+        if (idx >= 0) {
+          this.weaponManager.switchWeapon(idx);
+          this.updateWeaponHUD();
+          this.checkAmmoWarning();
+        }
+      });
+    } else {
+      // Backward-compatible fallback: all inventory weapons on keys 1-5
+      for (let i = 1; i <= 5; i++) {
+        const key = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE + (i - 1));
+        key.on('down', () => {
+          this.weaponManager.switchWeapon(i - 1);
+          this.updateWeaponHUD();
+          this.checkAmmoWarning();
+        });
+      }
     }
 
     // ESC to pause
@@ -1071,6 +1127,18 @@ export class NightScene extends Phaser.Scene {
         this.showPauseOverlay();
       }
     });
+  }
+
+  /** Show NO AMMO warning if the currently equipped weapon is ranged and out of ammo. */
+  private checkAmmoWarning(): void {
+    const w = this.weaponManager.getEquipped();
+    if (w) {
+      const s = this.weaponManager.getWeaponStats(w);
+      if (s.weaponClass !== 'melee' && this.loadedAmmo <= 0) {
+        this.hud.showMessage('NO AMMO! Load in Day phase.');
+        AudioManager.play('ui_error');
+      }
+    }
   }
 
   private pauseOverlay: Phaser.GameObjects.Container | null = null;

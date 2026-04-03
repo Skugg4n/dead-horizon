@@ -101,6 +101,11 @@ function createDefaultState(): GameState {
       itemsCrafted: 0,
     },
     zoneProgress: {},
+    // Default: no weapons pre-equipped; auto-equip runs on first NightScene start
+    equipped: {
+      primaryWeaponId: null,
+      secondaryWeaponId: null,
+    },
     map: {
       fogOfWar: [],
       explored: [],
@@ -165,6 +170,12 @@ function load(): GameState {
         // No explicit line needed -- the spread on lines above handles it.
         achievements: saved.achievements ?? defaults.achievements,
         refugees: saved.refugees ?? defaults.refugees,
+        // Migration: old saves lack the equipped field entirely -- start with null/null so
+        // NightScene's auto-equip logic runs and picks the two best weapons.
+        equipped: {
+          primaryWeaponId: (saved as Partial<GameState>).equipped?.primaryWeaponId ?? null,
+          secondaryWeaponId: (saved as Partial<GameState>).equipped?.secondaryWeaponId ?? null,
+        },
       };
       // Ensure all skill keys exist
       for (const key of Object.keys(defaults.player.skills)) {
