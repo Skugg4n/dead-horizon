@@ -1,6 +1,14 @@
 # Dead Horizon -- Changelog
 
-## [2.2.0] - 2026-04-02 (uppdaterad 2026-04-02)
+## [2.2.0] - 2026-04-02 (uppdaterad 2026-04-02 17:24)
+
+### Feature -- Inventory redesign steg 4 (ammo-bekraftelse vid nattstart)
+
+**NightScene.autoLoadAmmo() -- bekraftelse-text:**
+- Vid full ammo-laddning visas nu alltid: "Ammo loaded: Pistol (2), Rifle (3) = 5 used, 10 left"
+- Beraknar ammo kvar (leftAfter) fran stockpile efter avdrag
+- Meddelandet visas 200ms in i natten (nar HUD ar redo)
+- Varnings-grenen (Low ammo!) bevarad oforandrad for ofullstandig laddning
 
 ### Feature -- Inventory redesign fas 2 (toolbar-forenkling + tooltips)
 

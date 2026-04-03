@@ -1138,6 +1138,10 @@ export class NightScene extends Phaser.Scene {
    * Deducts from gameState.inventory.resources.ammo.
    * Saves updated resources so ammo is correctly consumed.
    * Returns total loaded ammo (same pool shared between both weapons).
+   *
+   * Always shows a HUD message at night start:
+   *   Success: "Ammo loaded: Pistol (2), Rifle (3) = 5 used, 10 left"
+   *   Partial:  "Low ammo! Pistol: OK, Rifle: NO AMMO"
    */
   private autoLoadAmmo(): number {
     const weapons = this.gameState.inventory.weapons;
@@ -1163,15 +1167,15 @@ export class NightScene extends Phaser.Scene {
 
     const available = this.gameState.inventory.resources.ammo;
     const toLoad = Math.min(available, totalAmmoNeeded);
+    const leftAfter = available - toLoad;
 
     // Deduct from stockpile
     this.gameState.inventory.resources.ammo -= toLoad;
     // Persist the deduction immediately (night-start save)
     SaveManager.save(this.gameState);
 
-    // Build warning message if ammo was insufficient
     if (toLoad < totalAmmoNeeded) {
-      // Show which weapons got loaded / ran dry
+      // Partial load -- show which weapons got ammo and which ran dry
       const parts: string[] = [];
       let remaining = toLoad;
       for (const wn of weaponAmmoNeeds) {
@@ -1182,10 +1186,21 @@ export class NightScene extends Phaser.Scene {
           parts.push(`${wn.name}: NO AMMO`);
         }
       }
-      // Delay message so HUD is ready
+      // Delay so HUD is ready before message displays
       this.time.delayedCall(200, () => {
         if (this.hud) {
           this.hud.showMessage(`Low ammo! ${parts.join(', ')}`);
+        }
+      });
+    } else {
+      // Full load -- show confirmation: "Ammo loaded: Pistol (2), Rifle (3) = 5 used, 10 left"
+      const weaponSummary = weaponAmmoNeeds
+        .map(wn => `${wn.name} (${wn.ammoPerNight})`)
+        .join(', ');
+      const msg = `Ammo loaded: ${weaponSummary} = ${toLoad} used, ${leftAfter} left`;
+      this.time.delayedCall(200, () => {
+        if (this.hud) {
+          this.hud.showMessage(msg);
         }
       });
     }
