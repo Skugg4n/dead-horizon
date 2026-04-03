@@ -115,6 +115,29 @@ export class EquipmentPanel {
 
     let y = 0;
 
+    // ---- Character portrait ----
+    const portraitKey = `portrait_${this.gameState.player.character}`;
+    if (this.scene.textures.exists(portraitKey)) {
+      const portrait = this.scene.add.image(PANEL_WIDTH / 2 - 12, 32, portraitKey);
+      portrait.setDisplaySize(48, 48);
+      content.add(portrait);
+      // Gold border
+      const border = this.scene.add.graphics();
+      border.lineStyle(2, 0xC5A030);
+      border.strokeRect(PANEL_WIDTH / 2 - 12 - 24, 32 - 24, 48, 48);
+      content.add(border);
+      // Character name
+      const charName = this.gameState.player.character.charAt(0).toUpperCase()
+        + this.gameState.player.character.slice(1);
+      const nameText = this.scene.add.text(PANEL_WIDTH / 2 - 12, 62, charName, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#C5A030',
+      }).setOrigin(0.5, 0);
+      content.add(nameText);
+      y = 78;
+    }
+
     // ---- PRIMARY slot ----
     y = this.renderSlotRow(content, 'PRIMARY', primaryWeapon, 'primary', y);
     y += 16;
