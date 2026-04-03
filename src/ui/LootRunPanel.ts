@@ -353,9 +353,13 @@ export class LootRunPanel {
     const result = this.lootManager.executeLootRun(this.selectedDestination.id);
 
     if (result.encounter) {
-      // Show encounter dialog -- weapons list is empty (no weapon selection step)
+      // Use equipped weapons for encounter strength calculation
       this.panel.hide();
-      const strength = this.lootManager.calculateStrength([], this.selectedCompanions.length);
+      const equippedWeapons = this.gameState.inventory.weapons.filter(w =>
+        w.id === this.gameState.equipped.primaryWeaponId ||
+        w.id === this.gameState.equipped.secondaryWeaponId
+      );
+      const strength = this.lootManager.calculateStrength(equippedWeapons, this.selectedCompanions.length);
       const thresholds: Record<string, number> = {
         nearby_houses: 50,
         abandoned_store: 70,

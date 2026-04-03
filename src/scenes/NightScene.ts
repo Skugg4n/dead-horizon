@@ -2301,14 +2301,15 @@ export class NightScene extends Phaser.Scene {
       this.scene.start('DayScene');
     };
 
-    panel.on('pointerdown', goToDay);
-    // Also allow any key to continue
-    const keyHandler = (_evt: KeyboardEvent) => {
-      goToDay();
-    };
-    this.input.keyboard?.on('keydown', keyHandler);
-    container.once('destroy', () => {
-      this.input.keyboard?.off('keydown', keyHandler);
+    // 3 second delay before input is accepted -- prevents accidental skip
+    this.time.delayedCall(3000, () => {
+      continueText.setText('Press any key to continue');
+      panel.on('pointerdown', goToDay);
+      const keyHandler = (_evt: KeyboardEvent) => { goToDay(); };
+      this.input.keyboard?.on('keydown', keyHandler);
+      container.once('destroy', () => {
+        this.input.keyboard?.off('keydown', keyHandler);
+      });
     });
   }
 
