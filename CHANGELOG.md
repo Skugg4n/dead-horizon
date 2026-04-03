@@ -1,5 +1,43 @@
 # Dead Horizon -- Changelog
 
+## [2.3.0] - 2026-04-02
+
+### Feature -- Cooldown-system + 6 nya mekaniska fallor
+
+**TrapBase (src/structures/TrapBase.ts):**
+- Ny abstrakt basklass for alla mekaniska fallor.
+- Hanterar cooldown (cooldownMs/cooldownTimer), overheat (overheatMax/overheatCurrent/overheated/recoveryMs), malfunction (malfunctionChance/malfunctioned), uses (-1 = obegransade) och fuel (fuelPerNight).
+- tryActivate(): returnerar false vid cooldown/overheat/malfunction, startar annars timer och ackumulerar overheat.
+- update(delta): raknar ner cooldown, acker overheat, aterstaller vid recovery-slut.
+- Visuella statusoverlayn: gron (aktiv), gra+timer (cooldown), orange+HOT! (overheat), rod blinkande !! (malfunction).
+- repair(): nollstaller malfunction-flaggan, anropas av spel-reparatoren.
+- manualCool(): halverar recovery-tid vid manuell nerkyling (framtida funktion).
+
+**6 nya fallor:**
+- BladeSpinner (src/structures/BladeSpinner.ts): roterande bladmaskin, 25 dmg AOE 40px, cd 4s, overheat 30s/10s recovery, malfunction 15%, fuel 1 food/natt.
+- FirePit (src/structures/FirePit.ts): brannzon 3 tiles, 15 dmg/s, ingen cooldown, flimrande animation, malfunction 5%, fuel 2 food/natt.
+- PropaneGeyser (src/structures/PropaneGeyser.ts): eldexplosion i 60px radie, 40 dmg, cd 6s, overheat 20s/12s recovery, malfunction 10%.
+- CartWall (src/structures/CartWall.ts): passiv blockerare av kundvagnar, 80 HP, billig, ingen cooldown/overheat.
+- WashingCannon (src/structures/WashingCannon.ts): skjuter projektiler mot narmaste zombie i 150px, 30 dmg, cd 3s, overheat 25s/12s, malfunction 20%.
+- PitTrap (src/structures/PitTrap.ts): fangar upp till 5 zombies permanent, forstors nar full, malfunction 10%.
+
+**structures.json uppdaterad:**
+- Alla 6 nya fallor tillagda med korrekt data (kostnad, HP, effekter, cooldownMs, overheatMax, malfunctionChance, fuelPerNight etc.).
+
+**NightScene.ts:**
+- Importerar alla 6 nya falle-klasser och TrapBase.
+- createStructures(): hanterar alla 6 nya case-block. Rullar malfunction och drar fuel vid nattstart.
+- Nya privata arrays: _bladeSpinners, _firePits, _propaneGeysers, _cartWalls, _washingCannons, _pitTraps.
+- _lastDelta: property for att viderebeforda delta till updateMechanicalTraps().
+- _repairKey: E-tangent for repair-interaktion.
+- updateMechanicalTraps(): uppdaterar alla TrapBase.update(delta), hanterar AOE/kontakt/projektiler per trap-typ.
+- updateRepairMechanic(): spelare haller E nara malfunctioned falla i 2 sekunder, kostar 1 parts, visar progress-bar.
+- checkZombieStructureInteractions(): cleanup + updateMechanicalTraps() kallas en gang per frame.
+
+**Version:** 2.2.0 -> 2.3.0
+
+---
+
 ## [2.2.0] - 2026-04-02 (uppdaterad 2026-04-02 17:24)
 
 ### Feature -- Inventory redesign steg 4 (ammo-bekraftelse vid nattstart)

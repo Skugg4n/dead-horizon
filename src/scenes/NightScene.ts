@@ -14,6 +14,13 @@ import { BearTrap } from '../structures/BearTrap';
 import { Landmine } from '../structures/Landmine';
 import { Sandbags } from '../structures/Sandbags';
 import { OilSlick } from '../structures/OilSlick';
+import { BladeSpinner } from '../structures/BladeSpinner';
+import { FirePit } from '../structures/FirePit';
+import { PropaneGeyser } from '../structures/PropaneGeyser';
+import { CartWall } from '../structures/CartWall';
+import { WashingCannon } from '../structures/WashingCannon';
+import { PitTrap } from '../structures/PitTrap';
+import type { TrapBase } from '../structures/TrapBase';
 import { HUD } from '../ui/HUD';
 import { WeaponManager } from '../systems/WeaponManager';
 import { EquipmentPanel } from '../ui/EquipmentPanel';
@@ -77,6 +84,17 @@ export class NightScene extends Phaser.Scene {
   private _landmines: Landmine[] = [];
   private _sandbags: Sandbags[] = [];
   private _oilSlicks: OilSlick[] = [];
+  // TrapBase-derived mechanical traps (have cooldown/overheat/malfunction)
+  private _bladeSpinners: BladeSpinner[] = [];
+  private _firePits: FirePit[] = [];
+  private _propaneGeysers: PropaneGeyser[] = [];
+  private _cartWalls: CartWall[] = [];
+  private _washingCannons: WashingCannon[] = [];
+  private _pitTraps: PitTrap[] = [];
+  // Repair interaction state
+  private _repairTarget: TrapBase | null = null;
+  private _repairProgressBar: Phaser.GameObjects.Graphics | null = null;
+  private _repairKey: Phaser.Input.Keyboard.Key | null = null;
   private wallBodies!: Phaser.Physics.Arcade.StaticGroup;
   private fogOfWar!: FogOfWar;
   private fpsText: Phaser.GameObjects.Text | null = null;
@@ -115,6 +133,8 @@ export class NightScene extends Phaser.Scene {
   private baseDamageTaken: number = 0;
   // Guard: prevent player-died from firing twice (e.g. base destroyed then player killed same frame)
   private gameOverShown: boolean = false;
+  // Last frame delta (ms) -- stored so mechanical trap update can access it outside update()
+  private _lastDelta: number = 16;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -234,6 +254,7 @@ export class NightScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    this._lastDelta = delta;
     this.player.update(delta);
     this.hud.updateStaminaBar(this.player.stamina, this.player.maxStamina);
 
@@ -543,6 +564,12 @@ export class NightScene extends Phaser.Scene {
     this._landmines = [];
     this._sandbags = [];
     this._oilSlicks = [];
+    this._bladeSpinners = [];
+    this._firePits = [];
+    this._propaneGeysers = [];
+    this._cartWalls = [];
+    this._washingCannons = [];
+    this._pitTraps = [];
 
     const trapDef = structuresData.structures.find(s => s.id === 'trap');
     const defaultTrapDamage = trapDef && 'trapDamage' in trapDef ? (trapDef as { trapDamage: number }).trapDamage : 20;
@@ -615,6 +642,78 @@ export class NightScene extends Phaser.Scene {
           const width  = (oilSlickDef as { widthTiles?: number } | undefined)?.widthTiles ?? 3;
           const slick  = new OilSlick(this, structure, slow, width);
           this._oilSlicks.push(slick);
+          break;
+        }
+        case 'blade_spinner': {
+          const spinner = new BladeSpinner(this, structure);
+          // Roll malfunction at night start
+          if (Math.random() < spinner.malfunctionChance) {
+            spinner.malfunctioned = true;
+          }
+          // Deduct fuel: 1 food
+          if (!spinner.malfunctioned && spinner.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: spinner.fuelPerNight })) {
+              this.resourceManager.spend('food', spinner.fuelPerNight);
+            } else {
+              // No fuel -- trap does not operate tonight
+              spinner.malfunctioned = true;
+            }
+          }
+          this._bladeSpinners.push(spinner);
+          break;
+        }
+        case 'fire_pit': {
+          const pit = new FirePit(this, structure);
+          if (Math.random() < pit.malfunctionChance) {
+            pit.malfunctioned = true;
+          }
+          if (!pit.malfunctioned && pit.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: pit.fuelPerNight })) {
+              this.resourceManager.spend('food', pit.fuelPerNight);
+            } else {
+              pit.malfunctioned = true;
+            }
+          }
+          this._firePits.push(pit);
+          break;
+        }
+        case 'propane_geyser': {
+          const geyser = new PropaneGeyser(this, structure);
+          if (Math.random() < geyser.malfunctionChance) {
+            geyser.malfunctioned = true;
+          }
+          this._propaneGeysers.push(geyser);
+          break;
+        }
+        case 'cart_wall': {
+          // Cart Wall is a passive blocker -- add physics body like Wall
+          const cw = new CartWall(this, structure);
+          this._cartWalls.push(cw);
+          const cwBody = this.wallBodies.create(
+            structure.x + TILE_SIZE / 2,
+            structure.y + TILE_SIZE / 2,
+            '',
+          ) as Phaser.Physics.Arcade.Sprite;
+          cwBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
+          cwBody.setVisible(false);
+          cwBody.refreshBody();
+          cwBody.setData('cartWallRef', cw);
+          break;
+        }
+        case 'washing_cannon': {
+          const cannon = new WashingCannon(this, structure);
+          if (Math.random() < cannon.malfunctionChance) {
+            cannon.malfunctioned = true;
+          }
+          this._washingCannons.push(cannon);
+          break;
+        }
+        case 'pit_trap': {
+          const pt = new PitTrap(this, structure);
+          if (Math.random() < pt.malfunctionChance) {
+            pt.malfunctioned = true;
+          }
+          this._pitTraps.push(pt);
           break;
         }
         default: {
@@ -1119,6 +1218,9 @@ export class NightScene extends Phaser.Scene {
         });
       }
     }
+
+    // E key for repair mechanic (hold near malfunctioned trap)
+    this._repairKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     // ESC to pause
     const escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
@@ -1691,13 +1793,19 @@ export class NightScene extends Phaser.Scene {
   // 5D: Check zombie overlap with barricades, traps, and new trap types each frame
   private checkZombieStructureInteractions(): void {
     // Clean up inactive structures once per frame (not per-zombie)
-    this.barricades  = this.barricades.filter(b => b && b.active);
-    this.traps       = this.traps.filter(t => t && t.active);
-    this._spikeStrips = this._spikeStrips.filter(s => s && s.active);
-    this._bearTraps   = this._bearTraps.filter(b => b && b.active);
-    this._landmines   = this._landmines.filter(m => m && m.active);
-    this._sandbags    = this._sandbags.filter(s => s && s.active);
-    this._oilSlicks   = this._oilSlicks.filter(o => o && o.active);
+    this.barricades    = this.barricades.filter(b => b && b.active);
+    this.traps         = this.traps.filter(t => t && t.active);
+    this._spikeStrips  = this._spikeStrips.filter(s => s && s.active);
+    this._bearTraps    = this._bearTraps.filter(b => b && b.active);
+    this._landmines    = this._landmines.filter(m => m && m.active);
+    this._sandbags     = this._sandbags.filter(s => s && s.active);
+    this._oilSlicks    = this._oilSlicks.filter(o => o && o.active);
+    this._bladeSpinners  = this._bladeSpinners.filter(t => t && t.active);
+    this._firePits       = this._firePits.filter(t => t && t.active);
+    this._propaneGeysers = this._propaneGeysers.filter(t => t && t.active);
+    this._cartWalls      = this._cartWalls.filter(t => t && t.active);
+    this._washingCannons = this._washingCannons.filter(t => t && t.active);
+    this._pitTraps       = this._pitTraps.filter(t => t && t.active);
 
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
@@ -1874,8 +1982,286 @@ export class NightScene extends Phaser.Scene {
       }
     });
 
+    // -----------------------------------------------------------------------
+    // TrapBase mechanical traps -- update cooldown/overheat each frame
+    // then check zombie proximity for activation.
+    // Note: delta is not available here; we store it from update() above.
+    // -----------------------------------------------------------------------
+    this.updateMechanicalTraps();
+
     // Pillbox interaction: check once per frame (was incorrectly inside per-zombie loop)
     this.checkPillboxDamage();
+  }
+
+  /**
+   * Update all TrapBase-derived mechanical traps and handle zombie contacts.
+   * Called once per frame from checkZombieStructureInteractions().
+   */
+  private updateMechanicalTraps(): void {
+    const delta = this._lastDelta;
+
+    // Update timers for all mechanical traps
+    for (const t of this._bladeSpinners)  t.update(delta);
+    for (const t of this._firePits)       t.update(delta);
+    for (const t of this._propaneGeysers) t.update(delta);
+    for (const t of this._washingCannons) t.update(delta);
+    for (const t of this._pitTraps)       t.update(delta);
+
+    // --- Blade Spinner: AOE around center ---
+    for (const spinner of this._bladeSpinners) {
+      if (!spinner.active || !spinner.isReady()) continue;
+
+      let triggered = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+
+        const cx = spinner.structureInstance.x + TILE_SIZE / 2;
+        const cy = spinner.structureInstance.y + TILE_SIZE / 2;
+        const dx = zombie.x - cx;
+        const dy = zombie.y - cy;
+
+        if (dx * dx + dy * dy <= spinner.aoeRadius * spinner.aoeRadius) {
+          if (!triggered) {
+            // First zombie triggers activation (starts cooldown / overheat)
+            if (!spinner.tryActivate()) break;
+            triggered = true;
+            this.trapEmitter.emitParticleAt(cx, cy, 8);
+          }
+          // All zombies in radius take damage
+          zombie.takeDamage(25);
+        }
+      }
+    }
+
+    // --- Fire Pit: continuous damage per second for zombies inside zone ---
+    for (const pit of this._firePits) {
+      if (!pit.active || pit.malfunctioned) continue;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+
+        if (pit.containsPoint(zombie.x, zombie.y)) {
+          // Damage proportional to frame time (15 dmg/s)
+          zombie.takeDamage(pit.damagePerSecond * delta / 1000);
+        }
+      }
+    }
+
+    // --- Propane Geyser: AOE burst on nearest zombie in range ---
+    for (const geyser of this._propaneGeysers) {
+      if (!geyser.active || !geyser.isReady()) continue;
+
+      const cx = geyser.structureInstance.x + TILE_SIZE / 2;
+      const cy = geyser.structureInstance.y + TILE_SIZE / 2;
+      const rSq = geyser.burstRadius * geyser.burstRadius;
+
+      // Check if any zombie is in range
+      let anyInRange = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - cx;
+        const dy = zombie.y - cy;
+        if (dx * dx + dy * dy <= rSq) { anyInRange = true; break; }
+      }
+
+      if (!anyInRange) continue;
+      if (!geyser.tryActivate()) continue;
+
+      // Deal AOE damage to all zombies in burst radius
+      this.trapEmitter.emitParticleAt(cx, cy, 12);
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - cx;
+        const dy = zombie.y - cy;
+        if (dx * dx + dy * dy <= rSq) {
+          zombie.takeDamage(geyser.burstDamage);
+        }
+      }
+    }
+
+    // --- Washing Cannon: fire projectile at nearest zombie in range ---
+    for (const cannon of this._washingCannons) {
+      if (!cannon.active) continue;
+      cannon.update(delta); // also updates in-flight projectiles
+
+      if (!cannon.isReady()) continue;
+
+      const cx = cannon.structureInstance.x + TILE_SIZE / 2;
+      const cy = cannon.structureInstance.y + TILE_SIZE / 2;
+      const rSq = cannon.range * cannon.range;
+
+      // Find nearest zombie in range
+      let nearest: Zombie | null = null;
+      let nearestDistSq = rSq + 1;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - cx;
+        const dy = zombie.y - cy;
+        const dSq = dx * dx + dy * dy;
+        if (dSq <= rSq && dSq < nearestDistSq) {
+          nearest = zombie;
+          nearestDistSq = dSq;
+        }
+      }
+
+      if (!nearest) continue;
+      if (!cannon.tryActivate()) continue;
+
+      cannon.onZombieContact(nearest);
+    }
+
+    // --- Washing Cannon: check if any projectile hits a zombie ---
+    for (const cannon of this._washingCannons) {
+      if (!cannon.active) continue;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        cannon.checkProjectileHit(zombie);
+      }
+    }
+
+    // --- Pit Trap: capture first zombie that steps on it ---
+    for (let i = this._pitTraps.length - 1; i >= 0; i--) {
+      const pt = this._pitTraps[i];
+      if (!pt || !pt.active) continue;
+      if (!pt.isReady()) continue;
+
+      const px = pt.structureInstance.x;
+      const py = pt.structureInstance.y;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+
+        if (
+          zombie.x >= px && zombie.x <= px + TILE_SIZE &&
+          zombie.y >= py && zombie.y <= py + TILE_SIZE
+        ) {
+          if (!pt.tryActivate()) break;
+          pt.onZombieContact(zombie);
+          // If pit is full (uses === 0) it destroys itself in onZombieContact
+          if (!pt.active) {
+            this._pitTraps.splice(i, 1);
+          }
+          break; // one zombie per frame per pit
+        }
+      }
+    }
+
+    // --- Repair mechanic: player holds E near a malfunctioned TrapBase trap ---
+    this.updateRepairMechanic(delta);
+  }
+
+  /**
+   * Allow the player to repair a malfunctioned mechanical trap by standing near it
+   * and holding the E key for 2 seconds. Costs 1 parts.
+   */
+  private updateRepairMechanic(delta: number): void {
+    if (!this._repairKey) return;
+
+    const allMechanical: TrapBase[] = [
+      ...this._bladeSpinners,
+      ...this._firePits,
+      ...this._propaneGeysers,
+      ...this._washingCannons,
+      ...this._pitTraps,
+    ];
+
+    const REPAIR_RANGE = 40;
+    const REPAIR_TIME  = 2000; // ms
+    const REPAIR_COST  = { parts: 1 } as const;
+
+    const eDown = this._repairKey.isDown;
+
+    if (!eDown) {
+      // Cancel any in-progress repair
+      if (this._repairTarget) {
+        this._repairTarget.isBeingRepaired = false;
+        this._repairTarget.repairProgress  = 0;
+        this._repairTarget = null;
+        if (this._repairProgressBar) {
+          this._repairProgressBar.destroy();
+          this._repairProgressBar = null;
+        }
+      }
+      return;
+    }
+
+    // Find the nearest malfunctioned trap within repair range
+    let nearest: TrapBase | null = null;
+    let nearestDist = REPAIR_RANGE + 1;
+
+    for (const trap of allMechanical) {
+      if (!trap.active || !trap.malfunctioned) continue;
+      const dist = Phaser.Math.Distance.Between(
+        this.player.x, this.player.y,
+        trap.structureInstance.x + TILE_SIZE / 2,
+        trap.structureInstance.y + TILE_SIZE / 2,
+      );
+      if (dist < nearestDist) {
+        nearest = trap;
+        nearestDist = dist;
+      }
+    }
+
+    // If player moved away from the previous target, cancel
+    if (this._repairTarget && this._repairTarget !== nearest) {
+      this._repairTarget.isBeingRepaired = false;
+      this._repairTarget.repairProgress  = 0;
+      this._repairTarget = null;
+      if (this._repairProgressBar) {
+        this._repairProgressBar.destroy();
+        this._repairProgressBar = null;
+      }
+    }
+
+    if (!nearest) return;
+
+    // Start or continue repair
+    this._repairTarget = nearest;
+    nearest.isBeingRepaired = true;
+    nearest.repairProgress  = (nearest.repairProgress ?? 0) + delta;
+
+    // Draw progress bar above trap
+    if (!this._repairProgressBar) {
+      this._repairProgressBar = this.add.graphics().setDepth(60);
+    }
+    const bar = this._repairProgressBar;
+    bar.clear();
+    const bx = nearest.structureInstance.x;
+    const by = nearest.structureInstance.y - 16;
+    const progress = Math.min(nearest.repairProgress / REPAIR_TIME, 1);
+    bar.fillStyle(0x333333);
+    bar.fillRect(bx, by, TILE_SIZE, 5);
+    bar.fillStyle(0x44FF44);
+    bar.fillRect(bx, by, Math.round(TILE_SIZE * progress), 5);
+
+    // Check completion
+    if (nearest.repairProgress >= REPAIR_TIME) {
+      // Check resource availability
+      if (!this.resourceManager.canAfford({ parts: REPAIR_COST.parts })) {
+        // Can't afford repair -- show message and cancel
+        this.hud.showMessage('Need 1 PARTS to repair!');
+        this.showFloatingText(this.player.x, this.player.y - 20, 'Need 1 PARTS!');
+        nearest.isBeingRepaired = false;
+        nearest.repairProgress  = 0;
+        this._repairTarget = null;
+        bar.destroy();
+        this._repairProgressBar = null;
+        return;
+      }
+      this.resourceManager.spend('parts', REPAIR_COST.parts);
+      nearest.repair();
+      this.showFloatingText(nearest.structureInstance.x + TILE_SIZE / 2, nearest.structureInstance.y - 24, 'Repaired!');
+      this._repairTarget = null;
+      bar.destroy();
+      this._repairProgressBar = null;
+    }
   }
 
   /**

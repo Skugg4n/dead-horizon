@@ -325,6 +325,19 @@ Dessa features implementeras baserat på feedback och prioritet:
 - [x] Tutorial-text uppdaterad: auto-ammo istallet for manuell laddning
 - [ ] Meds-kostnad tydlig i RefugeePanel (fas 3)
 
+### 6H: Cooldown-system + 6 nya mekaniska fallor (v2.3.0)
+- [x] TrapBase: abstrakt basklass med cooldown, overheat, malfunction, fuel, uses
+- [x] BladeSpinner: roterande blad-AOE, cd 4s, overheat 30s, malfunction 15%, fuel 1
+- [x] FirePit: brannzon 3 tiles, 15 dmg/s, malfunction 5%, fuel 2
+- [x] PropaneGeyser: eld-burst 60px radie, 40 dmg, cd 6s, overheat 20s, malfunction 10%
+- [x] CartWall: passiv blockerare 80 HP, billig barrikar
+- [x] WashingCannon: projektil mot narmaste zombie 150px, 30 dmg, cd 3s, overheat 25s, malfunction 20%
+- [x] PitTrap: fanger 5 zombies permanent, forstors nar full, malfunction 10%
+- [x] NightScene: malnattstart (fuel-avdrag + malfunction-roll), updateMechanicalTraps(), updateRepairMechanic()
+- [x] Repair-mekanik: hall E 2s nara malfunctioned trap, kostar 1 parts, progress-bar
+- [x] Visuella statusoverlayn: gron (aktiv), gra+timer (cooldown), orange+HOT! (overheat), rod blinkande !! (malfunction)
+- [x] Alla 6 fallor tillagda i structures.json och build-menyn (auto via getAllStructureData)
+
 ---
 
 ## Milstolpar

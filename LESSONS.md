@@ -192,6 +192,20 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ---
 
+## TrapBase och mekaniska fallor
+
+### ResourceManager.spend() tar (type, amount) -- INTE ett objekt
+**Problem:** TrapBase-integration behover dra fuel-resurser vid nattstart. Det ar frestande att skriva `resourceManager.spend({ food: 2 })` (som canAfford() accept), men spend() tar tva separata args: `spend(type: ResourceType, amount: number)`.
+**Losning:** Anvand `resourceManager.spend('food', amount)`. For batch-avdrag, anropa spend() en gang per resurstyp. canAfford() accepterar objekt men spend() gor det INTE.
+
+### TrapBase.update() maste anropas fran NightScene.update() via _lastDelta
+**Problem:** checkZombieStructureInteractions() har inte tillgang till delta (frame-tid). Men TrapBase.update(delta) behovar det for att raekna ned cooldown och overheat.
+**Losning:** Lagra delta i `this._lastDelta` i scene.update() och anvand det i updateMechanicalTraps(). Alternativt kan TrapBase lasas delta via scene.game.loop.delta, men explicit passing ar tydligare.
+
+### Phaser Graphics extends och destroy()-override
+**Problem:** TrapBase skapar en statusText (Phaser.GameObjects.Text) som ett separat game object. Om TrapBase.destroy() anropas (t.ex. nar HP = 0) forstors Graphics-objektet men statusText lever kvar.
+**Losning:** Override destroy() i TrapBase och kalla statusText.destroy() dar. Kolla alltid att statusText.active === true innan destroy() for att undvika double-destroy vid scene-shutdown.
+
 ## Auto-load ammo system
 
 ### autoLoadAmmo() maste koras EFTER weaponManager skapas

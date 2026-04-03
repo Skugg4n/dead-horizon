@@ -120,6 +120,86 @@
       "slowFactor": 0.2,
       "widthTiles": 3,
       "nightDuration": 3
+    },
+    {
+      "id": "blade_spinner",
+      "name": "Blade Spinner",
+      "hp": 100,
+      "cost": { "scrap": 5, "parts": 3 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "aoeRotatingBlades",
+      "trapDamage": 25,
+      "aoeRadius": 40,
+      "cooldownMs": 4000,
+      "overheatMax": 30000,
+      "recoveryMs": 10000,
+      "malfunctionChance": 0.15,
+      "fuelPerNight": 1
+    },
+    {
+      "id": "fire_pit",
+      "name": "Fire Pit",
+      "hp": 60,
+      "cost": { "scrap": 3, "food": 2 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "burnZone",
+      "trapDamage": 15,
+      "widthTiles": 3,
+      "malfunctionChance": 0.05,
+      "fuelPerNight": 2,
+      "nightDuration": 3
+    },
+    {
+      "id": "propane_geyser",
+      "name": "Propane Geyser",
+      "hp": 80,
+      "cost": { "scrap": 4, "parts": 2 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "fireBurstCone",
+      "trapDamage": 40,
+      "burstRadius": 60,
+      "cooldownMs": 6000,
+      "overheatMax": 20000,
+      "recoveryMs": 12000,
+      "malfunctionChance": 0.10
+    },
+    {
+      "id": "cart_wall",
+      "name": "Cart Wall",
+      "hp": 80,
+      "cost": { "scrap": 4 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "blocksEnemies"
+    },
+    {
+      "id": "washing_cannon",
+      "name": "Washing Cannon",
+      "hp": 120,
+      "cost": { "scrap": 7, "parts": 4 },
+      "apCost": 2,
+      "maxLevel": 1,
+      "effect": "firesProjectile",
+      "trapDamage": 30,
+      "range": 150,
+      "cooldownMs": 3000,
+      "overheatMax": 25000,
+      "recoveryMs": 12000,
+      "malfunctionChance": 0.20
+    },
+    {
+      "id": "pit_trap",
+      "name": "Pit Trap",
+      "hp": 40,
+      "cost": { "scrap": 4, "parts": 2 },
+      "apCost": 1,
+      "maxLevel": 1,
+      "effect": "capturesZombies",
+      "maxCaptures": 5,
+      "malfunctionChance": 0.10
     }
   ]
 }
