@@ -50,3 +50,20 @@ Denna fil trackar alla kända buggar. Stryks INTE förrän verifierade som fixad
 ### GP1: Duplicate spike trap-typer i build-menyn
 - Fix: "Spike Trap" omdöpt till "Claw Trap" (v2.0.6)
 - Status: Borde vara fixat, väntar på verifiering
+
+### VB4: Karaktärsporträtt ser dåligt ut
+- Porträtten är 32x32 pixliga utan kontext
+- Behöver bättre, större porträtt eller siluett-approach
+
+### VB5: Spelarsprite skiljer sig mellan stillastående och rörelse
+- Stillastående sprite och walk-animation ser ut som olika karaktärer
+- Behöver synkas så det ser konsekvent ut
+
+### UX1: Ammo-mekanik förvirrande
+- Spelaren "har" ammo men måste manuellt "ladda" det
+- Borde auto-laddas vid nattstart
+- Se docs/inventory-redesign.md
+
+### UX2: Meds-syfte otydligt
+- Används för att hela refugees men förklaras aldrig i spelet
+- Behöver tydligare UI i refugee-panelen
