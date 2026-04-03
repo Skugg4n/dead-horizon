@@ -283,7 +283,7 @@ export class LootRunPanel {
     yOffset += 18;
 
     const healthyRefugees = this.gameState.refugees.filter(
-      r => r.status === 'healthy' && r.job !== 'loot_run',
+      r => r.status === 'healthy' && r.hp > 0 && r.job !== 'loot_run',
     );
 
     for (const refugee of healthyRefugees) {

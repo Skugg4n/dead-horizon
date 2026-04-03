@@ -34,23 +34,27 @@ export class GameOverScene extends Phaser.Scene {
       color: '#E8DCC8',
     }).setOrigin(0.5);
 
-    const retryText = this.add.text(centerX, centerY + 70, '[ TRY AGAIN ]', {
+    // "Try again" appears after 3 seconds -- prevents accidental skip from combat keys
+    const retryText = this.add.text(centerX, centerY + 70, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '14px',
       color: '#D4620B',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    retryText.on('pointerover', () => retryText.setColor('#FFD700'));
-    retryText.on('pointerout', () => retryText.setColor('#D4620B'));
+    }).setOrigin(0.5);
 
     const advance = () => this.scene.start('DayScene');
-    retryText.on('pointerdown', advance);
 
-    // ESC, Enter, Space to continue -- mirrors ResultScene keyboard handling
-    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
-        advance();
-      }
+    this.time.delayedCall(3000, () => {
+      retryText.setText('[ TRY AGAIN ]');
+      retryText.setInteractive({ useHandCursor: true });
+      retryText.on('pointerover', () => retryText.setColor('#FFD700'));
+      retryText.on('pointerout', () => retryText.setColor('#D4620B'));
+      retryText.on('pointerdown', advance);
+
+      this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+        if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
+          advance();
+        }
+      });
     });
   }
 }
