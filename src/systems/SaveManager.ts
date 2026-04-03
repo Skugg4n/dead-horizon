@@ -110,6 +110,7 @@ function createDefaultState(): GameState {
 
 function save(state: GameState): void {
   try {
+    console.log(`[SaveManager] save mapSeed=${state.mapSeed}`);
     const json = JSON.stringify(state);
     localStorage.setItem(SAVE_KEY, json);
   } catch (e) {
@@ -122,6 +123,7 @@ function load(): GameState {
     const json = localStorage.getItem(SAVE_KEY);
     if (json) {
       const saved = JSON.parse(json) as Partial<GameState>;
+      console.log(`[SaveManager] load saved.mapSeed=${saved.mapSeed}`);
       // Merge with defaults to handle missing fields from older saves
       const defaults = createDefaultState();
       const state: GameState = {
@@ -159,8 +161,8 @@ function load(): GameState {
         map: { ...defaults.map, ...(saved.map ?? {}) },
         stats: { ...defaults.stats, ...(saved.stats ?? {}) },
         zoneProgress: saved.zoneProgress ?? defaults.zoneProgress,
-        // Migration: old saves lack mapSeed -- generate one
-        mapSeed: (saved as { mapSeed?: number }).mapSeed ?? Math.floor(Math.random() * 100000),
+        // mapSeed: inherited from ...defaults (random) then overwritten by ...saved if present
+        // No explicit line needed -- the spread on lines above handles it.
         achievements: saved.achievements ?? defaults.achievements,
         refugees: saved.refugees ?? defaults.refugees,
       };
