@@ -2,7 +2,7 @@ import type { GameState } from '../config/types';
 
 // Load ammo action for DayScene: costs 1 AP, transfers all available ammo
 // from resource stockpile to loadedAmmo for the night phase
-export function loadAmmo(gameState: GameState, apCost: number): { success: boolean; loaded: number; message: string } {
+export function loadAmmo(gameState: GameState, _apCost: number): { success: boolean; loaded: number; message: string } {
   const available = gameState.inventory.resources.ammo;
 
   if (available <= 0) {
@@ -16,6 +16,6 @@ export function loadAmmo(gameState: GameState, apCost: number): { success: boole
   return {
     success: true,
     loaded: available,
-    message: `Loaded ${available} ammo (cost: ${apCost} AP)`,
+    message: `${available} ammo loaded into weapons! Ready for tonight.`,
   };
 }

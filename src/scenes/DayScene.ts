@@ -950,10 +950,11 @@ export class DayScene extends Phaser.Scene {
   private showInfo(msg: string): void {
     this.infoText.setText(msg);
     this.infoText.setAlpha(1);
+    this.tweens.killTweensOf(this.infoText);
     this.tweens.add({
       targets: this.infoText,
       alpha: 0,
-      delay: 1500,
+      delay: 3000,
       duration: 1000,
       ease: 'Power2',
     });

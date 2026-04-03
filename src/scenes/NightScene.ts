@@ -2199,7 +2199,7 @@ export class NightScene extends Phaser.Scene {
 
     // Panel dimensions
     const panelW = 340;
-    const panelH = 240;
+    const panelH = 290;
     const px = (GAME_WIDTH - panelW) / 2;
     const py = (GAME_HEIGHT - panelH) / 2;
 
@@ -2255,10 +2255,21 @@ export class NightScene extends Phaser.Scene {
     ).setOrigin(0.5, 0);
     container.add(statsText);
 
-    // "You keep all your gear" reassurance
-    const gearText = this.add.text(GAME_WIDTH / 2, py + 160, 'You keep all your gear.', {
+    // Parallel universe flavour text
+    const flavorText = this.add.text(GAME_WIDTH / 2, py + 130,
+      'In a parallel universe,\nyou live to fight another night.', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
+      color: '#6B8B6B',
+      align: 'center',
+      lineSpacing: 4,
+    }).setOrigin(0.5, 0);
+    container.add(flavorText);
+
+    // "You keep all your gear" reassurance
+    const gearText = this.add.text(GAME_WIDTH / 2, py + 170, 'You keep all your gear.', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
       color: '#4CAF50',
     }).setOrigin(0.5);
     container.add(gearText);
