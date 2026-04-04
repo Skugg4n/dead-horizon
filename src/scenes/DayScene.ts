@@ -1048,7 +1048,7 @@ export class DayScene extends Phaser.Scene {
             return;
           }
           // Delegate to BuildMenu's key handler (1-9, arrows, Enter, Tab)
-          if (this.buildMenu.handleKey(key)) return;
+          if (this.buildMenu.handleKey(key, event)) return;
           return; // Consume all other keys when build menu is open
         }
 
