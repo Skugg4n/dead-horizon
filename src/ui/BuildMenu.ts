@@ -1,6 +1,11 @@
-// Dead Horizon -- BuildMenu v2.4
+// Dead Horizon -- BuildMenu v2.4.1
 // Redesigned with tabs (TRAPS | WALLS | SPECIAL), resource header, icon cells,
 // gray-out reasons, and per-item descriptions loaded from structures.json.
+// Changes in 2.4.1:
+//   - Smaller fonts (tabs 7px, names 9px, desc/cost 7px)
+//   - ITEM_H 46, ICON_CELL 28, PANEL_W 300
+//   - Keyboard navigation: 1-9, ArrowUp/Down, Enter, Tab
+//   - Scroll simulation: max visible items + "more" indicator
 
 import Phaser from 'phaser';
 import { BuildingManager } from '../systems/BuildingManager';
@@ -12,16 +17,20 @@ import type { ResourceType } from '../config/types';
 // ------------------------------------------------------------------
 // Layout constants
 // ------------------------------------------------------------------
-const PANEL_W = 340;
+const PANEL_W = 300;
 const PANEL_X = Math.floor((GAME_WIDTH - PANEL_W) / 2);
 const PANEL_Y = 48;
-const HEADER_H = 32;   // resource bar height
-const TAB_H = 28;      // tab strip height
-const ITEM_H = 56;     // height per list item
-const ITEM_GAP = 4;    // vertical gap between items
-const ICON_CELL = 36;  // icon box size
-const PADDING = 10;
-const MAX_VISIBLE_H = GAME_HEIGHT - PANEL_Y - 60; // max panel content area
+const HEADER_H = 28;   // resource bar height
+const TAB_H = 24;      // tab strip height
+const ITEM_H = 46;     // height per list item (was 56)
+const ITEM_GAP = 3;    // vertical gap between items
+const ICON_CELL = 28;  // icon box size (was 36)
+const PADDING = 8;
+const MORE_INDICATOR_H = 18; // height for the "N more..." text row
+
+// Compute how many items fit in the visible panel area
+const AVAILABLE_H = GAME_HEIGHT - PANEL_Y - 60 - HEADER_H - TAB_H - PADDING * 2 - MORE_INDICATOR_H;
+const MAX_VISIBLE_ITEMS = Math.max(1, Math.floor(AVAILABLE_H / (ITEM_H + ITEM_GAP)));
 
 const BG_COLOR      = 0x1A1A1A;
 const BORDER_COLOR  = 0x3A3A3A;
@@ -30,6 +39,7 @@ const TAB_ACTIVE    = 0x333333;
 const TAB_INACTIVE  = 0x1E1E1E;
 const ITEM_NORMAL   = 0x242424;
 const ITEM_HOVER    = 0x3A3A3A;
+const ITEM_SELECTED = 0x2E3A2E; // highlighted by keyboard cursor
 const FONT_MAIN     = '#E8DCC8';
 const FONT_MUTED    = '#6B6B6B';
 const FONT_YELLOW   = '#FFD700';
@@ -84,6 +94,10 @@ export class BuildMenu {
   private visible: boolean = false;
   private activeTab: TabName = 'TRAPS';
 
+  // Keyboard navigation state
+  private cursorIndex: number = -1; // -1 = no keyboard selection
+  private scrollOffset: number = 0; // index of first visible item
+
   // Current base level determines which structures are unlocked
   private getBaseLevelUnlockedIds: () => string[];
 
@@ -135,6 +149,8 @@ export class BuildMenu {
 
   show(): void {
     this.visible = true;
+    this.cursorIndex = -1;
+    this.scrollOffset = 0;
     this.backdrop.setVisible(true);
     this.container.setVisible(true);
     this.rebuild();
@@ -169,34 +185,139 @@ export class BuildMenu {
     this.container.destroy();
   }
 
+  /**
+   * Handle keyboard input when the build menu is open.
+   * Returns true if the key was handled (so the caller can stop propagation).
+   *
+   * Keys:
+   *   1-9    : select item by visible position
+   *   ArrowDown  : move cursor down, scroll if needed
+   *   ArrowUp    : move cursor up, scroll if needed
+   *   Enter  : select the currently highlighted item
+   *   Tab    : cycle to next tab
+   */
+  handleKey(key: string): boolean {
+    const filtered = this.getFilteredItems();
+    const total = filtered.length;
+    if (total === 0) return false;
+
+    // Digit 1-9: select visible item by number
+    const digit = parseInt(key, 10);
+    if (!isNaN(digit) && digit >= 1 && digit <= 9) {
+      const visibleIndex = digit - 1; // 0-based within the visible window
+      const absoluteIndex = this.scrollOffset + visibleIndex;
+      if (absoluteIndex < total) {
+        this.cursorIndex = absoluteIndex;
+        this.trySelectCurrent(filtered);
+      }
+      return true;
+    }
+
+    if (key === 'ArrowDown') {
+      if (this.cursorIndex < 0) {
+        this.cursorIndex = this.scrollOffset;
+      } else if (this.cursorIndex < total - 1) {
+        this.cursorIndex++;
+        // Scroll down if cursor went below visible window
+        if (this.cursorIndex >= this.scrollOffset + MAX_VISIBLE_ITEMS) {
+          this.scrollOffset = this.cursorIndex - MAX_VISIBLE_ITEMS + 1;
+        }
+      }
+      this.rebuild();
+      return true;
+    }
+
+    if (key === 'ArrowUp') {
+      if (this.cursorIndex < 0) {
+        this.cursorIndex = this.scrollOffset;
+      } else if (this.cursorIndex > 0) {
+        this.cursorIndex--;
+        // Scroll up if cursor went above visible window
+        if (this.cursorIndex < this.scrollOffset) {
+          this.scrollOffset = this.cursorIndex;
+        }
+      }
+      this.rebuild();
+      return true;
+    }
+
+    if (key === 'Enter') {
+      this.trySelectCurrent(filtered);
+      return true;
+    }
+
+    if (key === 'Tab') {
+      const tabs: TabName[] = ['TRAPS', 'WALLS', 'SPECIAL'];
+      const idx = tabs.indexOf(this.activeTab);
+      const next = tabs[(idx + 1) % tabs.length];
+      if (next) this.activeTab = next;
+      this.cursorIndex = -1;
+      this.scrollOffset = 0;
+      this.rebuild();
+      return true;
+    }
+
+    return false;
+  }
+
   // ------------------------------------------------------------------
   // Panel construction
   // ------------------------------------------------------------------
 
+  private getFilteredItems(): StructureData[] {
+    return this.buildingManager.getAllStructureData()
+      .filter(s => this.getTabForStructure(s) === this.activeTab);
+  }
+
+  private trySelectCurrent(filtered: StructureData[]): void {
+    if (this.cursorIndex < 0 || this.cursorIndex >= filtered.length) return;
+    const s = filtered[this.cursorIndex];
+    if (!s) return;
+
+    const unlockedIds = this.getBaseLevelUnlockedIds();
+    const isUnlocked = unlockedIds.includes(s.id);
+    const canAfford = this.buildingManager.canAfford(s.id);
+    const hasAP = this.getCurrentAP() >= s.apCost;
+    const reasons = this.getDisabledReasons(s, isUnlocked, canAfford, hasAP, this.getResources(), this.getCurrentAP());
+    const available = isUnlocked && reasons.length === 0;
+
+    if (available) {
+      this.onSelect(s.id);
+    }
+  }
+
   private buildPanel(): void {
     const unlockedIds = this.getBaseLevelUnlockedIds();
-    const allStructures = this.buildingManager.getAllStructureData();
     const ap = this.getCurrentAP();
     const maxAP = this.getMaxAP();
     const resources = this.getResources();
+    const filtered = this.getFilteredItems();
+    const total = filtered.length;
 
-    // Separate structures by active tab
-    const filtered = allStructures.filter(s => this.getTabForStructure(s) === this.activeTab);
+    // Clamp cursor and scroll offset to valid range after tab change etc.
+    if (this.cursorIndex >= total) this.cursorIndex = total - 1;
+    if (this.scrollOffset > Math.max(0, total - MAX_VISIBLE_ITEMS)) {
+      this.scrollOffset = Math.max(0, total - MAX_VISIBLE_ITEMS);
+    }
 
-    // Calculate total panel height based on item count
-    const listH = filtered.length * (ITEM_H + ITEM_GAP);
-    const totalH = HEADER_H + TAB_H + PADDING + listH + PADDING;
-    const clampedH = Math.min(totalH, MAX_VISIBLE_H);
+    const visibleItems = filtered.slice(this.scrollOffset, this.scrollOffset + MAX_VISIBLE_ITEMS);
+    const hasMore = total > this.scrollOffset + MAX_VISIBLE_ITEMS;
+    const moreCount = total - (this.scrollOffset + MAX_VISIBLE_ITEMS);
+    const hasPrev = this.scrollOffset > 0;
+
+    const listH = visibleItems.length * (ITEM_H + ITEM_GAP);
+    const moreBarH = (hasMore || hasPrev) ? MORE_INDICATOR_H : 0;
+    const totalH = HEADER_H + TAB_H + PADDING + listH + moreBarH + PADDING;
 
     // --- Panel background ---
     const bg = this.scene.add.graphics();
     bg.fillStyle(BG_COLOR, 0.97);
-    bg.fillRect(0, 0, PANEL_W, clampedH);
+    bg.fillRect(0, 0, PANEL_W, totalH);
     bg.lineStyle(1, BORDER_COLOR, 1);
-    bg.strokeRect(0, 0, PANEL_W, clampedH);
+    bg.strokeRect(0, 0, PANEL_W, totalH);
     // Block clicks from reaching the backdrop
     bg.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, PANEL_W, clampedH),
+      new Phaser.Geom.Rectangle(0, 0, PANEL_W, totalH),
       Phaser.Geom.Rectangle.Contains,
     );
     this.container.add(bg);
@@ -211,21 +332,37 @@ export class BuildMenu {
     const listY = HEADER_H + TAB_H + PADDING;
     let offsetY = listY;
 
-    for (const s of filtered) {
+    visibleItems.forEach((s, visIdx) => {
+      const absoluteIndex = this.scrollOffset + visIdx;
       const isUnlocked = unlockedIds.includes(s.id);
       const canAfford = this.buildingManager.canAfford(s.id);
       const hasAP = ap >= s.apCost;
       const reasons = this.getDisabledReasons(s, isUnlocked, canAfford, hasAP, resources, ap);
       const available = isUnlocked && reasons.length === 0;
+      const isHighlighted = absoluteIndex === this.cursorIndex;
 
-      this.buildItem(s, available, isUnlocked, reasons, offsetY);
+      this.buildItem(s, available, isUnlocked, reasons, offsetY, visIdx + 1, isHighlighted);
       offsetY += ITEM_H + ITEM_GAP;
+    });
+
+    // --- "More" indicator ---
+    if (hasMore || hasPrev) {
+      const moreY = listY + listH;
+      const lines: string[] = [];
+      if (hasPrev) lines.push('^ more above');
+      if (hasMore) lines.push(`v ${moreCount} more (arrows to scroll)`);
+      const moreText = this.scene.add.text(PANEL_W / 2, moreY + MORE_INDICATOR_H / 2, lines.join('   '), {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '6px',
+        color: FONT_MUTED,
+      }).setOrigin(0.5, 0.5);
+      this.container.add(moreText);
     }
 
     // --- Close button [X] in top-right ---
-    const closeBtn = this.scene.add.text(PANEL_W - PADDING - 8, 8, '[X]', {
+    const closeBtn = this.scene.add.text(PANEL_W - PADDING - 8, 6, '[X]', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
+      fontSize: '8px',
       color: FONT_MUTED,
     }).setOrigin(1, 0);
     closeBtn.setInteractive({ useHandCursor: true });
@@ -242,7 +379,6 @@ export class BuildMenu {
     hdr.fillRect(0, 0, PANEL_W, HEADER_H);
     this.container.add(hdr);
 
-    // Resource text -- always visible
     const scrap = resources.scrap ?? 0;
     const parts = resources.parts ?? 0;
     const food  = resources.food ?? 0;
@@ -278,6 +414,8 @@ export class BuildMenu {
       if (tabBg.input) tabBg.input.cursor = 'pointer';
       tabBg.on('pointerdown', () => {
         this.activeTab = tab;
+        this.cursorIndex = -1;
+        this.scrollOffset = 0;
         this.rebuild();
       });
       tabBg.on('pointerover', () => {
@@ -296,12 +434,12 @@ export class BuildMenu {
       });
       this.container.add(tabBg);
 
+      // Tab labels: 7px (was larger)
       const tabLabel = this.scene.add.text(x + tabW / 2, HEADER_H + TAB_H / 2, tab, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: isActive ? FONT_YELLOW : FONT_MUTED,
       }).setOrigin(0.5, 0.5);
-      // Tab labels should not intercept pointer so the tabBg handles clicks
       this.container.add(tabLabel);
     });
 
@@ -312,68 +450,91 @@ export class BuildMenu {
     this.container.add(divider);
   }
 
-  /** Single list item row. */
+  /**
+   * Single list item row.
+   * @param visibleNumber 1-based number shown on the left (for keyboard selection hint)
+   * @param isHighlighted true when this item has the keyboard cursor on it
+   */
   private buildItem(
     s: StructureData,
     available: boolean,
     isUnlocked: boolean,
     reasons: DisabledReason[],
     y: number,
+    visibleNumber: number,
+    isHighlighted: boolean,
   ): void {
+    // Background -- use a lighter shade when keyboard-selected
+    const bgColor = isHighlighted ? ITEM_SELECTED : ITEM_NORMAL;
     const itemBg = this.scene.add.graphics();
-    itemBg.fillStyle(ITEM_NORMAL, 1);
+    itemBg.fillStyle(bgColor, 1);
     itemBg.fillRect(PADDING, y, PANEL_W - PADDING * 2, ITEM_H);
+    // Highlighted items also get a border
+    if (isHighlighted) {
+      itemBg.lineStyle(1, 0x4CAF50, 0.6);
+      itemBg.strokeRect(PADDING, y, PANEL_W - PADDING * 2, ITEM_H);
+    }
     this.container.add(itemBg);
 
-    // --- Icon cell (36x36) ---
+    // Small number hint in the top-left corner of the item (1-9)
+    if (visibleNumber <= 9) {
+      const numHint = this.scene.add.text(PADDING + 2, y + 2, `${visibleNumber}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '6px',
+        color: FONT_MUTED,
+      });
+      this.container.add(numHint);
+    }
+
+    // --- Icon cell (ICON_CELL x ICON_CELL) ---
+    const iconOffsetX = PADDING + 10; // shift right to make room for number hint
     const iconBorderColor = available ? 0x4CAF50 : 0x3A3A3A;
     const iconBg = this.scene.add.graphics();
     iconBg.lineStyle(1, iconBorderColor, 1);
-    iconBg.strokeRect(PADDING + 2, y + (ITEM_H - ICON_CELL) / 2, ICON_CELL, ICON_CELL);
+    iconBg.strokeRect(iconOffsetX, y + (ITEM_H - ICON_CELL) / 2, ICON_CELL, ICON_CELL);
     iconBg.fillStyle(0x1A1A1A, 1);
-    iconBg.fillRect(PADDING + 3, y + (ITEM_H - ICON_CELL) / 2 + 1, ICON_CELL - 2, ICON_CELL - 2);
+    iconBg.fillRect(iconOffsetX + 1, y + (ITEM_H - ICON_CELL) / 2 + 1, ICON_CELL - 2, ICON_CELL - 2);
     this.container.add(iconBg);
 
     const icon = STRUCTURE_ICONS[s.id] ?? '?';
     const iconText = this.scene.add.text(
-      PADDING + 2 + ICON_CELL / 2,
+      iconOffsetX + ICON_CELL / 2,
       y + ITEM_H / 2,
       icon,
-      { fontSize: '20px' },
+      { fontSize: '14px' },
     ).setOrigin(0.5, 0.5);
     if (!available) iconText.setAlpha(0.35);
     this.container.add(iconText);
 
     // --- Name + description ---
-    const textX = PADDING + ICON_CELL + 8;
-    const nameColor = available ? FONT_MAIN : FONT_MUTED;
-    const nameText = this.scene.add.text(textX, y + 8, s.name, {
+    const textX = iconOffsetX + ICON_CELL + 6;
+    const nameColor = isHighlighted ? FONT_YELLOW : (available ? FONT_MAIN : FONT_MUTED);
+    const nameText = this.scene.add.text(textX, y + 6, s.name, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: nameColor,
     });
     this.container.add(nameText);
 
-    // Description (smaller grey text)
+    // Description (7px grey text)
     const desc = s.description ?? '';
-    const descText = this.scene.add.text(textX, y + 22, desc, {
+    const descText = this.scene.add.text(textX, y + 19, desc, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '7px',
       color: available ? '#888888' : '#4A4A4A',
-      wordWrap: { width: PANEL_W - textX - PADDING - 60 },
+      wordWrap: { width: PANEL_W - textX - PADDING - 50 },
     });
     this.container.add(descText);
 
     // --- Disabled reason(s) below description ---
     if (reasons.length > 0 && isUnlocked) {
       const reasonText = reasons.map(r => r.text).join(' | ');
-      // Use color of first reason
       const rColor = reasons[0]?.color ?? FONT_RED;
-      const rt = this.scene.add.text(textX, y + 36, reasonText, {
+      const rt = this.scene.add.text(textX, y + 30, reasonText, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: rColor,
-        wordWrap: { width: PANEL_W - textX - PADDING - 60 },
+        wordWrap: { width: PANEL_W - textX - PADDING - 50 },
       });
       this.container.add(rt);
     }
@@ -381,7 +542,7 @@ export class BuildMenu {
     // --- Locked reason (base level required) ---
     if (!isUnlocked) {
       const requiredLevel = this.getRequiredBaseLevelName(s.id);
-      const lockText = this.scene.add.text(textX, y + 34, `Requires ${requiredLevel}`, {
+      const lockText = this.scene.add.text(textX, y + 28, `Requires ${requiredLevel}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: FONT_ORANGE,
@@ -390,11 +551,11 @@ export class BuildMenu {
     }
 
     // --- Cost display (right side) ---
-    const costX = PANEL_W - PADDING - 50;
+    const costX = PANEL_W - PADDING - 42;
     const costStr = Object.entries(s.cost).map(([r, n]) => `${n}${r[0]?.toUpperCase() ?? ''}`).join(' ');
     const canAffordCost = this.buildingManager.canAfford(s.id);
     const costColor = !isUnlocked ? FONT_MUTED : canAffordCost ? FONT_GREEN : FONT_RED;
-    const costText = this.scene.add.text(costX, y + 8, costStr, {
+    const costText = this.scene.add.text(costX, y + 6, costStr, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '7px',
       color: costColor,
@@ -404,7 +565,7 @@ export class BuildMenu {
     // AP cost
     const hasAP = this.getCurrentAP() >= s.apCost;
     const apColor = !isUnlocked ? FONT_MUTED : hasAP ? FONT_YELLOW : FONT_RED;
-    const apText = this.scene.add.text(costX, y + 22, `${s.apCost}AP`, {
+    const apText = this.scene.add.text(costX, y + 18, `${s.apCost}AP`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '7px',
       color: apColor,
@@ -426,9 +587,13 @@ export class BuildMenu {
       });
       itemBg.on('pointerout', () => {
         itemBg.clear();
-        itemBg.fillStyle(ITEM_NORMAL, 1);
+        itemBg.fillStyle(isHighlighted ? ITEM_SELECTED : ITEM_NORMAL, 1);
         itemBg.fillRect(PADDING, y, PANEL_W - PADDING * 2, ITEM_H);
-        nameText.setColor(FONT_MAIN);
+        if (isHighlighted) {
+          itemBg.lineStyle(1, 0x4CAF50, 0.6);
+          itemBg.strokeRect(PADDING, y, PANEL_W - PADDING * 2, ITEM_H);
+        }
+        nameText.setColor(isHighlighted ? FONT_YELLOW : FONT_MAIN);
       });
       itemBg.on('pointerdown', () => {
         this.onSelect(s.id);

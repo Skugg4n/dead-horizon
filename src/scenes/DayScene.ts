@@ -541,16 +541,28 @@ export class DayScene extends Phaser.Scene {
     topBg.setDepth(100).setScrollFactor(0);
     this.addToUI(topBg);
 
-    // AP bar (left side) -- smaller pips via updated ActionPointBar
-    this.apBar = new ActionPointBar(this, this.currentAP);
+    // AP bar (left side) -- click on "AP X/Y" text to open debug menu (hidden shortcut)
+    this.apBar = new ActionPointBar(this, this.currentAP, () => this.toggleDebugMenu());
     this.addToUI(this.apBar.getContainer());
 
-    // DAY counter (centered)
+    // DAY counter (centered) -- triple-click to open debug menu
     const dayText = this.add.text(GAME_WIDTH / 2, 18, `DAY ${this.gameState.progress.currentWave}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#E8DCC8',
-    }).setOrigin(0.5).setDepth(100);
+    }).setOrigin(0.5).setDepth(100).setInteractive();
+    let debugClickCount = 0;
+    let debugClickTimer: ReturnType<typeof setTimeout> | null = null;
+    dayText.on('pointerdown', () => {
+      debugClickCount++;
+      if (debugClickTimer) clearTimeout(debugClickTimer);
+      if (debugClickCount >= 3) {
+        debugClickCount = 0;
+        this.toggleDebugMenu();
+      } else {
+        debugClickTimer = setTimeout(() => { debugClickCount = 0; }, 600);
+      }
+    });
     this.addToUI(dayText);
 
     // Base info + upgrade button (right side)
@@ -1035,6 +1047,8 @@ export class DayScene extends Phaser.Scene {
             this.toggleBuildMenu();
             return;
           }
+          // Delegate to BuildMenu's key handler (1-9, arrows, Enter, Tab)
+          if (this.buildMenu.handleKey(key)) return;
           return; // Consume all other keys when build menu is open
         }
 

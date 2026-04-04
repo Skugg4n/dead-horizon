@@ -16,10 +16,12 @@ export class ActionPointBar {
   private label: Phaser.GameObjects.Text;
   private currentAP: number;
   private maxAP: number;
+  private onDebugClick: (() => void) | null = null;
 
-  constructor(scene: Phaser.Scene, startAP: number = AP_PER_DAY) {
+  constructor(scene: Phaser.Scene, startAP: number = AP_PER_DAY, onDebugClick?: () => void) {
     this.currentAP = startAP;
     this.maxAP = AP_PER_DAY;
+    this.onDebugClick = onDebugClick ?? null;
 
     this.container = scene.add.container(0, 0);
     this.container.setDepth(100);
@@ -29,6 +31,11 @@ export class ActionPointBar {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: TEXT_COLOR,
+    });
+    // Hidden clickable area: clicking the AP text opens debug menu
+    this.label.setInteractive({ useHandCursor: false });
+    this.label.on('pointerdown', () => {
+      if (this.onDebugClick) this.onDebugClick();
     });
     this.container.add(this.label);
 

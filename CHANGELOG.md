@@ -1,5 +1,26 @@
 # Dead Horizon -- Changelog
 
+## [2.4.1] - 2026-04-02
+
+### BuildMenu -- kompaktare layout, tangentbordsnavigering, scroll
+
+**src/ui/BuildMenu.ts:**
+- PANEL_W 340 -> 300, ITEM_H 56 -> 46, ICON_CELL 36 -> 28.
+- Font: tabbar 7px, item-namn 9px, beskrivning/kostnad 7px (var 10px/8px).
+- Tangentbordsnavigering: handleKey(key) exponeras. Siffror 1-9 valjer synligt item N. ArrowDown/Up flyttar markor och scrollar vid behov. Enter valjer markerat item om det ar tillgangligt. Tab byter till nasta flik.
+- Markerat item far ljusare bakgrund (ITEM_SELECTED) och gron border.
+- Scroll-simulation: MAX_VISIBLE_ITEMS beraknas fran skarmhojd. Om listan ar langre syns "^ more above" / "v N more" i botten.
+- Litet sifferhint (1-9) visas i ovra vanstra hornet pa varje synligt item.
+
+**src/ui/ActionPointBar.ts:**
+- Nytt valfritt konstruktor-argument onDebugClick?: () => void.
+- AP-texten ("AP 12/12") gors klickbar via setInteractive(). Vid klick anropas onDebugClick.
+- Ingen synlig forondring for spelaren -- osynlig debug-genvag.
+
+**src/scenes/DayScene.ts:**
+- ActionPointBar far toggleDebugMenu som onDebugClick-callback.
+- Keyboard-routern: nar build-menyn ar oppen delegerar den nu tangenter till buildMenu.handleKey() (utom Escape).
+
 ## [2.4.0] - 2026-04-02
 
 ### Fix -- Nattstart-krasch vid strukturer (TrapBase)
