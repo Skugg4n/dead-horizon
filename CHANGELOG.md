@@ -1,5 +1,54 @@
 # Dead Horizon -- Changelog
 
+## [2.4.0] - 2026-04-02
+
+### Fix -- Nattstart-krasch vid strukturer (TrapBase)
+
+**src/structures/TrapBase.ts:**
+- Lagg till NaN/undefined-guard for instance.x och instance.y i konstruktorn. Om positionen ar ogiltig klamras den till (0,0) med console.warn.
+- Guard for scene.sys efter super(): om Phaser inte har initierat sys-kontexten loggars ett fel och statusText/draw/add.existing hoppas over istallet for att krasha.
+- NightScene.createStructures() hade redan try/catch runt varje case -- TrapBase ar nu ocksa defensiv inifraan.
+
+### Fix -- Storm-event raderar alla strukturer
+
+**src/systems/EventManager.ts:**
+- applyStormDamage() skadar nu max 2 slumpmassigt utvalda strukturer (Fisher-Yates partial shuffle) istallet for alla.
+- Meddelande uppdaterat: "Up to 2 structures took X damage".
+- Forhindrar att ett enda storm-event utplanar hela basen.
+
+### BuildMenu redesign (Tasks 3, 4, 5)
+
+**src/ui/BuildMenu.ts -- helt omskriven:**
+- Resursrad i toppen: S:24 P:5 F:8 AP:10/12 (alltid synlig, gul text).
+- Tre tabbar: TRAPS | WALLS | SPECIAL (klickbara, filtrerar listan).
+- Scrollbar lista med items: 36x36 emoji-ikonruta, gron border = har rad, gra = inte.
+- Namn + effekt-beskrivning (7px gra text under namn).
+- Kostnad till hoger (gron = har rad, rod = saknar).
+- Gray-out med orsak: "Not enough scrap/parts/food/AP" (rod text), "Requires Camp/Outpost" (orange text).
+- Lasta items visas med "Requires [BaseLevel]" i orange.
+- Panelbredd 340px. Alla strukturer visas (lasta gradas ut).
+
+**src/data/structures.json:**
+- Alla 18 strukturer far "category" falt: primitive | machine | special.
+- Alla 18 strukturer far "description" falt med kort effekt-text.
+- Kategorisering: primitive = barricade/wall/trap/spike_strip/sandbags/cart_wall/pit_trap, machine = blade_spinner/fire_pit/propane_geyser/washing_cannon, special = pillbox/shelter/storage/farm/bear_trap/landmine/oil_slick.
+
+**src/systems/BuildingManager.ts:**
+- StructureData interface utokad med category: string och description: string.
+
+**src/scenes/DayScene.ts:**
+- Importerar nya BuildMenu-klassen.
+- createBuildMenu() ersatt med instansiering av BuildMenu med fullstandiga callbacks.
+- refreshBuildMenuAffordability() borttagen (BuildMenu.show() kallar rebuild() internt).
+- rebuildBuildMenu() anropar buildMenu.destroy() + createBuildMenu().
+- toggleBuildMenu() anropar buildMenu.show()/hide().
+- startPlacement() anropar buildMenu.hide() istallet for buildMenuContainer.setVisible(false).
+- Keyboard-handler: number-shortcuts (1-9) borttagna (tabs ersatter numrering).
+
+**Version:** 2.3.0 -> 2.4.0
+
+---
+
 ## [2.3.0] - 2026-04-02
 
 ### Feature -- Cooldown-system + 6 nya mekaniska fallor

@@ -6,6 +6,10 @@ import type { GameState, StructureInstance, ResourceType } from '../config/types
 export interface StructureData {
   id: string;
   name: string;
+  /** UI category used by BuildMenu tabs: 'primitive' | 'machine' | 'special' */
+  category: string;
+  /** Short human-readable effect description shown in BuildMenu. */
+  description: string;
   hp: number;
   cost: Record<string, number>;
   apCost: number;

@@ -192,6 +192,18 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ---
 
+## BuildMenu och DayScene
+
+### Ny BuildMenu-klass vs inline build menu i DayScene
+**Problem:** DayScene hade ett inline build-menu (createBuildMenu/refreshBuildMenuAffordability/rebuildBuildMenu) med egna container-refs. Nar BuildMenu.ts omskrevs till en klass maste DayScene uppdateras simultant -- annars far man kompileringsfel pa buildMenuContainer/buildMenuEntries som inte langre finns.
+**Losning:** Ersatt tre privata metoder + tre privata falt med ett enda `private buildMenu: BuildMenu`. toggleBuildMenu() anropar buildMenu.show()/hide(). rebuildBuildMenu() anropar buildMenu.destroy() + ny createBuildMenu().
+
+### TypeScript -- super() maste vara rot-nivastutement i konstruktor
+**Problem:** Forsok att lagga `if (!scene.sys) { super(scene as any); return; }` som guard ger TS2401: "A 'super' call must be a root-level statement within a constructor of a derived class".
+**Losning:** Kalla super() alltid forst, sedan lagg guardar EFTER super(). Om scene.sys saknas efter super() logga ett fel och hoppa over allt efterfoljande (statusText, draw, add.existing). NightScenes try/catch runt varje konstruktoranrop fangar andvandra kraschar.
+
+---
+
 ## TrapBase och mekaniska fallor
 
 ### ResourceManager.spend() tar (type, amount) -- INTE ett objekt

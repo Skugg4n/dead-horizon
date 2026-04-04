@@ -26,6 +26,7 @@ import baseLevelsJson from '../data/base-levels.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 import { createUIButton } from '../ui/UIButton';
 import { CLOSE_ALL_PANELS } from '../ui/UIPanel';
+import { BuildMenu } from '../ui/BuildMenu';
 import { AudioManager } from '../systems/AudioManager';
 
 // Parse structure colors from JSON (string hex to number)
@@ -70,10 +71,9 @@ export class DayScene extends Phaser.Scene {
   private uiCamera!: Phaser.Cameras.Scene2D.Camera;
 
   // UI elements
-  private buildMenuContainer!: Phaser.GameObjects.Container;
+  private buildMenu!: BuildMenu;
   private buildMenuVisible: boolean = false;
   private buildMenuOpening: boolean = false;
-  private buildMenuEntries: { structureId: string; text: Phaser.GameObjects.Text }[] = [];
   private structurePopup: Phaser.GameObjects.Container | null = null;
   private infoText!: Phaser.GameObjects.Text;
   private resourceTexts: Map<ResourceType, Phaser.GameObjects.Text> = new Map();
@@ -121,7 +121,7 @@ export class DayScene extends Phaser.Scene {
     this.events.on(CLOSE_ALL_PANELS, () => {
       if (this.buildMenuVisible && !this.buildMenuOpening) {
         this.buildMenuVisible = false;
-        this.buildMenuContainer.setVisible(false);
+        this.buildMenu.hide();
         this.cancelPlacement();
       }
     });
@@ -854,99 +854,28 @@ export class DayScene extends Phaser.Scene {
   }
 
   private createBuildMenu(): void {
-    this.buildMenuContainer = this.add.container(16, 80);
-    this.buildMenuContainer.setDepth(110);
-    this.buildMenuContainer.setVisible(false);
-    this.buildMenuEntries = [];
-
-    const baseLevelData = this.getBaseLevelData();
-    const unlockedIds = baseLevelData.unlockedStructures as string[];
-    const availableStructures = this.buildingManager.getAvailableStructures(unlockedIds);
-    const lockedStructures = this.buildingManager.getLockedStructures(unlockedIds);
-    const totalEntries = availableStructures.length + lockedStructures.length;
-
-    // Background panel
-    const bg = this.add.graphics();
-    bg.fillStyle(0x1A1A2E, 0.9);
-    bg.fillRect(0, 0, 220, totalEntries * 40 + 16);
-    bg.lineStyle(1, 0x6B6B6B);
-    bg.strokeRect(0, 0, 220, totalEntries * 40 + 16);
-    this.buildMenuContainer.add(bg);
-
-    // Available structure entries
-    let entryIndex = 0;
-    availableStructures.forEach((s) => {
-      const y = 8 + entryIndex * 40;
-      const canAfford = this.buildingManager.canAfford(s.id);
-      const hasAP = this.buildingManager.hasEnoughAP(s.id, this.currentAP);
-      const available = canAfford && hasAP;
-
-      const costStr = Object.entries(s.cost).map(([r, n]) => `${n} ${r}`).join(', ');
-      const color = available ? '#E8DCC8' : '#6B6B6B';
-
-      const entry = this.add.text(8, y, `${s.name} (${s.apCost} AP)\n  ${costStr}`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '11px',
-        color: color,
-      });
-
-      // Always set interactive -- affordability refresh will update visual state
-      entry.setInteractive({ useHandCursor: true });
-      entry.on('pointerover', () => {
-        if (entry.alpha === 1.0) entry.setColor('#FFD700');
-      });
-      entry.on('pointerout', () => {
-        if (entry.alpha === 1.0) entry.setColor('#E8DCC8');
-      });
-      entry.on('pointerdown', () => {
-        if (entry.alpha === 1.0) this.startPlacement(s.id);
-      });
-      entry.setAlpha(available ? 1.0 : 0.4);
-
-      this.buildMenuEntries.push({ structureId: s.id, text: entry });
-      this.buildMenuContainer.add(entry);
-      entryIndex++;
-    });
-
-    // Locked structure entries (greyed out with required level)
-    lockedStructures.forEach((s) => {
-      const y = 8 + entryIndex * 40;
-      // Find which level unlocks this structure
-      const requiredLevel = baseLevelsJson.baseLevels.find(
-        bl => (bl.unlockedStructures as string[]).includes(s.id)
-      );
-      const requiredName = requiredLevel?.name ?? '???';
-
-      const entry = this.add.text(8, y, `${s.name} [Requires ${requiredName}]`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '11px',
-        color: '#4A4A4A',
-      });
-
-      this.buildMenuContainer.add(entry);
-      entryIndex++;
-    });
-
-    this.addToUI(this.buildMenuContainer);
+    this.buildMenu = new BuildMenu(
+      this,
+      this.buildingManager,
+      () => this.currentAP,
+      () => AP_PER_DAY,
+      () => this.gameState.inventory.resources,
+      () => (this.getBaseLevelData().unlockedStructures as string[]),
+      (structureId: string) => this.startPlacement(structureId),
+    );
+    // Register containers with the UI camera so click zones always align
+    this.addToUI(this.buildMenu.getContainer());
+    this.addToUI(this.buildMenu.getBackdrop());
   }
 
-  /** Light refresh: only update alpha on existing entries based on affordability */
-  private refreshBuildMenuAffordability(): void {
-    for (const entry of this.buildMenuEntries) {
-      const canAfford = this.buildingManager.canAfford(entry.structureId);
-      const hasAP = this.buildingManager.hasEnoughAP(entry.structureId, this.currentAP);
-      const available = canAfford && hasAP;
-      entry.text.setAlpha(available ? 1.0 : 0.4);
-      entry.text.setColor(available ? '#E8DCC8' : '#6B6B6B');
-    }
-  }
-
-  /** Full rebuild -- only needed when base level changes (new structures unlocked) */
+  /** Full rebuild -- needed when base level changes (new structures unlocked). */
   private rebuildBuildMenu(): void {
-    this.buildMenuContainer.destroy();
+    this.buildMenu.destroy();
     this.createBuildMenu();
     if (this.buildMenuVisible) {
-      this.buildMenuContainer.setVisible(true);
+      this.buildMenuVisible = false; // reset so show() works
+      this.buildMenu.show();
+      this.buildMenuVisible = true;
     }
   }
 
@@ -975,15 +904,13 @@ export class DayScene extends Phaser.Scene {
   private toggleBuildMenu(): void {
     this.buildMenuVisible = !this.buildMenuVisible;
     if (this.buildMenuVisible) {
-      // Close other panels before opening build menu
+      // Close other panels before opening build menu (guard against re-entry)
       this.buildMenuOpening = true;
       this.events.emit(CLOSE_ALL_PANELS);
       this.buildMenuOpening = false;
-      this.refreshBuildMenuAffordability();
-    }
-    this.buildMenuContainer.setVisible(this.buildMenuVisible);
-
-    if (!this.buildMenuVisible) {
+      this.buildMenu.show();
+    } else {
+      this.buildMenu.hide();
       this.cancelPlacement();
     }
   }
@@ -1012,7 +939,7 @@ export class DayScene extends Phaser.Scene {
     this.ghostGraphics.setDepth(50);
     this.addToWorld(this.ghostGraphics);
 
-    this.buildMenuContainer.setVisible(false);
+    this.buildMenu.hide();
     this.buildMenuVisible = false;
     const data = this.buildingManager.getStructureData(structureId);
     this.showInfo(`Click to place ${data?.name ?? structureId}. Right-click to cancel.`);
@@ -1107,15 +1034,6 @@ export class DayScene extends Phaser.Scene {
           if (key === 'Escape') {
             this.toggleBuildMenu();
             return;
-          }
-          // Number keys select build menu entries
-          const num = parseInt(key, 10);
-          if (num >= 1 && num <= 9 && num <= this.buildMenuEntries.length) {
-            const entry = this.buildMenuEntries[num - 1];
-            if (entry && entry.text.alpha === 1.0) {
-              this.startPlacement(entry.structureId);
-              return;
-            }
           }
           return; // Consume all other keys when build menu is open
         }

@@ -70,7 +70,7 @@ export class EventManager {
     if (typeof effect['structure_damage'] === 'number') {
       const dmg = effect['structure_damage'] as number;
       this.applyStormDamage(dmg);
-      messages.push(`All structures took ${dmg} damage`);
+      messages.push(`Up to 2 structures took ${dmg} damage`);
       // Screen shake for storm
       this.scene.cameras.main.shake(500, 0.01);
     }
@@ -121,10 +121,27 @@ export class EventManager {
   }
 
   private applyStormDamage(damage: number): void {
-    for (const structure of this.gameState.base.structures) {
-      structure.hp = Math.max(0, structure.hp - damage);
+    const structures = this.gameState.base.structures;
+    if (structures.length === 0) return;
+
+    // Storm damages a maximum of 2 randomly selected structures (not all).
+    // This prevents one storm from wiping the entire base.
+    const count = Math.min(2, structures.length);
+    // Fisher-Yates partial shuffle to pick `count` random indices without replacement
+    const indices = structures.map((_, i) => i);
+    for (let i = 0; i < count; i++) {
+      const j = i + Math.floor(Math.random() * (indices.length - i));
+      const tmp = indices[i];
+      indices[i] = indices[j] as number;
+      indices[j] = tmp as number;
     }
-    // Remove destroyed structures
-    this.gameState.base.structures = this.gameState.base.structures.filter(s => s.hp > 0);
+    for (let i = 0; i < count; i++) {
+      const target = structures[indices[i] as number];
+      if (target) {
+        target.hp = Math.max(0, target.hp - damage);
+      }
+    }
+    // Remove any structures that were destroyed by the storm
+    this.gameState.base.structures = structures.filter(s => s.hp > 0);
   }
 }

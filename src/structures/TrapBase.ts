@@ -82,7 +82,19 @@ export abstract class TrapBase extends Phaser.GameObjects.Graphics {
     uses: number,
     fuelPerNight: number,
   ) {
+    // super() must be root-level -- validate scene before calling it.
+    // If scene.sys is missing at this point, Phaser.GameObjects.Graphics will throw.
+    // We rely on NightScene.createStructures() to wrap each constructor in try/catch.
     super(scene);
+
+    // Guard: instance x/y must be valid numbers (NaN or undefined would corrupt setPosition).
+    const safeX = Number.isFinite(instance.x) ? instance.x : 0;
+    const safeY = Number.isFinite(instance.y) ? instance.y : 0;
+    if (safeX !== instance.x || safeY !== instance.y) {
+      console.warn('[TrapBase] instance has invalid x/y. structureId:', instance.structureId, 'x:', instance.x, 'y:', instance.y, '-- clamping to 0,0');
+      instance = { ...instance, x: safeX, y: safeY };
+    }
+
     this.structureInstance = instance;
     this.hp = maxHp;
     this.maxHp = maxHp;
@@ -94,6 +106,12 @@ export abstract class TrapBase extends Phaser.GameObjects.Graphics {
     this.fuelPerNight = fuelPerNight;
 
     this.setPosition(instance.x, instance.y);
+
+    // Guard: if scene.sys is missing we cannot call scene.add.text -- skip visuals.
+    if (!scene.sys) {
+      console.error('[TrapBase] scene.sys is missing after super(). structureId:', instance.structureId);
+      return;
+    }
 
     // Status text: positioned above the trap tile, world-space
     this.statusText = scene.add.text(
