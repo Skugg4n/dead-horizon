@@ -22,7 +22,7 @@ const PANEL_X = Math.floor((GAME_WIDTH - PANEL_W) / 2);
 const PANEL_Y = 48;
 const HEADER_H = 28;   // resource bar height
 const TAB_H = 24;      // tab strip height
-const ITEM_H = 46;     // height per list item (was 56)
+const ITEM_H = 52;     // height per list item
 const ITEM_GAP = 3;    // vertical gap between items
 const ICON_CELL = 28;  // icon box size (was 36)
 const PADDING = 8;
@@ -354,8 +354,8 @@ export class BuildMenu {
       if (hasPrev) lines.push('^ more above');
       if (hasMore) lines.push(`v ${moreCount} more (arrows to scroll)`);
       const moreText = this.scene.add.text(PANEL_W / 2, moreY + MORE_INDICATOR_H / 2, lines.join('   '), {
-        fontFamily: 'monospace', resolution: 2,
-        fontSize: '6px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
         color: FONT_MUTED,
       }).setOrigin(0.5, 0.5);
       this.container.add(moreText);
@@ -363,8 +363,8 @@ export class BuildMenu {
 
     // --- Close button [X] in top-right ---
     const closeBtn = this.scene.add.text(PANEL_W - PADDING - 8, 6, '[X]', {
-      fontFamily: 'monospace', resolution: 2,
-      fontSize: '8px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
       color: FONT_MUTED,
     }).setOrigin(1, 0);
     closeBtn.setInteractive({ useHandCursor: true });
@@ -386,8 +386,8 @@ export class BuildMenu {
     const food  = resources.food ?? 0;
     const resourceStr = `S:${scrap}  P:${parts}  F:${food}  AP:${ap}/${maxAP}`;
     const resText = this.scene.add.text(PADDING, HEADER_H / 2, resourceStr, {
-      fontFamily: 'monospace', resolution: 2,
-      fontSize: '8px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
       color: FONT_YELLOW,
     }).setOrigin(0, 0.5);
     this.container.add(resText);
@@ -438,8 +438,8 @@ export class BuildMenu {
 
       // Tab labels: 7px (was larger)
       const tabLabel = this.scene.add.text(x + tabW / 2, HEADER_H + TAB_H / 2, tab, {
-        fontFamily: 'monospace', resolution: 2,
-        fontSize: '7px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
         color: isActive ? FONT_YELLOW : FONT_MUTED,
       }).setOrigin(0.5, 0.5);
       this.container.add(tabLabel);
@@ -481,8 +481,8 @@ export class BuildMenu {
     // Small number hint in the top-left corner of the item (1-9)
     if (visibleNumber <= 9) {
       const numHint = this.scene.add.text(PADDING + 2, y + 2, `${visibleNumber}`, {
-        fontFamily: 'monospace', resolution: 2,
-        fontSize: '6px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
         color: FONT_MUTED,
       });
       this.container.add(numHint);
@@ -512,7 +512,7 @@ export class BuildMenu {
     const textX = iconOffsetX + ICON_CELL + 6;
     const nameColor = isHighlighted ? FONT_YELLOW : (available ? FONT_MAIN : FONT_MUTED);
     const nameText = this.scene.add.text(textX, y + 6, s.name, {
-      fontFamily: 'monospace', resolution: 2,
+      fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: nameColor,
     });
@@ -521,8 +521,8 @@ export class BuildMenu {
     // Description (7px grey text)
     const desc = s.description ?? '';
     const descText = this.scene.add.text(textX, y + 19, desc, {
-      fontFamily: 'monospace', resolution: 2,
-      fontSize: '7px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
       color: available ? '#888888' : '#4A4A4A',
       wordWrap: { width: PANEL_W - textX - PADDING - 50 },
     });
@@ -533,8 +533,8 @@ export class BuildMenu {
       const reasonText = reasons.map(r => r.text).join(' | ');
       const rColor = reasons[0]?.color ?? FONT_RED;
       const rt = this.scene.add.text(textX, y + 30, reasonText, {
-        fontFamily: 'monospace', resolution: 2,
-        fontSize: '7px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
         color: rColor,
         wordWrap: { width: PANEL_W - textX - PADDING - 50 },
       });
@@ -545,8 +545,8 @@ export class BuildMenu {
     if (!isUnlocked) {
       const requiredLevel = this.getRequiredBaseLevelName(s.id);
       const lockText = this.scene.add.text(textX, y + 28, `Requires ${requiredLevel}`, {
-        fontFamily: 'monospace', resolution: 2,
-        fontSize: '7px',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
         color: FONT_ORANGE,
       });
       this.container.add(lockText);
@@ -558,8 +558,8 @@ export class BuildMenu {
     const canAffordCost = this.buildingManager.canAfford(s.id);
     const costColor = !isUnlocked ? FONT_MUTED : canAffordCost ? FONT_GREEN : FONT_RED;
     const costText = this.scene.add.text(costX, y + 6, costStr, {
-      fontFamily: 'monospace', resolution: 2,
-      fontSize: '7px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
       color: costColor,
     });
     this.container.add(costText);
@@ -568,8 +568,8 @@ export class BuildMenu {
     const hasAP = this.getCurrentAP() >= s.apCost;
     const apColor = !isUnlocked ? FONT_MUTED : hasAP ? FONT_YELLOW : FONT_RED;
     const apText = this.scene.add.text(costX, y + 18, `${s.apCost}AP`, {
-      fontFamily: 'monospace', resolution: 2,
-      fontSize: '7px',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
       color: apColor,
     });
     this.container.add(apText);
