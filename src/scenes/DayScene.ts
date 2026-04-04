@@ -1149,6 +1149,11 @@ export class DayScene extends Phaser.Scene {
           case 'E': this.showEndDayConfirmation(); break;
           default: break;
         }
+
+        // DEBUG: backtick (`) opens debug console
+        if (key === '`' || key === '§') {
+          this.toggleDebugMenu();
+        }
       });
     }
 
@@ -1737,5 +1742,126 @@ export class DayScene extends Phaser.Scene {
     container.once('destroy', () => {
       if (keyHandler) this.input.keyboard?.off('keydown', advance);
     });
+  }
+
+  // =========================================================================
+  // DEBUG MENU -- press ` or § to toggle
+  // =========================================================================
+  private debugContainer: Phaser.GameObjects.Container | null = null;
+
+  private toggleDebugMenu(): void {
+    if (this.debugContainer) {
+      this.debugContainer.destroy();
+      this.debugContainer = null;
+      return;
+    }
+
+    const gs = this.gameState;
+    const panelW = 300;
+    const panelH = 400;
+    const px = 10;
+    const py = 60;
+
+    this.debugContainer = this.add.container(px, py).setDepth(500).setScrollFactor(0);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0A0A0A, 0.95);
+    bg.fillRoundedRect(0, 0, panelW, panelH, 6);
+    bg.lineStyle(2, 0xFF0000);
+    bg.strokeRoundedRect(0, 0, panelW, panelH, 6);
+    this.debugContainer.add(bg);
+
+    const title = this.add.text(10, 8, 'DEBUG MENU', {
+      fontFamily: '"Press Start 2P", monospace', fontSize: '10px', color: '#FF0000',
+    });
+    this.debugContainer.add(title);
+
+    let y = 30;
+    const addButton = (label: string, action: () => void) => {
+      const btn = this.add.text(10, y, `> ${label}`, {
+        fontFamily: '"Press Start 2P", monospace', fontSize: '8px', color: '#4CAF50',
+      }).setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setColor('#FFD700'));
+      btn.on('pointerout', () => btn.setColor('#4CAF50'));
+      btn.on('pointerdown', () => {
+        action();
+        console.log(`[DEBUG] ${label}`);
+        // Refresh UI
+        this.events.emit('resources-changed');
+        this.updateResourceDisplay();
+      });
+      this.debugContainer?.add(btn);
+      y += 18;
+    };
+
+    addButton('+50 ALL RESOURCES', () => {
+      gs.inventory.resources.scrap += 50;
+      gs.inventory.resources.food += 50;
+      gs.inventory.resources.ammo += 50;
+      gs.inventory.resources.parts += 50;
+      gs.inventory.resources.meds += 50;
+    });
+
+    addButton('+100 SCRAP', () => { gs.inventory.resources.scrap += 100; });
+    addButton('+50 PARTS', () => { gs.inventory.resources.parts += 50; });
+    addButton('+50 AMMO', () => { gs.inventory.resources.ammo += 50; });
+    addButton('+50 FOOD', () => { gs.inventory.resources.food += 50; });
+    addButton('+20 MEDS', () => { gs.inventory.resources.meds += 20; });
+    addButton('+12 AP', () => { this.currentAP = 12; });
+
+    addButton('SET WAVE 1', () => { gs.progress.currentWave = 1; });
+    addButton('SET WAVE 3', () => { gs.progress.currentWave = 3; });
+    addButton('SET WAVE 5', () => { gs.progress.currentWave = 5; });
+
+    addButton('UPGRADE BASE', () => {
+      gs.base.level = Math.min(gs.base.level + 1, 3);
+      console.log(`[DEBUG] Base level: ${gs.base.level}`);
+    });
+
+    addButton('ADD ALL WEAPONS', () => {
+      // WeaponManager already imported at top of file
+      const allWeapons = ['hunting_knife', 'baseball_bat', 'crowbar', 'machete',
+        'fire_axe', 'katana', '9mm_compact', 'revolver', 'silenced_pistol',
+        'assault_rifle', 'scoped_rifle', 'marksman_rifle', 'pump_shotgun',
+        'combat_shotgun', 'pipe_bomb', 'molotov', 'grenade_launcher'];
+      for (const wid of allWeapons) {
+        const inst = WeaponManager.createWeaponInstance(wid);
+        if (inst) gs.inventory.weapons.push(inst);
+      }
+      console.log(`[DEBUG] Added ${allWeapons.length} weapons`);
+    });
+
+    addButton('ADD REFUGEE', () => {
+      const id = `debug_${Date.now()}`;
+      gs.refugees.push({
+        id, name: 'Debug Dave', hp: 100, maxHp: 100,
+        status: 'healthy', job: null, skillBonus: 'none',
+      });
+    });
+
+    addButton('GIVE ALL (EVERYTHING)', () => {
+      gs.inventory.resources.scrap += 200;
+      gs.inventory.resources.food += 200;
+      gs.inventory.resources.ammo += 200;
+      gs.inventory.resources.parts += 200;
+      gs.inventory.resources.meds += 200;
+      gs.base.level = 3;
+      this.currentAP = 12;
+      // WeaponManager already imported at top of file
+      const allWeapons = ['fire_axe', 'katana', 'silenced_pistol', 'marksman_rifle',
+        'combat_shotgun', 'grenade_launcher'];
+      for (const wid of allWeapons) {
+        const inst = WeaponManager.createWeaponInstance(wid);
+        if (inst) gs.inventory.weapons.push(inst);
+      }
+      console.log('[DEBUG] GAVE EVERYTHING');
+    });
+
+    addButton('SAVE GAME', () => {
+      SaveManager.save(gs);
+      console.log('[DEBUG] Game saved');
+    });
+
+    addButton('[CLOSE]', () => { this.toggleDebugMenu(); });
   }
 }
