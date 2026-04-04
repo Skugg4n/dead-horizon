@@ -582,6 +582,8 @@ export class NightScene extends Phaser.Scene {
     const oilSlickDef   = structuresData.structures.find(s => s.id === 'oil_slick');
 
     for (const structure of this.gameState.base.structures) {
+      console.log(`[NightScene] createStructures: ${structure.structureId} at (${structure.x}, ${structure.y})`);
+      try {
       switch (structure.structureId) {
         case 'barricade': {
           const barricade = new Barricade(this, structure);
@@ -736,6 +738,9 @@ export class NightScene extends Phaser.Scene {
           }
           break;
         }
+      }
+      } catch (err) {
+        console.error(`[NightScene] Failed to create structure ${structure.structureId}:`, err);
       }
     }
   }

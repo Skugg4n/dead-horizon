@@ -1,0 +1,183 @@
+<h2>BUILD-meny: Bästa av alla tre</h2>
+<p class="subtitle">Samma innehåll, tre layouter. Alla har: resurser i toppen, kategorier, scrollbar, locked items.</p>
+
+<div class="cards">
+  <div class="card" data-choice="tabs" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A: Tabbar + Scrollbar lista</div>
+        <div class="mockup-body" style="background:#1A1A1A;padding:8px;font-family:monospace;font-size:10px;color:#E8DCC8;min-height:280px;">
+          <!-- Resources bar -->
+          <div style="background:#252525;padding:4px 6px;margin-bottom:6px;border-radius:2px;display:flex;justify-content:space-between;font-size:9px;">
+            <span style="color:#FFD700;">⚙24</span>
+            <span style="color:#FFD700;">🔧5</span>
+            <span style="color:#FFD700;">🍎8</span>
+            <span style="color:#88F;">AP:10/12</span>
+          </div>
+          <!-- Tabs -->
+          <div style="display:flex;gap:2px;margin-bottom:6px;">
+            <span style="background:#D4620B;color:#000;padding:3px 6px;border-radius:2px 2px 0 0;font-size:8px;">PRIMITIVE</span>
+            <span style="background:#333;padding:3px 6px;border-radius:2px 2px 0 0;font-size:8px;">MACHINES</span>
+            <span style="background:#333;padding:3px 6px;border-radius:2px 2px 0 0;font-size:8px;">BARRIERS</span>
+          </div>
+          <!-- Scrollable list -->
+          <div style="border:1px solid #333;max-height:180px;overflow-y:auto;">
+            <div style="padding:6px;border-bottom:1px solid #2A2A2A;">
+              <div style="display:flex;justify-content:space-between;">
+                <span style="color:#4CAF50;">Nail Board</span>
+                <span style="color:#888;font-size:8px;">2 scrap, 1 AP</span>
+              </div>
+              <div style="color:#666;font-size:8px;">10 dmg + cripple 2s</div>
+            </div>
+            <div style="padding:6px;border-bottom:1px solid #2A2A2A;">
+              <div style="display:flex;justify-content:space-between;">
+                <span style="color:#4CAF50;">Trip Wire</span>
+                <span style="color:#888;font-size:8px;">1 scrap, 1 AP</span>
+              </div>
+              <div style="color:#666;font-size:8px;">Stun 1.5s</div>
+            </div>
+            <div style="padding:6px;border-bottom:1px solid #2A2A2A;">
+              <div style="display:flex;justify-content:space-between;">
+                <span style="color:#4CAF50;">Glass Shards</span>
+                <span style="color:#888;font-size:8px;">1 scrap, 1 AP</span>
+              </div>
+              <div style="color:#666;font-size:8px;">5 dmg/s zone</div>
+            </div>
+            <div style="padding:6px;border-bottom:1px solid #2A2A2A;">
+              <div style="display:flex;justify-content:space-between;">
+                <span style="color:#4CAF50;">Spike Strip</span>
+                <span style="color:#888;font-size:8px;">3 scrap, 1 AP</span>
+              </div>
+              <div style="color:#666;font-size:8px;">15 dmg + cripple 3s</div>
+            </div>
+            <div style="padding:6px;border-bottom:1px solid #2A2A2A;opacity:0.4;">
+              <div style="display:flex;justify-content:space-between;">
+                <span>🔒 Punji Sticks</span>
+                <span style="font-size:8px;">Blueprint needed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Tabbar + Scrollbar</h3>
+      <p>Tabbar för kategorier, scrollbar lista under. Resurser alltid synliga. Effekt-beskrivning per item. Låsta items gråade med "Blueprint needed".</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="grid" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B: Grid-kort med ikoner</div>
+        <div class="mockup-body" style="background:#1A1A1A;padding:8px;font-family:monospace;font-size:10px;color:#E8DCC8;min-height:280px;">
+          <!-- Resources bar -->
+          <div style="background:#252525;padding:4px 6px;margin-bottom:6px;border-radius:2px;display:flex;justify-content:space-between;font-size:9px;">
+            <span style="color:#FFD700;">⚙24</span>
+            <span style="color:#FFD700;">🔧5</span>
+            <span style="color:#FFD700;">🍎8</span>
+            <span style="color:#88F;">AP:10/12</span>
+          </div>
+          <!-- Category header -->
+          <div style="color:#D4620B;font-size:8px;margin-bottom:4px;border-bottom:1px solid #333;padding-bottom:2px;">PRIMITIVE TRAPS</div>
+          <!-- Grid -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;">
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #4CAF50;border-radius:3px;text-align:center;font-size:8px;">
+              <div style="font-size:14px;margin-bottom:2px;">📌</div>
+              Nail Board<br><span style="color:#888;">2s</span>
+            </div>
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #4CAF50;border-radius:3px;text-align:center;font-size:8px;">
+              <div style="font-size:14px;margin-bottom:2px;">🪢</div>
+              Trip Wire<br><span style="color:#888;">1s</span>
+            </div>
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #4CAF50;border-radius:3px;text-align:center;font-size:8px;">
+              <div style="font-size:14px;margin-bottom:2px;">💎</div>
+              Glass<br><span style="color:#888;">1s</span>
+            </div>
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #4CAF50;border-radius:3px;text-align:center;font-size:8px;">
+              <div style="font-size:14px;margin-bottom:2px;">⚡</div>
+              Spike Strip<br><span style="color:#888;">3s</span>
+            </div>
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #333;border-radius:3px;text-align:center;font-size:8px;opacity:0.4;">
+              <div style="font-size:14px;margin-bottom:2px;">🔒</div>
+              Punji<br><span style="color:#666;">locked</span>
+            </div>
+          </div>
+          <!-- Next category -->
+          <div style="color:#D4620B;font-size:8px;margin-bottom:4px;border-bottom:1px solid #333;padding-bottom:2px;">MACHINES (Camp required)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;">
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #4CAF50;border-radius:3px;text-align:center;font-size:8px;">
+              <div style="font-size:14px;margin-bottom:2px;">🔪</div>
+              Blade Spin<br><span style="color:#888;">5s 3p</span>
+            </div>
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #4CAF50;border-radius:3px;text-align:center;font-size:8px;">
+              <div style="font-size:14px;margin-bottom:2px;">🔥</div>
+              Fire Pit<br><span style="color:#888;">3s 2f</span>
+            </div>
+            <div style="background:#2A2A2A;padding:6px 4px;border:1px solid #4CAF50;border-radius:3px;text-align:center;font-size:8px;">
+              <div style="font-size:14px;margin-bottom:2px;">💨</div>
+              Propane<br><span style="color:#888;">4s 2p</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Grid med ikoner</h3>
+      <p>Kompakta kort med emoji-ikoner. Visar fler items samtidigt. Kategori-headers inline. Hovra för detaljer.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="combined" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C: Hybrid -- Grid + Detalj-panel</div>
+        <div class="mockup-body" style="background:#1A1A1A;padding:8px;font-family:monospace;font-size:10px;color:#E8DCC8;min-height:280px;">
+          <!-- Resources bar -->
+          <div style="background:#252525;padding:4px 6px;margin-bottom:6px;border-radius:2px;display:flex;justify-content:space-between;font-size:9px;">
+            <span style="color:#FFD700;">⚙24 SCRAP</span>
+            <span style="color:#FFD700;">🔧5 PARTS</span>
+            <span style="color:#FFD700;">🍎8 FOOD</span>
+            <span style="color:#88F;">AP:10</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <!-- Left: grid of items -->
+            <div style="width:45%;">
+              <div style="color:#D4620B;font-size:8px;margin-bottom:3px;">PRIMITIVE</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:6px;">
+                <div style="background:#3A2A1A;padding:4px;border:1px solid #D4620B;border-radius:2px;text-align:center;font-size:7px;">📌 Nail</div>
+                <div style="background:#2A2A2A;padding:4px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:7px;">🪢 Wire</div>
+                <div style="background:#2A2A2A;padding:4px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:7px;">💎 Glass</div>
+                <div style="background:#2A2A2A;padding:4px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:7px;">⚡ Spike</div>
+              </div>
+              <div style="color:#D4620B;font-size:8px;margin-bottom:3px;">MACHINES</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+                <div style="background:#2A2A2A;padding:4px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:7px;">🔪 Blade</div>
+                <div style="background:#2A2A2A;padding:4px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:7px;">🔥 Fire</div>
+                <div style="background:#2A2A2A;padding:4px;border:1px solid #333;border-radius:2px;text-align:center;font-size:7px;opacity:0.4;">🔒 Wash</div>
+              </div>
+            </div>
+            <!-- Right: detail panel for selected -->
+            <div style="width:55%;background:#252525;padding:6px;border-radius:3px;border-left:2px solid #D4620B;">
+              <div style="color:#D4620B;font-size:10px;margin-bottom:4px;">NAIL BOARD</div>
+              <div style="color:#888;font-size:8px;margin-bottom:6px;">Plank with rusty nails</div>
+              <div style="font-size:8px;margin-bottom:3px;">DMG: <span style="color:#F44336;">10</span> + cripple 2s</div>
+              <div style="font-size:8px;margin-bottom:3px;">Uses: 20</div>
+              <div style="font-size:8px;margin-bottom:6px;">Cooldown: none</div>
+              <div style="border-top:1px solid #333;padding-top:4px;font-size:8px;">
+                Cost: <span style="color:#FFD700;">2 scrap</span>, 1 AP
+              </div>
+              <div style="margin-top:6px;background:#4CAF50;color:#000;text-align:center;padding:4px;border-radius:2px;font-size:9px;cursor:pointer;">
+                [BUILD]
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C: Grid + Detalj-panel</h3>
+      <p>Grid till vänster, klicka = detaljer till höger. Visar stats, beskrivning, cooldown, kostnad och BUILD-knapp. Bäst info men tar mest plats.</p>
+    </div>
+  </div>
+</div>

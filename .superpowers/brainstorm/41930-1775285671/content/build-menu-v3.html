@@ -1,0 +1,233 @@
+<h2>BUILD-meny: A med ikon-ruta</h2>
+<p class="subtitle">Tabbar + scrollbar lista med ikon per item. Klicka för att se varianter.</p>
+
+<div class="cards">
+  <div class="card" data-choice="v3a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">BUILD</div>
+        <div class="mockup-body" style="background:#141414;padding:0;font-family:'Courier New',monospace;color:#E8DCC8;min-height:420px;width:340px;">
+
+          <!-- Resources bar -->
+          <div style="background:#1E1E1E;padding:6px 10px;display:flex;justify-content:space-between;font-size:11px;border-bottom:2px solid #333;">
+            <span style="color:#C5A030;">⚙ 24</span>
+            <span style="color:#C5A030;">🔧 5</span>
+            <span style="color:#C5A030;">🍎 8</span>
+            <span style="color:#7B9FCF;">AP 10/12</span>
+          </div>
+
+          <!-- Tabs -->
+          <div style="display:flex;border-bottom:2px solid #D4620B;">
+            <div style="background:#2A1A0A;color:#D4620B;padding:6px 12px;font-size:10px;font-weight:bold;border-bottom:2px solid #D4620B;margin-bottom:-2px;">TRAPS</div>
+            <div style="background:#1A1A1A;color:#666;padding:6px 12px;font-size:10px;">WALLS</div>
+            <div style="background:#1A1A1A;color:#666;padding:6px 12px;font-size:10px;">SPECIAL</div>
+          </div>
+
+          <!-- Scrollable list with custom scrollbar -->
+          <div style="max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#D4620B #1A1A1A;">
+            <style>
+              .trap-list::-webkit-scrollbar { width: 6px; }
+              .trap-list::-webkit-scrollbar-track { background: #1A1A1A; }
+              .trap-list::-webkit-scrollbar-thumb { background: #D4620B; border-radius: 3px; }
+              .trap-list::-webkit-scrollbar-thumb:hover { background: #FF7B30; }
+              .trap-item { display:flex; align-items:center; padding:6px 8px; border-bottom:1px solid #222; cursor:pointer; transition: background 0.15s; }
+              .trap-item:hover { background:#2A2A1A; }
+              .trap-icon { width:36px; height:36px; background:#2A2A2A; border:1px solid #444; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; margin-right:8px; }
+              .trap-icon.affordable { border-color:#4CAF50; }
+              .trap-info { flex:1; min-width:0; }
+              .trap-name { font-size:10px; margin-bottom:2px; }
+              .trap-desc { font-size:8px; color:#888; }
+              .trap-cost { font-size:8px; text-align:right; white-space:nowrap; }
+              .trap-cost .affordable { color:#4CAF50; }
+              .trap-cost .expensive { color:#F44336; }
+              .locked { opacity:0.35; cursor:default; }
+              .locked:hover { background:transparent; }
+            </style>
+
+            <div class="trap-list" style="max-height:320px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#D4620B #1A1A1A;">
+
+              <!-- Nail Board -->
+              <div class="trap-item">
+                <div class="trap-icon affordable" style="background:#3A2A1A;">📌</div>
+                <div class="trap-info">
+                  <div class="trap-name" style="color:#4CAF50;">Nail Board</div>
+                  <div class="trap-desc">10 dmg + cripple 2s | 20 uses</div>
+                </div>
+                <div class="trap-cost"><span class="affordable">2 scrap</span><br>1 AP</div>
+              </div>
+
+              <!-- Trip Wire -->
+              <div class="trap-item">
+                <div class="trap-icon affordable" style="background:#2A2A3A;">🪢</div>
+                <div class="trap-info">
+                  <div class="trap-name" style="color:#4CAF50;">Trip Wire</div>
+                  <div class="trap-desc">Stun 1.5s | 10 uses</div>
+                </div>
+                <div class="trap-cost"><span class="affordable">1 scrap</span><br>1 AP</div>
+              </div>
+
+              <!-- Glass Shards -->
+              <div class="trap-item">
+                <div class="trap-icon affordable" style="background:#2A3A3A;">💎</div>
+                <div class="trap-info">
+                  <div class="trap-name" style="color:#4CAF50;">Glass Shards</div>
+                  <div class="trap-desc">5 dmg/s zone | 3 tiles wide</div>
+                </div>
+                <div class="trap-cost"><span class="affordable">1 scrap</span><br>1 AP</div>
+              </div>
+
+              <!-- Spike Strip -->
+              <div class="trap-item">
+                <div class="trap-icon affordable" style="background:#3A2A2A;">⚡</div>
+                <div class="trap-info">
+                  <div class="trap-name" style="color:#4CAF50;">Spike Strip</div>
+                  <div class="trap-desc">15 dmg + cripple 3s | 5 uses</div>
+                </div>
+                <div class="trap-cost"><span class="affordable">3 scrap</span><br>1 AP</div>
+              </div>
+
+              <!-- Pit Trap -->
+              <div class="trap-item">
+                <div class="trap-icon affordable" style="background:#1A2A1A;">🕳️</div>
+                <div class="trap-info">
+                  <div class="trap-name" style="color:#4CAF50;">Pit Trap</div>
+                  <div class="trap-desc">Captures 5 zombies | permanent</div>
+                </div>
+                <div class="trap-cost"><span class="affordable">4 scrap</span><br><span class="affordable">2 parts</span> 1AP</div>
+              </div>
+
+              <!-- Blade Spinner - can't afford parts -->
+              <div class="trap-item">
+                <div class="trap-icon" style="background:#2A1A1A;border-color:#666;">🔪</div>
+                <div class="trap-info">
+                  <div class="trap-name" style="color:#999;">Blade Spinner</div>
+                  <div class="trap-desc">25 dmg AOE | cd 4s | overheat 30s</div>
+                </div>
+                <div class="trap-cost"><span class="affordable">5 scrap</span><br><span class="expensive">3 parts ❌</span> 1AP</div>
+              </div>
+
+              <!-- Fire Pit -->
+              <div class="trap-item">
+                <div class="trap-icon affordable" style="background:#3A1A0A;">🔥</div>
+                <div class="trap-info">
+                  <div class="trap-name" style="color:#4CAF50;">Fire Pit</div>
+                  <div class="trap-desc">15 dmg/s zone | fuel: 2 food/night</div>
+                </div>
+                <div class="trap-cost"><span class="affordable">3 scrap</span><br><span class="affordable">2 food</span> 1AP</div>
+              </div>
+
+              <!-- Locked: Meat Grinder -->
+              <div class="trap-item locked">
+                <div class="trap-icon" style="background:#1A1A1A;border-color:#333;">🔒</div>
+                <div class="trap-info">
+                  <div class="trap-name">Meat Grinder</div>
+                  <div class="trap-desc" style="color:#D4620B;">Requires: "Junkyard Genius" blueprint</div>
+                </div>
+                <div class="trap-cost" style="color:#555;">???</div>
+              </div>
+
+              <!-- Locked: Washing Cannon -->
+              <div class="trap-item locked">
+                <div class="trap-icon" style="background:#1A1A1A;border-color:#333;">🔒</div>
+                <div class="trap-info">
+                  <div class="trap-name">Washing Machine Cannon</div>
+                  <div class="trap-desc" style="color:#D4620B;">Requires: Outpost base level</div>
+                </div>
+                <div class="trap-cost" style="color:#555;">???</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Ikon-ruta + Scrollbar lista</h3>
+      <p>Varje item har en 36x36 ikon-ruta till vänster. Grön border = har råd. Röd kostnad = saknar resursen. Låsta items visar vad som krävs. Orange scrollbar. Effekt + uses/cooldown som beskrivning.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="v3b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">BUILD (bredare variant)</div>
+        <div class="mockup-body" style="background:#141414;padding:0;font-family:'Courier New',monospace;color:#E8DCC8;min-height:420px;width:400px;">
+
+          <!-- Resources bar -->
+          <div style="background:#1E1E1E;padding:6px 10px;display:flex;justify-content:space-between;font-size:11px;border-bottom:2px solid #333;">
+            <span style="color:#C5A030;">⚙ 24 SCRAP</span>
+            <span style="color:#C5A030;">🔧 5 PARTS</span>
+            <span style="color:#C5A030;">🍎 8 FOOD</span>
+            <span style="color:#7B9FCF;">AP 10/12</span>
+          </div>
+
+          <!-- Tabs -->
+          <div style="display:flex;border-bottom:2px solid #D4620B;">
+            <div style="background:#2A1A0A;color:#D4620B;padding:6px 14px;font-size:10px;font-weight:bold;border-bottom:2px solid #D4620B;margin-bottom:-2px;">TRAPS</div>
+            <div style="background:#1A1A1A;color:#666;padding:6px 14px;font-size:10px;">WALLS</div>
+            <div style="background:#1A1A1A;color:#666;padding:6px 14px;font-size:10px;">SPECIAL</div>
+          </div>
+
+          <!-- Items with bigger icons -->
+          <div style="padding:4px;">
+
+            <div style="display:flex;align-items:center;padding:8px;border-bottom:1px solid #222;cursor:pointer;">
+              <div style="width:44px;height:44px;background:#3A2A1A;border:2px solid #4CAF50;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-right:10px;">📌</div>
+              <div style="flex:1;">
+                <div style="font-size:11px;color:#4CAF50;margin-bottom:2px;">Nail Board</div>
+                <div style="font-size:8px;color:#888;">10 dmg + cripple 2s</div>
+                <div style="font-size:8px;color:#888;">20 uses | No cooldown</div>
+              </div>
+              <div style="text-align:right;font-size:9px;">
+                <div style="color:#4CAF50;">2 scrap</div>
+                <div style="color:#7B9FCF;">1 AP</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;padding:8px;border-bottom:1px solid #222;cursor:pointer;">
+              <div style="width:44px;height:44px;background:#3A1A0A;border:2px solid #4CAF50;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-right:10px;">🔥</div>
+              <div style="flex:1;">
+                <div style="font-size:11px;color:#4CAF50;margin-bottom:2px;">Fire Pit</div>
+                <div style="font-size:8px;color:#888;">15 dmg/s burn zone | 3 tiles</div>
+                <div style="font-size:8px;color:#D4620B;">⛽ Fuel: 2 food/night</div>
+              </div>
+              <div style="text-align:right;font-size:9px;">
+                <div style="color:#4CAF50;">3 scrap</div>
+                <div style="color:#4CAF50;">2 food</div>
+                <div style="color:#7B9FCF;">1 AP</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;padding:8px;border-bottom:1px solid #222;cursor:pointer;">
+              <div style="width:44px;height:44px;background:#2A1A1A;border:2px solid #666;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-right:10px;">🔪</div>
+              <div style="flex:1;">
+                <div style="font-size:11px;color:#999;margin-bottom:2px;">Blade Spinner</div>
+                <div style="font-size:8px;color:#888;">25 dmg AOE | cd 4s</div>
+                <div style="font-size:8px;color:#888;">Overheat 30s | 15% malfunction</div>
+              </div>
+              <div style="text-align:right;font-size:9px;">
+                <div style="color:#4CAF50;">5 scrap</div>
+                <div style="color:#F44336;">3 parts ✗</div>
+                <div style="color:#7B9FCF;">1 AP</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;padding:8px;border-bottom:1px solid #222;opacity:0.3;">
+              <div style="width:44px;height:44px;background:#1A1A1A;border:2px solid #333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-right:10px;">🔒</div>
+              <div style="flex:1;">
+                <div style="font-size:11px;margin-bottom:2px;">Meat Grinder</div>
+                <div style="font-size:8px;color:#D4620B;">📖 "Junkyard Genius" blueprint</div>
+              </div>
+              <div style="text-align:right;font-size:9px;color:#555;">???</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Bredare med större ikoner + fuel-info</h3>
+      <p>44x44 ikoner. Visar cooldown, overheat, malfunction %, fuel-kostnad direkt. Bredare panel (400px). Resurser med namn i toppen.</p>
+    </div>
+  </div>
+</div>
