@@ -1,69 +1,127 @@
 # Dead Horizon -- Known Bugs & Issues
 
-Denna fil trackar alla kända buggar. Stryks INTE förrän verifierade som fixade.
+Denna fil trackar alla kända buggar och uppgifter. Stryks INTE förrän verifierade som fixade.
+Uppdaterad: 2026-04-04, v2.4.4
 
 ---
 
 ## FIXADE OCH VERIFIERADE
 
-### KB1: Projectile crash på wave 3
-- Fix: instanceof-check i overlap callback (v2.0.4)
-- **VERIFIERAD AV ANVÄNDAREN: Kraschar inte längre!**
-
-### VB1: Dag/natt har OLIKA terräng-layout
-- Root cause: DayScene anropade generateTerrain() FÖRE physics.world.setBounds()
-- Fix: Flyttade setBounds() före generateTerrain() (v2.0.5)
-- **VERIFIERAD AV ANVÄNDAREN: Layouten är nu identisk!**
-
-### VB2: ">" pil i vapenpanelen otydlig
-- Fix: Bytt till [EQUIPPED] text (v2.0.3)
-- **FIXAD**
-
-### VB3: BASE-text trunkerad
-- Fix: Font 9px + stroke (v2.0.6)
-- **FIXAD**
-
-### GB1: Tangenter aktiva under tutorial
-- Fix: tutorialShowing-check (v1.9.1)
-- **FIXAD**
-
-### UB1: ESC/Enter/Space på resultatskärmen
-- Fix: Keyboard handler tillagd (v2.0.0)
-- **FIXAD**
-
-### UB2: Game Over saknar keyboard
-- Fix: ESC/Enter/Space handler (v2.0.3)
-- **FIXAD**
+- KB1: Projectile crash på wave 3 -- instanceof-check (v2.0.4) ✅
+- VB1: Dag/natt olika terräng -- setBounds före generateTerrain (v2.0.5) ✅
+- VB2: ">" pil otydlig -- bytt till [EQUIPPED] (v2.0.3) ✅
+- VB3: BASE-text trunkerad -- 9px + stroke (v2.0.6) ✅
+- GB1: Tangenter under tutorial -- tutorialShowing-check (v1.9.1) ✅
+- UB1: ESC/Enter/Space resultatskärm (v2.0.0) ✅
+- UB2: Game Over keyboard (v2.0.3) ✅
+- Strength alltid 0 -- equipped vapen skickas nu (v2.1.2) ✅
+- Resultat/death försvann för fort -- 3s delay (v2.0.8) ✅
+- Raven 0HP visas som companion -- hp>0 filter (v2.0.8) ✅
+- Storm raderar alla strukturer -- max 2 skadas nu (v2.4.0) ✅
+- Nya fällor saknades i build-menyn -- base-levels.json uppdaterad (v2.3.1) ✅
 
 ---
 
-## VÄNTAR PÅ VERIFIERING
+## BUGGAR (ej fixade)
 
-### KB2: Continue-knapp fungerar inte efter crash
-- Fix: try/catch i SaveManager.load(), rensar korrupt save (v2.0.3)
-- Status: Väntar på test
+### BG1: Nattstart-krasch vid strukturer
+- `Cannot read 'sys'` i TrapBase constructor
+- Guard tillagd (v2.4.0) men root cause ej löst
+- try/catch runt createStructures fångar felet istället för krasch
+- Status: DELVIS FIXAD (kraschar inte men fällan skapas inte)
+
+### BG2: Continue fungerar inte efter krasch
+- SaveManager.load() har try/catch men kan fortfarande hänga
+- Status: VÄNTAR PÅ VERIFIERING
+
+### BG3: Gråade items förklaras inte varför
+- Build-menyn har "Not enough X" text nu (v2.4.0) men behöver verifieras live
+- Status: VÄNTAR PÅ VERIFIERING
 
 ---
 
-## KÄNDA PROBLEM (ej fixade)
+## UI/MENYER (pågående)
 
-### GP1: Duplicate spike trap-typer i build-menyn
-- Fix: "Spike Trap" omdöpt till "Claw Trap" (v2.0.6)
-- Status: Borde vara fixat, väntar på verifiering
+### UM1: Build-menyn text/font
+- "Press Start 2P" i 800x600 canvas skalas upp och blir luddig
+- Försökt: monospace, resolution:2 -- blev sämre
+- Nu: "Press Start 2P" minst 9px (v2.4.4)
+- Kvarstår: behöver kanske högre canvas-upplösning eller bitmap font
+- Status: PÅGÅENDE
+
+### UM2: Equipment-panel för liten
+- Trång med många vapen, ingen scrollning
+- Status: EJ FIXAD
+
+### UM3: Alla paneler behöver samma font/storlek-standard
+- Olika paneler har olika fontstorlekar och stilar
+- Status: EJ FIXAD
+
+---
+
+## VISUELLA
 
 ### VB4: Karaktärsporträtt ser dåligt ut
-- Porträtten är 32x32 pixliga utan kontext
-- Behöver bättre, större porträtt eller siluett-approach
+- 32x32 pixligt utan kontext
+- Behöver bättre/större porträtt eller siluett
+- Status: EJ FIXAD
 
-### VB5: Spelarsprite skiljer sig mellan stillastående och rörelse
-- Stillastående sprite och walk-animation ser ut som olika karaktärer
-- Behöver synkas så det ser konsekvent ut
+### VB5: Spelsprite idle skiljer sig från walk
+- Ser ut som olika karaktärer
+- Status: EJ FIXAD
+
+---
+
+## GAMEPLAY (designat, ej implementerat)
+
+### GP1: Zon-progression
+- Forest→City→Military→Endless
+- docs/zone-progression.md
+- Status: DESIGN KLAR
+
+### GP2: Pack Your Bag (mellan-zon-val)
+- Välj vapen (max 4) och resurser (max 50) att ta med
+- docs/zone-progression.md
+- Status: DESIGN KLAR
+
+### GP3: Blueprint-system
+- Böcker som låser upp nya fällor
+- docs/trap-mechanics.md
+- Status: DESIGN KLAR
+
+### GP4: Fäll-leveling
+- Uppgradera fällor med parts (Lv 1→3)
+- docs/trap-mechanics.md
+- Status: DESIGN KLAR
+
+### GP5: ~44 fällor kvar att implementera
+- docs/trap-catalog.md har 50 fällor, 6 implementerade
+- Status: DESIGN KLAR
+
+### GP6: Refugees förenkling till passiv "Camp Crew"
+- Passiva bonusar istället för jobb-system
+- docs/defense-redesign.md
+- Status: DESIGN KLAR
+
+### GP7: Kill corridors / pathing
+- Gropar, kanaler, tvinga zombies genom fällor
+- docs/defense-redesign.md
+- Status: DESIGN KLAR
+
+---
+
+## UX/POLISH
 
 ### UX1: Ammo-mekanik förvirrande
-- Spelaren "har" ammo men måste manuellt "ladda" det
-- Borde auto-laddas vid nattstart
-- Se docs/inventory-redesign.md
+- Auto-load finns men kommuniceras dåligt
+- docs/inventory-redesign.md
+- Status: DELVIS FIXAD
 
 ### UX2: Meds-syfte otydligt
-- Används för att hela refugees men förklaras aldrig i spelet
-- Behöver tydligare UI i refugee-panelen
+- Behöver visas i refugee-panel
+- Status: EJ FIXAD
+
+### UX3: Resurs-tooltips
+- Hovra = förklaring av vad resursen gör
+- docs/inventory-redesign.md
+- Status: EJ FIXAD
