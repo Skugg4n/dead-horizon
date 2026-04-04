@@ -1,0 +1,126 @@
+<h2>Dead Horizon UI Redesign</h2>
+<p class="subtitle">Vilken panel-stil passar bäst för spelet?</p>
+
+<div class="cards">
+  <div class="card" data-choice="compact" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">BUILD -- Compact Tabs</div>
+        <div class="mockup-body" style="background:#1A1A1A;padding:8px;font-family:monospace;font-size:11px;color:#E8DCC8;">
+          <div style="display:flex;gap:4px;margin-bottom:8px;">
+            <span style="background:#D4620B;color:#000;padding:2px 8px;border-radius:2px;">TRAPS</span>
+            <span style="background:#333;padding:2px 8px;border-radius:2px;">WALLS</span>
+            <span style="background:#333;padding:2px 8px;border-radius:2px;">SPECIAL</span>
+          </div>
+          <div style="color:#FFD700;font-size:10px;margin-bottom:6px;">SCRAP: 24 | PARTS: 5 | FOOD: 8</div>
+          <div style="border-bottom:1px solid #333;padding:4px 0;">
+            <span style="color:#4CAF50;">Nail Board</span> <span style="color:#888;float:right;">2 scrap, 1 AP</span>
+          </div>
+          <div style="border-bottom:1px solid #333;padding:4px 0;">
+            <span style="color:#4CAF50;">Blade Spinner</span> <span style="color:#888;float:right;">5 scrap 3 parts, 1 AP</span>
+          </div>
+          <div style="border-bottom:1px solid #333;padding:4px 0;">
+            <span style="color:#4CAF50;">Fire Pit</span> <span style="color:#888;float:right;">3 scrap 2 food, 1 AP</span>
+          </div>
+          <div style="border-bottom:1px solid #333;padding:4px 0;">
+            <span style="color:#666;">Meat Grinder</span> <span style="color:#666;float:right;">LOCKED (need blueprint)</span>
+          </div>
+          <div style="padding:4px 0;">
+            <span style="color:#666;">Washing Cannon</span> <span style="color:#666;float:right;">7 scrap 4 parts</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Tabbar + resurser synliga</h3>
+      <p>Kategorier i tabs (Traps/Walls/Special). Resurser alltid synliga i toppen. Scrollbar lista under. Låsta items visas gråade med "LOCKED".</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="sidebar" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">BUILD -- Sidebar Grid</div>
+        <div class="mockup-body" style="background:#1A1A1A;padding:8px;font-family:monospace;font-size:11px;color:#E8DCC8;">
+          <div style="display:flex;gap:8px;">
+            <div style="width:40%;border-right:1px solid #333;padding-right:8px;">
+              <div style="color:#888;font-size:9px;margin-bottom:4px;">CATEGORIES</div>
+              <div style="background:#D4620B;padding:3px 6px;margin-bottom:3px;border-radius:2px;">Primitive</div>
+              <div style="background:#333;padding:3px 6px;margin-bottom:3px;border-radius:2px;">Machines</div>
+              <div style="background:#333;padding:3px 6px;margin-bottom:3px;border-radius:2px;">Barriers</div>
+              <div style="background:#333;padding:3px 6px;margin-bottom:3px;border-radius:2px;color:#666;">Crazy (locked)</div>
+            </div>
+            <div style="width:60%;">
+              <div style="color:#FFD700;font-size:9px;margin-bottom:6px;">SCRAP:24 PARTS:5</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                <div style="background:#2A2A2A;padding:6px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:9px;">
+                  <div style="font-size:16px;">🔩</div>
+                  Nail Board<br><span style="color:#888;">2 scrap</span>
+                </div>
+                <div style="background:#2A2A2A;padding:6px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:9px;">
+                  <div style="font-size:16px;">⚡</div>
+                  Trip Wire<br><span style="color:#888;">1 scrap</span>
+                </div>
+                <div style="background:#2A2A2A;padding:6px;border:1px solid #4CAF50;border-radius:2px;text-align:center;font-size:9px;">
+                  <div style="font-size:16px;">💎</div>
+                  Glass<br><span style="color:#888;">1 scrap</span>
+                </div>
+                <div style="background:#2A2A2A;padding:6px;border:1px solid #333;border-radius:2px;text-align:center;font-size:9px;">
+                  <div style="font-size:16px;">🔨</div>
+                  Punji<br><span style="color:#888;">3 scrap</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Sidebar-kategorier + Grid</h3>
+      <p>Kategorier till vänster, items som grid-kort till höger. Mer visuellt, tar mer plats men tydligare.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="scrolllist" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">BUILD -- Scrollbar lista</div>
+        <div class="mockup-body" style="background:#1A1A1A;padding:8px;font-family:monospace;font-size:11px;color:#E8DCC8;">
+          <div style="color:#FFD700;font-size:10px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:4px;">
+            ⚙24 SCRAP | 🔧5 PARTS | 🍎8 FOOD | AP: 10/12
+          </div>
+          <div style="max-height:160px;overflow-y:auto;border:1px solid #333;padding:4px;">
+            <div style="color:#D4620B;font-size:9px;margin:4px 0 2px;">-- PRIMITIVE --</div>
+            <div style="padding:3px 0;border-bottom:1px solid #222;display:flex;justify-content:space-between;">
+              <span style="color:#4CAF50;">Nail Board</span><span style="color:#888;">2s 1AP</span>
+            </div>
+            <div style="padding:3px 0;border-bottom:1px solid #222;display:flex;justify-content:space-between;">
+              <span style="color:#4CAF50;">Trip Wire</span><span style="color:#888;">1s 1AP</span>
+            </div>
+            <div style="padding:3px 0;border-bottom:1px solid #222;display:flex;justify-content:space-between;">
+              <span style="color:#4CAF50;">Glass Shards</span><span style="color:#888;">1s 1AP</span>
+            </div>
+            <div style="color:#D4620B;font-size:9px;margin:6px 0 2px;">-- MACHINES --</div>
+            <div style="padding:3px 0;border-bottom:1px solid #222;display:flex;justify-content:space-between;">
+              <span style="color:#4CAF50;">Blade Spinner</span><span style="color:#888;">5s 3p 1AP</span>
+            </div>
+            <div style="padding:3px 0;border-bottom:1px solid #222;display:flex;justify-content:space-between;">
+              <span style="color:#4CAF50;">Fire Pit</span><span style="color:#888;">3s 2f 1AP</span>
+            </div>
+            <div style="color:#D4620B;font-size:9px;margin:6px 0 2px;">-- BARRIERS --</div>
+            <div style="padding:3px 0;border-bottom:1px solid #222;display:flex;justify-content:space-between;">
+              <span style="color:#4CAF50;">Cart Wall</span><span style="color:#888;">4s 1AP</span>
+            </div>
+            <div style="padding:3px 0;border-bottom:1px solid #222;display:flex;justify-content:space-between;">
+              <span style="color:#666;">🔒 Chain Wall</span><span style="color:#666;">blueprint</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C: Scrollbar lista med sektioner</h3>
+      <p>Resurser i toppen, sedan scrollbar lista med kategorisektioner inline. Enklast att implementera, skalas bra.</p>
+    </div>
+  </div>
+</div>
