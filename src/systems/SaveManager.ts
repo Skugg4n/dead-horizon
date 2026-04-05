@@ -110,6 +110,7 @@ function createDefaultState(): GameState {
       fogOfWar: [],
       explored: [],
     },
+    unlockedBlueprints: [],
   };
 }
 
@@ -176,6 +177,8 @@ function load(): GameState {
           primaryWeaponId: (saved as Partial<GameState>).equipped?.primaryWeaponId ?? null,
           secondaryWeaponId: (saved as Partial<GameState>).equipped?.secondaryWeaponId ?? null,
         },
+        // Migration: old saves lack unlockedBlueprints -- default to empty array
+        unlockedBlueprints: saved.unlockedBlueprints ?? defaults.unlockedBlueprints,
       };
       // Ensure all skill keys exist
       for (const key of Object.keys(defaults.player.skills)) {

@@ -491,6 +491,25 @@ export class LootRunPanel {
       yOffset += 16;
     }
 
+    // Show blueprint find if one was found
+    if (result.foundBlueprintId) {
+      yOffset += 4;
+      const bpLabel = this.scene.add.text(0, yOffset, 'Blueprint found!', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '10px',
+        color: '#30C5C5',
+      });
+      content.add(bpLabel);
+      yOffset += 16;
+      const bpLine = this.scene.add.text(8, yOffset, `+ ${result.foundBlueprintId.replace(/_/g, ' ')}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#00FFFF',
+      });
+      content.add(bpLine);
+      yOffset += 16;
+    }
+
     yOffset += 8;
 
     // Auto-close countdown label

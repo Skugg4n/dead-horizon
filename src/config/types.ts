@@ -165,6 +165,16 @@ export interface TerrainResult {
   decorContainer: Phaser.GameObjects.Container;
 }
 
+// Blueprint data loaded from blueprints.json
+export interface BlueprintData {
+  id: string;
+  name: string;
+  description: string;
+  unlocks: string[];
+  destinations: string[];
+  dropChance: number;
+}
+
 export interface GameState {
   version: string;
   player: {
@@ -211,4 +221,6 @@ export interface GameState {
     fogOfWar: boolean[][];
     explored: string[];
   };
+  // Blueprint IDs unlocked via loot runs. Empty array = only alwaysAvailable traps are buildable.
+  unlockedBlueprints: string[];
 }

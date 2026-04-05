@@ -325,6 +325,14 @@ Dessa features implementeras baserat på feedback och prioritet:
 - [x] Tutorial-text uppdaterad: auto-ammo istallet for manuell laddning
 - [ ] Meds-kostnad tydlig i RefugeePanel (fas 3)
 
+### 6I: Zon-progressionssystem (v2.5.0)
+- [x] ZoneCompleteScene: visas nar spelaren klarar wave 5 i en zon
+- [x] MenuScene: buildZonePanel() visar Forest/City/Military med status (locked/unlocked/cleared)
+- [x] MenuScene: Continue-subtext visar "[Zonnamn] -- Night X/5"
+- [x] NightScene: "FINAL NIGHT" banner vid wave 5 start
+- [x] NightScene: zoneProgress sparas och nasta zon las upp vid zon-klar
+- [x] NightScene: vid dod borjar spelaren om fran natt 1 i SAMMA zon (gear/refugees/skills behalles)
+
 ### 6H: Cooldown-system + 6 nya mekaniska fallor (v2.3.0)
 - [x] TrapBase: abstrakt basklass med cooldown, overheat, malfunction, fuel, uses
 - [x] BladeSpinner: roterande blad-AOE, cd 4s, overheat 30s, malfunction 15%, fuel 1

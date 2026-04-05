@@ -27,6 +27,18 @@ export class BootScene extends Phaser.Scene {
     this.load.image('struct_shelter', 'assets/sprites/struct_shelter.png');
     this.load.image('struct_farm', 'assets/sprites/struct_farm.png');
 
+    // New trap sprites (Tier 1 + Tier 2)
+    this.load.image('struct_nail_board', 'assets/sprites/nail_board.png');
+    this.load.image('struct_trip_wire', 'assets/sprites/trip_wire.png');
+    this.load.image('struct_glass_shards', 'assets/sprites/glass_shards.png');
+    this.load.image('struct_tar_pit', 'assets/sprites/tar_pit.png');
+    this.load.image('struct_shock_wire', 'assets/sprites/shock_wire.png');
+    this.load.image('struct_spring_launcher', 'assets/sprites/spring_launcher.png');
+    this.load.image('struct_chain_wall', 'assets/sprites/chain_wall.png');
+
+    // Boss sprites
+    this.load.image('brute_boss', 'assets/sprites/brute_boss.png');
+
     // Base level sprites
     this.load.image('base_tent', 'assets/sprites/base_tent.png');
     this.load.image('base_camp', 'assets/sprites/base_camp.png');

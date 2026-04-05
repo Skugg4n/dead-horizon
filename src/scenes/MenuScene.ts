@@ -3,9 +3,12 @@ import { SaveManager } from '../systems/SaveManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { GAME_VERSION, GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 import { AudioManager } from '../systems/AudioManager';
-import type { CharacterType, CharacterData, SkillType } from '../config/types';
+import type { CharacterType, CharacterData, SkillType, ZoneId, ZoneData } from '../config/types';
 import { SkillManager } from '../systems/SkillManager';
 import charactersJson from '../data/characters.json';
+import zonesJson from '../data/zones.json';
+
+const zonesData = zonesJson.zones as unknown as ZoneData[];
 
 const characters = charactersJson.characters as unknown as CharacterData[];
 
@@ -600,11 +603,13 @@ export class MenuScene extends Phaser.Scene {
   private buildMenuButtons(): void {
     const hasSave = SaveManager.hasSave();
 
-    // Save info displayed if save exists (small, under the title area)
+    // Save info displayed if save exists: show current zone + night number
     let continueSubtext = '';
     if (hasSave) {
       const state = SaveManager.load();
-      continueSubtext = `Day ${(state.progress.totalRuns ?? 0) + 1} -- ${state.zone ?? 'forest'}`;
+      const zoneName = zonesData.find(z => z.id === (state.zone ?? 'forest'))?.name ?? 'Forest';
+      const night = state.progress.currentWave ?? 1;
+      continueSubtext = `${zoneName} -- Night ${night}/5`;
     }
 
     // Button Y starts after title block (~220px from top)
@@ -615,6 +620,7 @@ export class MenuScene extends Phaser.Scene {
     if (hasSave) {
       this.createMenuButton(BUTTON_X, btnY, 'CONTINUE', true, continueSubtext, () => {
         AudioManager.play('ui_click');
+        // DayScene loads the zone from saved GameState -- no extra param needed
         this.scene.start('DayScene');
       });
       btnY += BTN_SPACING + 4;
@@ -644,6 +650,164 @@ export class MenuScene extends Phaser.Scene {
     this.createMenuButton(BUTTON_X, btnY, 'ACHIEVEMENTS', false, '', () => {
       AudioManager.play('ui_click');
       this.toggleAchievementPanel();
+    });
+
+    // Zone progress panel (right side, visible when save exists)
+    if (hasSave) {
+      this.buildZonePanel();
+    }
+  }
+
+  /**
+   * Build a zone status panel on the right side of the menu.
+   * Shows Forest / City / Military with locked/unlocked/progress state.
+   * Forest is always unlocked. City requires forest wave 5. Military requires city wave 5.
+   */
+  private buildZonePanel(): void {
+    const state = SaveManager.load();
+    const zoneProgress = state.zoneProgress ?? {};
+    const currentZone = state.zone ?? 'forest';
+    const currentNight = state.progress.currentWave ?? 1;
+
+    const panelX = GAME_WIDTH - 280;
+    const panelY = 20;
+    const panelW = 268;
+    const ZONE_H = 52;
+    const panelH = 24 + zonesData.length * (ZONE_H + 6);
+
+    const container = this.add.container(panelX, panelY);
+    container.setDepth(10);
+    this.mainMenuContainer.add(container);
+
+    // Panel background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0D0A08, 0.72);
+    bg.fillRect(0, 0, panelW, panelH);
+    bg.lineStyle(1, 0x2A1E14, 0.8);
+    bg.strokeRect(0, 0, panelW, panelH);
+    container.add(bg);
+
+    // Header
+    const header = this.add.text(12, 9, 'ZONES:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#7A5A3A',
+    }).setOrigin(0, 0);
+    container.add(header);
+
+    // Divider
+    const div = this.add.graphics();
+    div.lineStyle(1, 0x2A1E14, 0.6);
+    div.lineBetween(12, 24, panelW - 12, 24);
+    container.add(div);
+
+    // Determine unlock status for each zone
+    // Forest: always unlocked
+    // City: unlocked if forest highestWaveCleared >= 5 OR city entry exists in zoneProgress
+    // Military: unlocked if city highestWaveCleared >= 5 OR military entry exists in zoneProgress
+    const isZoneUnlocked = (zoneId: ZoneId): boolean => {
+      const zone = zonesData.find(z => z.id === zoneId);
+      if (!zone || !zone.unlockCondition) return true; // forest has null condition
+      const cond = zone.unlockCondition;
+      const req = zoneProgress[cond.zone as ZoneId];
+      // Also check: if there is any progress entry for this zone, it was once unlocked
+      const hasDirectEntry = zoneProgress[zoneId] !== undefined;
+      return hasDirectEntry || (req !== undefined && req.highestWaveCleared >= cond.wave);
+    };
+
+    zonesData.forEach((zone, i) => {
+      const rowY = 30 + i * (ZONE_H + 6);
+      const unlocked = isZoneUnlocked(zone.id as ZoneId);
+      const progress = zoneProgress[zone.id as ZoneId];
+      const isActive = zone.id === currentZone;
+
+      // Row background -- highlight active zone
+      const rowBg = this.add.graphics();
+      if (isActive) {
+        rowBg.fillStyle(0x1E1206, 0.85);
+        rowBg.fillRect(8, rowY, panelW - 16, ZONE_H);
+        rowBg.lineStyle(1, 0x5A2A10, 0.8);
+        rowBg.strokeRect(8, rowY, panelW - 16, ZONE_H);
+      } else if (unlocked) {
+        rowBg.fillStyle(0x0E0A06, 0.5);
+        rowBg.fillRect(8, rowY, panelW - 16, ZONE_H);
+      } else {
+        // Locked: darker, no border
+        rowBg.fillStyle(0x080604, 0.4);
+        rowBg.fillRect(8, rowY, panelW - 16, ZONE_H);
+      }
+      container.add(rowBg);
+
+      // Zone name color: active = orange, unlocked = cream, locked = dark grey
+      const nameColor = isActive ? '#D4620B' : unlocked ? '#A08060' : '#3A3030';
+      const nameText = this.add.text(18, rowY + 8, zone.name.toUpperCase(), {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: nameColor,
+      }).setOrigin(0, 0);
+      container.add(nameText);
+
+      // Status line below name
+      let statusStr = '';
+      let statusColor = '#4A3A2A';
+      if (!unlocked) {
+        // Show what is required to unlock
+        const cond = zone.unlockCondition;
+        if (cond) {
+          const reqZone = zonesData.find(z => z.id === cond.zone);
+          statusStr = `LOCKED -- clear ${reqZone?.name ?? cond.zone} first`;
+        }
+        statusColor = '#3A2828';
+      } else if (isActive) {
+        // Show current night progress
+        const best = progress?.highestWaveCleared ?? 0;
+        if (best >= 5) {
+          statusStr = 'CLEARED';
+          statusColor = '#4CAF50';
+        } else {
+          statusStr = `Night ${currentNight}/5`;
+          statusColor = '#C5A030';
+        }
+      } else {
+        // Another unlocked zone not currently active
+        const best = progress?.highestWaveCleared ?? 0;
+        if (best >= 5) {
+          statusStr = 'CLEARED';
+          statusColor = '#4CAF50';
+        } else if (best > 0) {
+          statusStr = `Best: Night ${best}/5`;
+          statusColor = '#7A7A40';
+        } else {
+          statusStr = 'Not started';
+          statusColor = '#4A4A30';
+        }
+      }
+
+      const statusText = this.add.text(18, rowY + 22, statusStr, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: statusColor,
+        wordWrap: { width: panelW - 36 },
+      }).setOrigin(0, 0);
+      container.add(statusText);
+
+      // Loot multiplier badge (top-right of row) -- only for unlocked zones
+      if (unlocked) {
+        const lootText = this.add.text(panelW - 18, rowY + 8, `x${zone.lootMultiplier} loot`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: '#5A4A2A',
+        }).setOrigin(1, 0);
+        container.add(lootText);
+      } else {
+        // Lock icon (text glyph)
+        const lockText = this.add.text(panelW - 18, rowY + 8, '[LOCKED]', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: '#2A2020',
+        }).setOrigin(1, 0);
+        container.add(lockText);
+      }
     });
   }
 

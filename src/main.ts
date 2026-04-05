@@ -4,6 +4,7 @@ import { MenuScene } from './scenes/MenuScene';
 import { DayScene } from './scenes/DayScene';
 import { NightScene } from './scenes/NightScene';
 import { ResultScene } from './scenes/ResultScene';
+import { ZoneCompleteScene } from './scenes/ZoneCompleteScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { GAME_WIDTH, GAME_HEIGHT } from './config/constants';
 import { AudioManager } from './systems/AudioManager';
@@ -21,7 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, MenuScene, DayScene, NightScene, ResultScene, GameOverScene],
+  scene: [BootScene, MenuScene, DayScene, NightScene, ResultScene, ZoneCompleteScene, GameOverScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

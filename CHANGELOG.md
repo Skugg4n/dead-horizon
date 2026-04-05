@@ -1,5 +1,139 @@
 # Dead Horizon -- Changelog
 
+## [2.5.2] - 2026-04-04
+
+### 7 nya fällor -- Tier 1 (passiva) och Tier 2 (mekaniska)
+
+**src/structures/NailBoard.ts (ny fil):**
+- Tier 1 passiv fälla. 10 dmg + cripple 2s per träff. 20 uses. Extends GameObjects.Graphics.
+- Grafik: sliten träplanka med naglar, mörknar visuellt vid låga uses.
+
+**src/structures/TripWire.ts (ny fil):**
+- Tier 1 passiv fälla. Stun 1.5s, ingen skada. 15 uses. Extends GameObjects.Graphics.
+- Grafik: tunn tråd med ankarpunkter i vardera ände, bleknar successivt.
+
+**src/structures/GlassShards.ts (ny fil):**
+- Tier 1 passiv fälla. 5 dmg/s i zon (~96px radie). Obegränsade uses tills HP=0.
+- Grafik: spridda glassplitter med zon-indikator. containsPoint() för cirkulär zon.
+
+**src/structures/TarPit.ts (ny fil):**
+- Tier 1 passiv fälla. 80% slow (slowFactor 0.2) i zon. 3 tiles bred. Varar 2 nätter.
+- Grafik: animerad tjärepool med bubblor. animUpdate() anropas varje frame.
+
+**src/structures/ShockWire.ts (ny fil):**
+- Tier 2 mekanisk fälla (extends TrapBase). 15 dmg + stun 3s. Cooldown 8s. 10 uses.
+- Grafik: animerad el-båge mellan isolatorer. sparkPhase-animation.
+
+**src/structures/SpringLauncher.ts (ny fil):**
+- Tier 2 mekanisk fälla (extends TrapBase). 40 dmg + knockback 80px. Cooldown 5s. Obegränsade uses.
+- Grafik: animerad fjäder med launch-animation. Knockback via velocity-impulse.
+
+**src/structures/ChainWall.ts (ny fil):**
+- Tier 2 mekanisk fälla (extends TrapBase). Blockerar + 10 dmg vid kontakt. 200 HP. Ingen cooldown.
+- Grafik: kedjestängsel-mönster med HP-bar. Lägger till wallBodies physics collider.
+
+**src/data/structures.json:**
+- 7 nya entries: nail_board, trip_wire, glass_shards, tar_pit, shock_wire, spring_launcher, chain_wall.
+- Alla med korrekt cost, hp, effect, och trap-specifika parametrar.
+
+**src/data/base-levels.json:**
+- Tier 1 (nail_board, trip_wire, glass_shards, tar_pit) upplåsta vid Tent (level 0).
+- Tier 2 (shock_wire, spring_launcher, chain_wall) upplåsta vid Camp (level 1) och högre.
+
+**src/scenes/NightScene.ts:**
+- 7 nya imports, 7 nya privata arrays (_nailBoards, _tripWires, _glassShards, _tarPits,
+  _shockWires, _springLaunchers, _chainWalls).
+- createStructures(): 7 nya switch-cases som läser config från structures.json.
+- checkZombieStructureInteractions(): cleanup-filter + per-zombie interaktionslogik för alla 4 Tier 1 fällor.
+  TarPit animUpdate() körs en gång per frame (ej per zombie).
+- updateMechanicalTraps(): update() + aktiveringslogik för ShockWire, SpringLauncher, ChainWall.
+- updateRepairMechanic(): allMechanical-array utökad med de 3 nya TrapBase-fällorna.
+
+## [2.5.1] - 2026-04-04 10:30
+
+### Pixel art sprites -- fällor (Tier 1+2) och Forest Boss
+
+**public/assets/sprites/ (8 nya sprites + 8 previews):**
+
+Tier 1 fällor (32x32):
+- nail_board.png -- Planka med rostiga spikar. Brun trä-bas, tre plankor i halvbåge, grå stålspikar som sticker upp med rostiga punkter.
+- trip_wire.png -- Två rostiga pinnar med beige snöre emellan. Diskret och nästan osynlig mot marken.
+- glass_shards.png -- Krossat glas utspritt. Blå/transparanta skärvor med vita glitter-pixlar för speglingseffekt.
+- tar_pit.png -- Mörk oval tjäre-pool med bubblor och klibbig kant. Svart/mörkbrun gradient med ojämn yta.
+
+Tier 2 fällor (32x32):
+- shock_wire.png -- Bilbatteri (höger) kopplat till ståltrå med gula gnistor och blå el-effekter. Jordningskabel nedtill.
+- spring_launcher.png -- Metalldörr med zigzag-fjäder i mitten, guld handtag, gångjärn och varningsränder. Industriell look.
+- chain_wall.png -- Två grå betongstolpar med tre kedjor emellan. Guldboltar på stolparna, rost-accenter.
+
+Forest Boss (64x64):
+- brute_boss.png -- Gigantisk zombie-brute. Mörk grön-grå hud, glödande röda ögon med halo-effekt, öppen mun med tänder/tunga, improviserad rostad rustning med guldboltar, moss-accenter på kroppen (forest-tema), blodstänk, skugga under för volym.
+
+Alla sprites följer exakt färgpalett från docs/art-direction.md.
+Genererat med sprite_gen_traps_boss.py (Python/Pillow, pixel-för-pixel).
+
+## [2.5.0] - 2026-04-04
+
+### Blueprint-system -- loot runs laster upp nya fallor
+
+**src/data/blueprints.json (ny fil):**
+- Definierar 7 blueprints: improvised_electronics, engine_mechanics, fire_safety_reversed,
+  junkyard_engineering, trappers_handbook, heavy_construction, spring_mechanics.
+- Varje blueprint har id, name, description, unlocks (lista av structure-IDs), destinations
+  (vilka lootrun-destinationer den kan droppas pa) och dropChance.
+- "alwaysAvailable" array listar de 10 faller som aldrig kraver blueprint.
+
+**src/config/types.ts:**
+- Ny exporterad interface BlueprintData.
+- GameState far nytt falt: unlockedBlueprints: string[].
+
+**src/systems/SaveManager.ts:**
+- createDefaultState() inkluderar unlockedBlueprints: [].
+- load() mergar unlockedBlueprints fran sparad data (migration: gamla saves far tom array).
+
+**src/systems/LootManager.ts:**
+- Importerar blueprints.json och BlueprintData.
+- LootResult far nytt falt foundBlueprintId: string | null.
+- Ny privat metod rollBlueprintDrop(destinationId): rullar for blueprint-dropp. Exkluderar
+  redan upplasta blueprints. Returnerar blueprint-id vid lyckat roll, annars null.
+- executeLootRun() anropar rollBlueprintDrop(). Om blueprint hittas laggs den till direkt i
+  gameState.unlockedBlueprints och sparas i result.foundBlueprintId.
+
+**src/ui/BuildMenu.ts:**
+- Importerar blueprints.json och BlueprintData.
+- Ny getter-parameter getUnlockedBlueprints: () => string[] i konstruktorn.
+- Modul-niva konstanter: ALWAYS_AVAILABLE_TRAP_IDS, BLUEPRINT_FOR_STRUCTURE (struktur -> blueprint-id).
+- Ny metod isBlueprintAccessible(structureId): returnerar true om struktur ar i alwaysAvailable
+  eller om dess blueprint ar upplast av spelaren.
+- getFilteredItems() filtrerar nu pa isBlueprintAccessible -- blueprint-lasta strukturer goms helt.
+
+**src/scenes/DayScene.ts:**
+- createBuildMenu() skickar in ny getter: () => this.gameState.unlockedBlueprints.
+
+**src/ui/LootRunPanel.ts:**
+- showLootResults() visar "Blueprint found!" med blueprint-id om result.foundBlueprintId ar satt.
+
+### Zon-progressionssystem
+
+**src/scenes/ZoneCompleteScene.ts (ny fil):**
+- Ny scen som visas nar spelaren klarar wave 5 i en zon.
+- Visar "ZONE COMPLETE: [zonnamn]" med kills-statistik.
+- Visar vilken zon som las upp nasta (City efter Forest, Military efter City).
+- Gar tillbaka till MenuScene efter klick/tangent.
+
+**src/scenes/NightScene.ts:**
+- Boss Night: ny showFinalNightBanner() visar stor rod "FINAL NIGHT"-text med scale-in animation nar wave 5 startar.
+- all-waves-complete: vid klart natt 5 sparas zoneProgress, nasta zon las upp (unlockNextZone), currentWave nollstalls till 1 och ZoneCompleteScene visas.
+- player-died: currentWave aterstalas till 1 vid dod. Spelaren borjar om fran natt 1 i SAMMA zon -- allt gear, refugees och skills behalles.
+- Ny privat metod unlockNextZone(clearedZone): laggar zoneProgress-post for nasta zon.
+
+**src/scenes/MenuScene.ts:**
+- Ny buildZonePanel(): visar Forest/City/Military pa hoger sida med status (locked/unlocked/progress/cleared) och loot-multiplier. Aktiv zon markeras.
+- Continue-knappens subtext visar "[Zonnamn] -- Night X/5".
+
+**src/main.ts:**
+- ZoneCompleteScene registreras i scenarrayen.
+
 ## [2.4.1] - 2026-04-02
 
 ### BuildMenu -- kompaktare layout, tangentbordsnavigering, scroll

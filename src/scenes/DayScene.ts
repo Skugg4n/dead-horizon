@@ -873,6 +873,7 @@ export class DayScene extends Phaser.Scene {
       () => AP_PER_DAY,
       () => this.gameState.inventory.resources,
       () => (this.getBaseLevelData().unlockedStructures as string[]),
+      () => this.gameState.unlockedBlueprints,
       (structureId: string) => this.startPlacement(structureId),
     );
     // Register containers with the UI camera so click zones always align

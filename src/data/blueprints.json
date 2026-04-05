@@ -1,0 +1,72 @@
+{
+  "blueprints": [
+    {
+      "id": "improvised_electronics",
+      "name": "Improvised Electronics",
+      "description": "Unlocks electrical traps",
+      "unlocks": ["shock_wire"],
+      "destinations": ["ranger_station"],
+      "dropChance": 0.15
+    },
+    {
+      "id": "engine_mechanics",
+      "name": "Engine Mechanics 101",
+      "description": "Unlocks spinning blade traps",
+      "unlocks": ["blade_spinner"],
+      "destinations": ["abandoned_store"],
+      "dropChance": 0.10
+    },
+    {
+      "id": "fire_safety_reversed",
+      "name": "Fire Safety (Reversed)",
+      "description": "Unlocks fire-based traps",
+      "unlocks": ["fire_pit", "propane_geyser"],
+      "destinations": ["city_ruins"],
+      "dropChance": 0.12
+    },
+    {
+      "id": "junkyard_engineering",
+      "name": "Junkyard Engineering",
+      "description": "Unlocks improvised water cannon",
+      "unlocks": ["washing_cannon"],
+      "destinations": ["nearby_houses"],
+      "dropChance": 0.10
+    },
+    {
+      "id": "trappers_handbook",
+      "name": "Trapper's Handbook",
+      "description": "Unlocks advanced animal traps",
+      "unlocks": ["bear_trap", "pit_trap"],
+      "destinations": ["ranger_station"],
+      "dropChance": 0.12
+    },
+    {
+      "id": "heavy_construction",
+      "name": "Heavy Construction",
+      "description": "Unlocks heavy wall structures",
+      "unlocks": ["chain_wall", "cart_wall"],
+      "destinations": ["abandoned_store"],
+      "dropChance": 0.08
+    },
+    {
+      "id": "spring_mechanics",
+      "name": "Spring Mechanics",
+      "description": "Unlocks spring-powered traps",
+      "unlocks": ["spring_launcher"],
+      "destinations": ["nearby_houses"],
+      "dropChance": 0.10
+    }
+  ],
+  "alwaysAvailable": [
+    "barricade",
+    "wall",
+    "trap",
+    "spike_strip",
+    "sandbags",
+    "oil_slick",
+    "nail_board",
+    "trip_wire",
+    "glass_shards",
+    "tar_pit"
+  ]
+}

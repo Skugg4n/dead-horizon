@@ -20,6 +20,13 @@ import { PropaneGeyser } from '../structures/PropaneGeyser';
 import { CartWall } from '../structures/CartWall';
 import { WashingCannon } from '../structures/WashingCannon';
 import { PitTrap } from '../structures/PitTrap';
+import { NailBoard } from '../structures/NailBoard';
+import { TripWire } from '../structures/TripWire';
+import { GlassShards } from '../structures/GlassShards';
+import { TarPit } from '../structures/TarPit';
+import { ShockWire } from '../structures/ShockWire';
+import { SpringLauncher } from '../structures/SpringLauncher';
+import { ChainWall } from '../structures/ChainWall';
 import type { TrapBase } from '../structures/TrapBase';
 import { HUD } from '../ui/HUD';
 import { WeaponManager } from '../systems/WeaponManager';
@@ -84,6 +91,11 @@ export class NightScene extends Phaser.Scene {
   private _landmines: Landmine[] = [];
   private _sandbags: Sandbags[] = [];
   private _oilSlicks: OilSlick[] = [];
+  // Tier 1 passive traps (no mechanical systems)
+  private _nailBoards: NailBoard[] = [];
+  private _tripWires: TripWire[] = [];
+  private _glassShards: GlassShards[] = [];
+  private _tarPits: TarPit[] = [];
   // TrapBase-derived mechanical traps (have cooldown/overheat/malfunction)
   private _bladeSpinners: BladeSpinner[] = [];
   private _firePits: FirePit[] = [];
@@ -91,6 +103,10 @@ export class NightScene extends Phaser.Scene {
   private _cartWalls: CartWall[] = [];
   private _washingCannons: WashingCannon[] = [];
   private _pitTraps: PitTrap[] = [];
+  // Tier 2 mechanical traps
+  private _shockWires: ShockWire[] = [];
+  private _springLaunchers: SpringLauncher[] = [];
+  private _chainWalls: ChainWall[] = [];
   // Repair interaction state
   private _repairTarget: TrapBase | null = null;
   private _repairProgressBar: Phaser.GameObjects.Graphics | null = null;
@@ -564,22 +580,33 @@ export class NightScene extends Phaser.Scene {
     this._landmines = [];
     this._sandbags = [];
     this._oilSlicks = [];
+    this._nailBoards = [];
+    this._tripWires = [];
+    this._glassShards = [];
+    this._tarPits = [];
     this._bladeSpinners = [];
     this._firePits = [];
     this._propaneGeysers = [];
     this._cartWalls = [];
     this._washingCannons = [];
     this._pitTraps = [];
+    this._shockWires = [];
+    this._springLaunchers = [];
+    this._chainWalls = [];
 
     const trapDef = structuresData.structures.find(s => s.id === 'trap');
     const defaultTrapDamage = trapDef && 'trapDamage' in trapDef ? (trapDef as { trapDamage: number }).trapDamage : 20;
 
     // Read new trap definitions from structures.json
-    const spikeStripDef = structuresData.structures.find(s => s.id === 'spike_strip');
-    const bearTrapDef   = structuresData.structures.find(s => s.id === 'bear_trap');
-    const landmineDef   = structuresData.structures.find(s => s.id === 'landmine');
-    const sandbagsDef   = structuresData.structures.find(s => s.id === 'sandbags');
-    const oilSlickDef   = structuresData.structures.find(s => s.id === 'oil_slick');
+    const spikeStripDef  = structuresData.structures.find(s => s.id === 'spike_strip');
+    const bearTrapDef    = structuresData.structures.find(s => s.id === 'bear_trap');
+    const landmineDef    = structuresData.structures.find(s => s.id === 'landmine');
+    const sandbagsDef    = structuresData.structures.find(s => s.id === 'sandbags');
+    const oilSlickDef    = structuresData.structures.find(s => s.id === 'oil_slick');
+    const nailBoardDef   = structuresData.structures.find(s => s.id === 'nail_board');
+    const tripWireDef    = structuresData.structures.find(s => s.id === 'trip_wire');
+    const glassShardsdef = structuresData.structures.find(s => s.id === 'glass_shards');
+    const tarPitDef      = structuresData.structures.find(s => s.id === 'tar_pit');
 
     for (const structure of this.gameState.base.structures) {
       console.log(`[NightScene] createStructures: ${structure.structureId} at (${structure.x}, ${structure.y})`);
@@ -716,6 +743,69 @@ export class NightScene extends Phaser.Scene {
             pt.malfunctioned = true;
           }
           this._pitTraps.push(pt);
+          break;
+        }
+        case 'nail_board': {
+          const dmg   = (nailBoardDef as { trapDamage?: number } | undefined)?.trapDamage ?? 10;
+          const crip  = (nailBoardDef as { crippleDuration?: number } | undefined)?.crippleDuration ?? 2000;
+          const uses  = (nailBoardDef as { trapDurability?: number } | undefined)?.trapDurability ?? 20;
+          const nb    = new NailBoard(this, structure, dmg, crip, uses);
+          this._nailBoards.push(nb);
+          break;
+        }
+        case 'trip_wire': {
+          const stun  = (tripWireDef as { stunDuration?: number } | undefined)?.stunDuration ?? 1500;
+          const uses  = (tripWireDef as { trapDurability?: number } | undefined)?.trapDurability ?? 15;
+          const tw    = new TripWire(this, structure, stun, uses);
+          this._tripWires.push(tw);
+          break;
+        }
+        case 'glass_shards': {
+          const dps   = (glassShardsdef as { damagePerSecond?: number } | undefined)?.damagePerSecond ?? 5;
+          const gs    = new GlassShards(this, structure, dps);
+          this._glassShards.push(gs);
+          break;
+        }
+        case 'tar_pit': {
+          const slow  = (tarPitDef as { slowFactor?: number } | undefined)?.slowFactor ?? 0.2;
+          const width = (tarPitDef as { widthTiles?: number } | undefined)?.widthTiles ?? 3;
+          const tp    = new TarPit(this, structure, slow, width);
+          this._tarPits.push(tp);
+          break;
+        }
+        case 'shock_wire': {
+          const sw = new ShockWire(this, structure);
+          if (Math.random() < sw.malfunctionChance) {
+            sw.malfunctioned = true;
+          }
+          this._shockWires.push(sw);
+          break;
+        }
+        case 'spring_launcher': {
+          const sl = new SpringLauncher(this, structure);
+          if (Math.random() < sl.malfunctionChance) {
+            sl.malfunctioned = true;
+          }
+          this._springLaunchers.push(sl);
+          break;
+        }
+        case 'chain_wall': {
+          // Chain Wall blocks zombies (physics collider) and deals contact damage
+          const cwall = new ChainWall(this, structure);
+          if (Math.random() < cwall.malfunctionChance) {
+            cwall.malfunctioned = true;
+          }
+          this._chainWalls.push(cwall);
+          // Add physics body so zombies are blocked (same pattern as Wall/CartWall)
+          const cwallBody = this.wallBodies.create(
+            structure.x + TILE_SIZE / 2,
+            structure.y + TILE_SIZE / 2,
+            '',
+          ) as Phaser.Physics.Arcade.Sprite;
+          cwallBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
+          cwallBody.setVisible(false);
+          cwallBody.refreshBody();
+          cwallBody.setData('chainWallRef', cwall);
           break;
         }
         default: {
@@ -982,7 +1072,13 @@ export class NightScene extends Phaser.Scene {
 
     this.events.on('wave-started', (wave: number) => {
       this.hud.updateWave(wave, this.waveManager.getMaxWaves());
-      this.hud.showWaveAnnouncement(wave);
+      const maxWaves = this.waveManager.getMaxWaves();
+      // Final night: wave 5 in a 5-wave night gets a special banner
+      if (wave === 5 && maxWaves === 5) {
+        this.showFinalNightBanner();
+      } else {
+        this.hud.showWaveAnnouncement(wave);
+      }
       AudioManager.play('wave_start');
     });
 
@@ -1028,9 +1124,40 @@ export class NightScene extends Phaser.Scene {
       // Check all other achievements
       this.achievementManager.checkAll();
 
-      SaveManager.save(this.gameState);
-      AudioManager.stopAmbient();
-      this.scene.start('ResultScene', { kills: this.kills, wave: this.waveManager.getMaxWaves(), survived: true });
+      // Check if the player just completed the final wave (wave 5) in the current zone.
+      // Night number before increment was currentWave - 1. The final night is night 5.
+      const completedNight = this.gameState.progress.currentWave - 1;
+      const currentZone = this.gameState.zone;
+
+      if (completedNight >= 5) {
+        // Record zone clear in zoneProgress
+        const existing = this.gameState.zoneProgress[currentZone];
+        if (!existing || existing.highestWaveCleared < 5) {
+          this.gameState.zoneProgress[currentZone] = { highestWaveCleared: 5 };
+        }
+        // Unlock next zone if applicable and advance the active zone
+        this.unlockNextZone(currentZone);
+        // Advance the active zone so CONTINUE in the menu starts the next zone
+        if (currentZone === 'forest') {
+          this.gameState.zone = 'city';
+        } else if (currentZone === 'city') {
+          this.gameState.zone = 'military';
+        }
+        // Reset wave counter to 1 so next run in next zone starts fresh
+        this.gameState.progress.currentWave = 1;
+
+        SaveManager.save(this.gameState);
+        AudioManager.stopAmbient();
+        // Show zone complete screen instead of the normal result screen
+        this.scene.start('ZoneCompleteScene', {
+          zone: currentZone,
+          kills: this.kills,
+        });
+      } else {
+        SaveManager.save(this.gameState);
+        AudioManager.stopAmbient();
+        this.scene.start('ResultScene', { kills: this.kills, wave: this.waveManager.getMaxWaves(), survived: true });
+      }
     });
 
     this.events.on('player-damaged', (hp: number, maxHp: number) => {
@@ -1050,7 +1177,10 @@ export class NightScene extends Phaser.Scene {
       AudioManager.stopAmbient();
       this.gameState.progress.totalKills += this.kills;
       this.gameState.progress.totalRuns++;
-      // New "parallel dimension" -- randomize map seed on death
+      // On death: reset to night 1 of the SAME zone (roguelite restart, not zone reset).
+      // Gear, refugees, skills, and zone unlocks are all preserved.
+      this.gameState.progress.currentWave = 1;
+      // Randomize map seed so the layout feels fresh on the retry
       this.gameState.mapSeed = Math.floor(Math.random() * 100000);
       this.gameState.inventory.loadedAmmo = this.loadedAmmo;
       this.decreaseUsedWeaponDurability();
@@ -1805,12 +1935,19 @@ export class NightScene extends Phaser.Scene {
     this._landmines    = this._landmines.filter(m => m && m.active);
     this._sandbags     = this._sandbags.filter(s => s && s.active);
     this._oilSlicks    = this._oilSlicks.filter(o => o && o.active);
+    this._nailBoards     = this._nailBoards.filter(t => t && t.active);
+    this._tripWires      = this._tripWires.filter(t => t && t.active);
+    this._glassShards    = this._glassShards.filter(t => t && t.active);
+    this._tarPits        = this._tarPits.filter(t => t && t.active);
     this._bladeSpinners  = this._bladeSpinners.filter(t => t && t.active);
     this._firePits       = this._firePits.filter(t => t && t.active);
     this._propaneGeysers = this._propaneGeysers.filter(t => t && t.active);
     this._cartWalls      = this._cartWalls.filter(t => t && t.active);
     this._washingCannons = this._washingCannons.filter(t => t && t.active);
     this._pitTraps       = this._pitTraps.filter(t => t && t.active);
+    this._shockWires     = this._shockWires.filter(t => t && t.active);
+    this._springLaunchers = this._springLaunchers.filter(t => t && t.active);
+    this._chainWalls     = this._chainWalls.filter(t => t && t.active);
 
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
@@ -1985,7 +2122,74 @@ export class NightScene extends Phaser.Scene {
           break; // one mine trigger per zombie per frame
         }
       }
+
+      // Nail Board: damage + cripple on contact, limited uses
+      for (let i = this._nailBoards.length - 1; i >= 0; i--) {
+        const nb = this._nailBoards[i];
+        if (!nb || !nb.isAlive()) continue;
+
+        const nx = nb.structureInstance.x;
+        const ny = nb.structureInstance.y;
+
+        if (
+          zombie.x >= nx && zombie.x <= nx + TILE_SIZE &&
+          zombie.y >= ny && zombie.y <= ny + TILE_SIZE
+        ) {
+          zombie.takeDamage(nb.trapDamage);
+          zombie.applyCripple(nb.crippleDuration);
+          const destroyed = nb.consumeUse();
+          if (destroyed) {
+            this._nailBoards.splice(i, 1);
+          }
+        }
+      }
+
+      // Trip Wire: stun on contact, no damage, limited uses
+      for (let i = this._tripWires.length - 1; i >= 0; i--) {
+        const tw = this._tripWires[i];
+        if (!tw || !tw.isAlive()) continue;
+
+        const tx = tw.structureInstance.x;
+        const ty = tw.structureInstance.y;
+
+        if (
+          zombie.x >= tx && zombie.x <= tx + TILE_SIZE &&
+          zombie.y >= ty && zombie.y <= ty + TILE_SIZE
+        ) {
+          zombie.applyStun(tw.stunDuration);
+          const destroyed = tw.consumeUse();
+          if (destroyed) {
+            this._tripWires.splice(i, 1);
+          }
+        }
+      }
+
+      // Glass Shards: continuous damage per second to zombies in zone
+      for (const gs of this._glassShards) {
+        if (!gs.isAlive()) continue;
+        if (gs.containsPoint(zombie.x, zombie.y)) {
+          // Damage proportional to frame time (5 dmg/s)
+          zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000);
+        }
+      }
+
+      // Tar Pit: 80% slow to zombies inside zone
+      for (const tp of this._tarPits) {
+        if (!tp.isAlive()) continue;
+        if (tp.containsPoint(zombie.x, zombie.y)) {
+          const body = zombie.body;
+          if (body) {
+            body.velocity.x *= tp.slowFactor;
+            body.velocity.y *= tp.slowFactor;
+          }
+        }
+      }
     });
+
+    // Animate tar pits (bubbling effect) -- once per frame, not per zombie
+    for (const tp of this._tarPits) {
+      if (tp.isAlive()) tp.animUpdate(this._lastDelta);
+    }
 
     // -----------------------------------------------------------------------
     // TrapBase mechanical traps -- update cooldown/overheat each frame
@@ -2158,6 +2362,62 @@ export class NightScene extends Phaser.Scene {
       }
     }
 
+    // --- Shock Wire: stun + damage on contact, cooldown 8s, 10 uses ---
+    for (const t of this._shockWires) t.update(delta);
+    for (let i = this._shockWires.length - 1; i >= 0; i--) {
+      const sw = this._shockWires[i];
+      if (!sw || !sw.active || !sw.isReady()) continue;
+
+      const sx = sw.structureInstance.x;
+      const sy = sw.structureInstance.y;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+
+        if (
+          zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
+          zombie.y >= sy && zombie.y <= sy + TILE_SIZE
+        ) {
+          if (!sw.tryActivate()) break;
+          sw.onZombieContact(zombie);
+          this.trapEmitter.emitParticleAt(sx + TILE_SIZE / 2, sy + TILE_SIZE / 2, 6);
+          // If all uses are spent, destroy
+          if (sw.uses === 0) {
+            this._shockWires.splice(i, 1);
+          }
+          break; // one trigger per frame per wire
+        }
+      }
+    }
+
+    // --- Spring Launcher: damage + knockback on contact, cooldown 5s ---
+    for (const t of this._springLaunchers) t.update(delta);
+    for (const sl of this._springLaunchers) {
+      if (!sl.active || !sl.isReady()) continue;
+
+      const slx = sl.structureInstance.x;
+      const sly = sl.structureInstance.y;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+
+        if (
+          zombie.x >= slx && zombie.x <= slx + TILE_SIZE &&
+          zombie.y >= sly && zombie.y <= sly + TILE_SIZE
+        ) {
+          if (!sl.tryActivate()) break;
+          sl.onZombieContact(zombie);
+          this.trapEmitter.emitParticleAt(slx + TILE_SIZE / 2, sly + TILE_SIZE / 2, 8);
+          break; // one trigger per frame per launcher
+        }
+      }
+    }
+
+    // --- Chain Wall: update malfunction state; contact damage handled by wall collider ---
+    for (const t of this._chainWalls) t.update(delta);
+
     // --- Repair mechanic: player holds E near a malfunctioned TrapBase trap ---
     this.updateRepairMechanic(delta);
   }
@@ -2175,6 +2435,9 @@ export class NightScene extends Phaser.Scene {
       ...this._propaneGeysers,
       ...this._washingCannons,
       ...this._pitTraps,
+      ...this._shockWires,
+      ...this._springLaunchers,
+      ...this._chainWalls,
     ];
 
     const REPAIR_RANGE = 40;
@@ -2920,5 +3183,79 @@ export class NightScene extends Phaser.Scene {
       if (keyHandler) this.input.keyboard?.off('keydown', advance);
       this.physics.resume();
     });
+  }
+
+  /**
+   * Show a dramatic "FINAL NIGHT" banner when wave 5 starts.
+   * Overrides the normal wave announcement with a larger, red-tinted display.
+   */
+  private showFinalNightBanner(): void {
+    const cx = GAME_WIDTH / 2;
+    const cy = 110;
+
+    const container = this.add.container(0, 0).setDepth(180).setScrollFactor(0);
+
+    // Background bar
+    const bar = this.add.graphics();
+    bar.fillStyle(0x1A0000, 0.82);
+    bar.fillRect(0, cy - 36, GAME_WIDTH, 72);
+    bar.lineStyle(2, 0xAA0000, 0.9);
+    bar.lineBetween(0, cy - 36, GAME_WIDTH, cy - 36);
+    bar.lineBetween(0, cy + 36, GAME_WIDTH, cy + 36);
+    container.add(bar);
+
+    // Sub-text
+    const subText = this.add.text(cx, cy - 16, 'WAVE 5', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#AA3322',
+    }).setOrigin(0.5, 0.5);
+    container.add(subText);
+
+    // Main "FINAL NIGHT" text
+    const mainText = this.add.text(cx, cy + 8, 'FINAL NIGHT', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '20px',
+      color: '#FF2200',
+    }).setOrigin(0.5, 0.5);
+    container.add(mainText);
+
+    // Scale-in for drama
+    mainText.setScale(0.5);
+    this.tweens.add({
+      targets: mainText,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+
+    // Fade out after 2.5s
+    this.tweens.add({
+      targets: container,
+      alpha: 0,
+      delay: 2500,
+      duration: 600,
+      ease: 'Power2',
+      onComplete: () => container.destroy(),
+    });
+  }
+
+  /**
+   * Unlock the next zone based on completion of the current one.
+   * Forest -> City, City -> Military.
+   * Only sets the initial zoneProgress entry; does NOT change the active zone.
+   */
+  private unlockNextZone(clearedZone: string): void {
+    if (clearedZone === 'forest') {
+      // City is now playable -- ensure it has an entry so the menu can show it
+      if (!this.gameState.zoneProgress['city']) {
+        this.gameState.zoneProgress['city'] = { highestWaveCleared: 0 };
+      }
+    } else if (clearedZone === 'city') {
+      if (!this.gameState.zoneProgress['military']) {
+        this.gameState.zoneProgress['military'] = { highestWaveCleared: 0 };
+      }
+    }
   }
 }

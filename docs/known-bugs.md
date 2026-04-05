@@ -1,7 +1,7 @@
 # Dead Horizon -- Known Bugs & Issues
 
 Denna fil trackar alla kända buggar och uppgifter. Stryks INTE förrän verifierade som fixade.
-Uppdaterad: 2026-04-04, v2.4.4
+Uppdaterad: 2026-04-04, v2.4.4 (verifierad genomgång)
 
 ---
 
@@ -19,6 +19,8 @@ Uppdaterad: 2026-04-04, v2.4.4
 - Raven 0HP visas som companion -- hp>0 filter (v2.0.8) ✅
 - Storm raderar alla strukturer -- max 2 skadas nu (v2.4.0) ✅
 - Nya fällor saknades i build-menyn -- base-levels.json uppdaterad (v2.3.1) ✅
+- BG2: Continue efter krasch -- SaveManager rensar korrupt data + returnerar defaults (v2.0.3) ✅
+- BG3: Gråade items -- Build-menyn visar "Not enough X" i röd text under disabled items (v2.4.0) ✅
 
 ---
 
@@ -28,15 +30,8 @@ Uppdaterad: 2026-04-04, v2.4.4
 - `Cannot read 'sys'` i TrapBase constructor
 - Guard tillagd (v2.4.0) men root cause ej löst
 - try/catch runt createStructures fångar felet istället för krasch
-- Status: DELVIS FIXAD (kraschar inte men fällan skapas inte)
-
-### BG2: Continue fungerar inte efter krasch
-- SaveManager.load() har try/catch men kan fortfarande hänga
-- Status: VÄNTAR PÅ VERIFIERING
-
-### BG3: Gråade items förklaras inte varför
-- Build-menyn har "Not enough X" text nu (v2.4.0) men behöver verifieras live
-- Status: VÄNTAR PÅ VERIFIERING
+- Fällan laggs till i array men statusText initialiseras aldrig -- kraschar vid första update()
+- Status: DELVIS FIXAD (kraschar inte vid skapande men fällan är funktionellt trasig)
 
 ---
 

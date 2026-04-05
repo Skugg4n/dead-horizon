@@ -12,7 +12,8 @@ import { BuildingManager } from '../systems/BuildingManager';
 import type { StructureData } from '../systems/BuildingManager';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 import baseLevelsJson from '../data/base-levels.json';
-import type { ResourceType } from '../config/types';
+import blueprintsJson from '../data/blueprints.json';
+import type { BlueprintData, ResourceType } from '../config/types';
 
 // ------------------------------------------------------------------
 // Layout constants
@@ -72,6 +73,19 @@ const STRUCTURE_ICONS: Record<string, string> = {
 // Which primitives belong to TRAPS vs WALLS
 const PRIMITIVE_TRAP_IDS = new Set(['trap', 'spike_strip', 'sandbags', 'pit_trap', 'bear_trap', 'landmine', 'oil_slick']);
 
+// Blueprint definitions and always-available trap IDs (from blueprints.json)
+const ALL_BLUEPRINTS = blueprintsJson.blueprints as BlueprintData[];
+const ALWAYS_AVAILABLE_TRAP_IDS = new Set<string>(blueprintsJson.alwaysAvailable);
+
+// Build a lookup: structureId -> blueprintId that unlocks it
+const BLUEPRINT_FOR_STRUCTURE = new Map<string, string>();
+for (const bp of ALL_BLUEPRINTS) {
+  for (const structId of bp.unlocks) {
+    BLUEPRINT_FOR_STRUCTURE.set(structId, bp.id);
+  }
+}
+
+
 type TabName = 'TRAPS' | 'WALLS' | 'SPECIAL';
 
 interface DisabledReason {
@@ -100,6 +114,8 @@ export class BuildMenu {
 
   // Current base level determines which structures are unlocked
   private getBaseLevelUnlockedIds: () => string[];
+  // Returns the list of blueprint IDs the player has found on loot runs
+  private getUnlockedBlueprints: () => string[];
 
   constructor(
     scene: Phaser.Scene,
@@ -108,6 +124,7 @@ export class BuildMenu {
     getMaxAP: () => number,
     getResources: () => Record<ResourceType, number>,
     getBaseLevelUnlockedIds: () => string[],
+    getUnlockedBlueprints: () => string[],
     onSelect: (structureId: string) => void,
   ) {
     this.scene = scene;
@@ -116,6 +133,7 @@ export class BuildMenu {
     this.getMaxAP = getMaxAP;
     this.getResources = getResources;
     this.getBaseLevelUnlockedIds = getBaseLevelUnlockedIds;
+    this.getUnlockedBlueprints = getUnlockedBlueprints;
     this.onSelect = onSelect;
 
     // Full-screen backdrop -- closes menu on click-outside
@@ -266,9 +284,25 @@ export class BuildMenu {
   // Panel construction
   // ------------------------------------------------------------------
 
+  /**
+   * Returns true if a structure is buildable from a blueprint perspective.
+   * A structure is blueprint-accessible if it is in alwaysAvailable OR if its
+   * blueprint has been unlocked by the player.
+   */
+  private isBlueprintAccessible(structureId: string): boolean {
+    if (ALWAYS_AVAILABLE_TRAP_IDS.has(structureId)) return true;
+    const requiredBlueprintId = BLUEPRINT_FOR_STRUCTURE.get(structureId);
+    if (requiredBlueprintId === undefined) {
+      // Not gated by any blueprint -- treat as always available
+      return true;
+    }
+    return this.getUnlockedBlueprints().includes(requiredBlueprintId);
+  }
+
   private getFilteredItems(): StructureData[] {
+    // Only show structures that are blueprint-accessible (alwaysAvailable or unlocked)
     return this.buildingManager.getAllStructureData()
-      .filter(s => this.getTabForStructure(s) === this.activeTab);
+      .filter(s => this.getTabForStructure(s) === this.activeTab && this.isBlueprintAccessible(s.id));
   }
 
   private trySelectCurrent(filtered: StructureData[]): void {

@@ -18,7 +18,9 @@ import {
   ENCOUNTER_RESCUE_CHANCE,
 } from '../config/constants';
 import lootTablesJson from '../data/loot-tables.json';
+import blueprintsJson from '../data/blueprints.json';
 import weaponsJson from '../data/weapons.json';
+import type { BlueprintData } from '../config/types';
 
 export interface LootDestination {
   id: string;
@@ -52,11 +54,14 @@ export interface LootResult {
   encounterOutcome: 'none' | 'win' | 'lose' | 'flee';
   rescuedRefugee: boolean;
   injuredCompanions: string[];
+  // Blueprint found during this run (null if none)
+  foundBlueprintId: string | null;
 }
 
 const destinations = lootTablesJson.destinations as unknown as LootDestination[];
 const weaponDropEntries = lootTablesJson.weaponDrops as unknown as WeaponDropEntry[];
 const weaponDataList = weaponsJson.weapons as WeaponData[];
+const allBlueprints = blueprintsJson.blueprints as BlueprintData[];
 
 // Build weapon damage lookup
 const weaponDamageMap = new Map<string, number>();
@@ -83,6 +88,24 @@ export class LootManager {
     // Safety fallback: if the zone has no destinations (e.g. old save with unknown zone)
     // return all destinations so the player is never stuck with an empty list.
     return zoneDestinations.length > 0 ? zoneDestinations : destinations;
+  }
+
+  /**
+   * Roll for a blueprint drop at a given destination.
+   * Only blueprints that match the destination AND are not yet unlocked are eligible.
+   * Returns the blueprint id of the first successful roll, or null.
+   */
+  private rollBlueprintDrop(destinationId: string): string | null {
+    const alreadyUnlocked = this.gameState.unlockedBlueprints ?? [];
+    const eligible = allBlueprints.filter(
+      bp => bp.destinations.includes(destinationId) && !alreadyUnlocked.includes(bp.id),
+    );
+    for (const bp of eligible) {
+      if (Math.random() < bp.dropChance) {
+        return bp.id;
+      }
+    }
+    return null;
   }
 
   /**
@@ -142,6 +165,14 @@ export class LootManager {
     // Roll for weapon drop (independent of resource loot)
     const weaponDropId = this.rollWeaponDrop(destinationId);
 
+    // Roll for blueprint drop (only if not already unlocked)
+    const foundBlueprintId = this.rollBlueprintDrop(destinationId);
+    // If a blueprint was found, unlock it immediately in the game state
+    if (foundBlueprintId !== null) {
+      (this.gameState.unlockedBlueprints ??= []).push(foundBlueprintId);
+      console.log(`[LootManager] Blueprint found and unlocked: ${foundBlueprintId}`);
+    }
+
     // Check for encounter
     const encounter = Math.random() < destination.encounterChance;
 
@@ -149,6 +180,7 @@ export class LootManager {
       destination,
       loot,
       weaponDropId,
+      foundBlueprintId,
       encounter,
       encounterResolved: !encounter,
       encounterOutcome: encounter ? 'none' : 'none',
