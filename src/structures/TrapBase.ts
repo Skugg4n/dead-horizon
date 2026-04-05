@@ -107,12 +107,6 @@ export abstract class TrapBase extends Phaser.GameObjects.Graphics {
 
     this.setPosition(instance.x, instance.y);
 
-    // Guard: if scene.sys is missing we cannot call scene.add.text -- skip visuals.
-    if (!scene.sys) {
-      console.error('[TrapBase] scene.sys is missing after super(). structureId:', instance.structureId);
-      return;
-    }
-
     // Status text: positioned above the trap tile, world-space
     this.statusText = scene.add.text(
       instance.x + TILE_SIZE / 2,

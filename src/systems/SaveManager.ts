@@ -166,6 +166,7 @@ function load(): GameState {
         progress: { ...defaults.progress, ...(saved.progress ?? {}) },
         map: { ...defaults.map, ...(saved.map ?? {}) },
         stats: { ...defaults.stats, ...(saved.stats ?? {}) },
+        zone: saved.zone ?? defaults.zone,
         zoneProgress: saved.zoneProgress ?? defaults.zoneProgress,
         // mapSeed: inherited from ...defaults (random) then overwritten by ...saved if present
         // No explicit line needed -- the spread on lines above handles it.
