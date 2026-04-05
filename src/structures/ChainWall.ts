@@ -23,6 +23,12 @@ export class ChainWall extends TrapBase {
   /** Damage per brute attack contact. */
   public readonly contactDamage: number = CONTACT_DAMAGE;
 
+  /**
+   * Metallic glint flash timer in ms.
+   * Triggers a brief silver shimmer when a zombie is damaged.
+   */
+  private glintTimer: number = 0;
+
   constructor(scene: Phaser.Scene, instance: StructureInstance) {
     super(
       scene,
@@ -70,9 +76,42 @@ export class ChainWall extends TrapBase {
     this.lineBetween(0, 0, 0, TILE_SIZE);
     this.lineBetween(TILE_SIZE - 1, 0, TILE_SIZE - 1, TILE_SIZE);
 
+    // Metallic glint flash overlay on contact damage
+    if (this.glintTimer > 0) {
+      const intensity = this.glintTimer / 120;
+      // Silver shimmer across the chains
+      this.fillStyle(0xCCCCBB, 0.35 * intensity);
+      this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+      // Bright highlight on the posts
+      this.lineStyle(2, 0xFFFFEE, 0.7 * intensity);
+      this.lineBetween(0, 0, 0, TILE_SIZE);
+      this.lineBetween(TILE_SIZE - 1, 0, TILE_SIZE - 1, TILE_SIZE);
+    }
+
     // Border
     this.lineStyle(1, 0x888866, 0.4);
     this.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+  }
+
+  override update(delta: number): void {
+    super.update(delta);
+
+    // Count down glint timer and redraw if active
+    if (this.glintTimer > 0) {
+      this.glintTimer = Math.max(0, this.glintTimer - delta);
+      this.clear();
+      this.draw();
+    }
+  }
+
+  /**
+   * Trigger the metallic glint flash when contact damage is applied.
+   * Called by NightScene (or onZombieContact) after a zombie is damaged.
+   */
+  triggerActivationEffect(): void {
+    this.glintTimer = 120; // 120ms silver shimmer
+    this.clear();
+    this.draw();
   }
 
   /**
@@ -82,6 +121,7 @@ export class ChainWall extends TrapBase {
   onZombieContact(zombie: Zombie): void {
     if (this.malfunctioned) return;
     zombie.takeDamage(this.contactDamage);
+    this.triggerActivationEffect();
   }
 
   /**

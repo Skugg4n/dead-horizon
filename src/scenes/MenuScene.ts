@@ -669,11 +669,11 @@ export class MenuScene extends Phaser.Scene {
     const currentZone = state.zone ?? 'forest';
     const currentNight = state.progress.currentWave ?? 1;
 
-    const panelX = GAME_WIDTH - 280;
+    const panelX = GAME_WIDTH - 290;
     const panelY = 20;
-    const panelW = 268;
-    const ZONE_H = 52;
-    const panelH = 24 + zonesData.length * (ZONE_H + 6);
+    const panelW = 278;
+    const ZONE_H = 60;
+    const panelH = 28 + zonesData.length * (ZONE_H + 8);
 
     const container = this.add.container(panelX, panelY);
     container.setDepth(10);
@@ -681,24 +681,24 @@ export class MenuScene extends Phaser.Scene {
 
     // Panel background
     const bg = this.add.graphics();
-    bg.fillStyle(0x0D0A08, 0.72);
+    bg.fillStyle(0x0D0A08, 0.82);
     bg.fillRect(0, 0, panelW, panelH);
-    bg.lineStyle(1, 0x2A1E14, 0.8);
+    bg.lineStyle(1, 0x3A2A1A, 0.85);
     bg.strokeRect(0, 0, panelW, panelH);
     container.add(bg);
 
-    // Header
-    const header = this.add.text(12, 9, 'ZONES:', {
+    // Header with clearer label
+    const header = this.add.text(12, 9, 'ZONE STATUS', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
-      color: '#7A5A3A',
+      color: '#9A7A5A',
     }).setOrigin(0, 0);
     container.add(header);
 
     // Divider
     const div = this.add.graphics();
-    div.lineStyle(1, 0x2A1E14, 0.6);
-    div.lineBetween(12, 24, panelW - 12, 24);
+    div.lineStyle(1, 0x3A2A1A, 0.7);
+    div.lineBetween(12, 25, panelW - 12, 25);
     container.add(div);
 
     // Determine unlock status for each zone
@@ -716,97 +716,160 @@ export class MenuScene extends Phaser.Scene {
     };
 
     zonesData.forEach((zone, i) => {
-      const rowY = 30 + i * (ZONE_H + 6);
+      const rowY = 33 + i * (ZONE_H + 8);
       const unlocked = isZoneUnlocked(zone.id as ZoneId);
       const progress = zoneProgress[zone.id as ZoneId];
       const isActive = zone.id === currentZone;
+      const best = progress?.highestWaveCleared ?? 0;
+      const isCleared = best >= 5;
 
-      // Row background -- highlight active zone
+      // Row background with clear visual distinction per state:
+      // active = warm amber border, cleared = green tint, locked = dark and muted
       const rowBg = this.add.graphics();
-      if (isActive) {
-        rowBg.fillStyle(0x1E1206, 0.85);
+      if (isActive && !isCleared) {
+        // Active zone: warm orange border + fill
+        rowBg.fillStyle(0x221408, 0.9);
         rowBg.fillRect(8, rowY, panelW - 16, ZONE_H);
-        rowBg.lineStyle(1, 0x5A2A10, 0.8);
+        rowBg.lineStyle(2, 0xC5620B, 0.9);
+        rowBg.strokeRect(8, rowY, panelW - 16, ZONE_H);
+      } else if (isCleared) {
+        // Cleared zone: green tint border
+        rowBg.fillStyle(0x081208, 0.8);
+        rowBg.fillRect(8, rowY, panelW - 16, ZONE_H);
+        rowBg.lineStyle(1, 0x2A7A2A, 0.8);
         rowBg.strokeRect(8, rowY, panelW - 16, ZONE_H);
       } else if (unlocked) {
-        rowBg.fillStyle(0x0E0A06, 0.5);
+        // Unlocked but not started / not active
+        rowBg.fillStyle(0x0E0C08, 0.6);
         rowBg.fillRect(8, rowY, panelW - 16, ZONE_H);
+        rowBg.lineStyle(1, 0x3A2A18, 0.5);
+        rowBg.strokeRect(8, rowY, panelW - 16, ZONE_H);
       } else {
-        // Locked: darker, no border
-        rowBg.fillStyle(0x080604, 0.4);
+        // Locked: very dark, dashed-feeling thin border
+        rowBg.fillStyle(0x080706, 0.45);
         rowBg.fillRect(8, rowY, panelW - 16, ZONE_H);
+        rowBg.lineStyle(1, 0x1E1818, 0.4);
+        rowBg.strokeRect(8, rowY, panelW - 16, ZONE_H);
       }
       container.add(rowBg);
 
-      // Zone name color: active = orange, unlocked = cream, locked = dark grey
-      const nameColor = isActive ? '#D4620B' : unlocked ? '#A08060' : '#3A3030';
-      const nameText = this.add.text(18, rowY + 8, zone.name.toUpperCase(), {
+      // Zone name color: active = bright orange, cleared = green, unlocked = cream, locked = dark grey
+      const nameColor = isActive && !isCleared
+        ? '#FF8830'
+        : isCleared
+          ? '#4ECC70'
+          : unlocked
+            ? '#B09070'
+            : '#3A3030';
+
+      const nameText = this.add.text(20, rowY + 7, zone.name.toUpperCase(), {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
         color: nameColor,
       }).setOrigin(0, 0);
       container.add(nameText);
 
-      // Status line below name
+      // Status line
       let statusStr = '';
       let statusColor = '#4A3A2A';
       if (!unlocked) {
-        // Show what is required to unlock
         const cond = zone.unlockCondition;
         if (cond) {
           const reqZone = zonesData.find(z => z.id === cond.zone);
-          statusStr = `LOCKED -- clear ${reqZone?.name ?? cond.zone} first`;
+          statusStr = `Clear ${reqZone?.name ?? cond.zone} to unlock`;
         }
         statusColor = '#3A2828';
+      } else if (isCleared) {
+        statusStr = 'CLEARED';
+        statusColor = '#4CAF50';
       } else if (isActive) {
-        // Show current night progress
-        const best = progress?.highestWaveCleared ?? 0;
-        if (best >= 5) {
-          statusStr = 'CLEARED';
-          statusColor = '#4CAF50';
-        } else {
-          statusStr = `Night ${currentNight}/5`;
-          statusColor = '#C5A030';
-        }
+        statusStr = `Night ${currentNight} / 5`;
+        statusColor = '#C5A030';
+      } else if (best > 0) {
+        statusStr = `Best: Night ${best} / 5`;
+        statusColor = '#7A7A40';
       } else {
-        // Another unlocked zone not currently active
-        const best = progress?.highestWaveCleared ?? 0;
-        if (best >= 5) {
-          statusStr = 'CLEARED';
-          statusColor = '#4CAF50';
-        } else if (best > 0) {
-          statusStr = `Best: Night ${best}/5`;
-          statusColor = '#7A7A40';
-        } else {
-          statusStr = 'Not started';
-          statusColor = '#4A4A30';
-        }
+        statusStr = 'Not started';
+        statusColor = '#4A4A30';
       }
 
-      const statusText = this.add.text(18, rowY + 22, statusStr, {
+      const statusText = this.add.text(20, rowY + 22, statusStr, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: statusColor,
-        wordWrap: { width: panelW - 36 },
+        wordWrap: { width: panelW - 80 },
       }).setOrigin(0, 0);
       container.add(statusText);
 
-      // Loot multiplier badge (top-right of row) -- only for unlocked zones
-      if (unlocked) {
-        const lootText = this.add.text(panelW - 18, rowY + 8, `x${zone.lootMultiplier} loot`, {
+      // Progress bar for partially-cleared unlocked zones (1-4 waves done)
+      if (unlocked && !isCleared && best > 0) {
+        const barX = 20;
+        const barY = rowY + 38;
+        const barW = panelW - 80;
+        const barH = 5;
+        const filled = Math.round((best / 5) * barW);
+
+        // Background track
+        const barBg = this.add.graphics();
+        barBg.fillStyle(0x1A1A10, 0.8);
+        barBg.fillRect(barX, barY, barW, barH);
+        container.add(barBg);
+
+        // Filled portion
+        const barFill = this.add.graphics();
+        barFill.fillStyle(0xC5A030, 0.85);
+        barFill.fillRect(barX, barY, filled, barH);
+        container.add(barFill);
+
+        // Segment dividers to show 5 steps clearly
+        const segDiv = this.add.graphics();
+        segDiv.lineStyle(1, 0x000000, 0.5);
+        for (let s = 1; s < 5; s++) {
+          const segX = barX + Math.round((s / 5) * barW);
+          segDiv.lineBetween(segX, barY, segX, barY + barH);
+        }
+        container.add(segDiv);
+      }
+
+      // Right side: lock icon (Graphics) for locked, or stars for cleared/progress
+      const rightX = panelW - 14;
+
+      if (!unlocked) {
+        // Draw a simple lock icon using Graphics shapes
+        const lockG = this.add.graphics();
+        lockG.lineStyle(1, 0x2A2020, 0.7);
+        lockG.fillStyle(0x1A1414, 0.8);
+        // Lock body (small rectangle)
+        lockG.fillRect(rightX - 14, rowY + 16, 12, 10);
+        lockG.strokeRect(rightX - 14, rowY + 16, 12, 10);
+        // Lock shackle (arc approximated as two vertical lines + a horizontal line)
+        lockG.lineBetween(rightX - 12, rowY + 16, rightX - 12, rowY + 10);
+        lockG.lineBetween(rightX - 4, rowY + 16, rightX - 4, rowY + 10);
+        lockG.lineBetween(rightX - 12, rowY + 10, rightX - 4, rowY + 10);
+        container.add(lockG);
+      } else if (isCleared) {
+        // Three stars for cleared zones
+        const starsText = this.add.text(rightX, rowY + 12, '***', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '9px',
+          color: '#FFD700',
+        }).setOrigin(1, 0);
+        container.add(starsText);
+      } else if (unlocked) {
+        // Loot multiplier badge for non-cleared unlocked zones
+        const lootText = this.add.text(rightX, rowY + 7, `x${zone.lootMultiplier}`, {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '7px',
           color: '#5A4A2A',
         }).setOrigin(1, 0);
         container.add(lootText);
-      } else {
-        // Lock icon (text glyph)
-        const lockText = this.add.text(panelW - 18, rowY + 8, '[LOCKED]', {
+
+        const lootLabel = this.add.text(rightX, rowY + 18, 'loot', {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '7px',
-          color: '#2A2020',
+          color: '#3A2A14',
         }).setOrigin(1, 0);
-        container.add(lockText);
+        container.add(lootLabel);
       }
     });
   }

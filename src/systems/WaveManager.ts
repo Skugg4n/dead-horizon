@@ -155,6 +155,11 @@ export class WaveManager {
     const aggroType: 'base_seeker' | 'wanderer' =
       isBruteOrBoss ? 'base_seeker' : (Math.random() < 0.3 ? 'wanderer' : 'base_seeker');
 
+    // Notify the scene when a boss is about to spawn so it can play boss-spawn sounds
+    if (config.behavior === 'boss') {
+      this.scene.events.emit('boss-spawning');
+    }
+
     // Try to reuse an inactive zombie from the pool
     const existing = this.zombieGroup.getFirstDead(false) as Zombie | null;
     if (existing) {

@@ -27,8 +27,15 @@ export class SpringLauncher extends TrapBase {
 
   /** Spring compression animation phase. */
   private springPhase: number = 0;
-  /** Whether the spring is currently in its launch animation (brief visual). */
+
+  /** Launch animation timer in ms. Counts down from 250 to 0 after activation. */
   private launchAnimTimer: number = 0;
+
+  /**
+   * Orange burst flash timer. Separate from launchAnimTimer -- used for
+   * the bright impact flash that is more visible than the spring animation.
+   */
+  private flashTimer: number = 0;
 
   constructor(scene: Phaser.Scene, instance: StructureInstance) {
     super(
@@ -79,10 +86,27 @@ export class SpringLauncher extends TrapBase {
     this.fillStyle(0x999966);
     this.fillRect(mid - 9, plateY, 18, 4);
 
-    // Launch animation: bright flash at top
+    // Launch animation: bright flash at top (builtin spring anim)
     if (isLaunching) {
       this.fillStyle(0xFFFF88, 0.8);
       this.fillCircle(mid, plateY - 2, 6);
+    }
+
+    // Orange burst flash overlay on activation
+    if (this.flashTimer > 0) {
+      const intensity = this.flashTimer / 180;
+      // Bright orange/yellow radial burst from center
+      this.fillStyle(0xFF8800, 0.5 * intensity);
+      this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+      // Brighter core
+      this.fillStyle(0xFFCC00, 0.7 * intensity);
+      this.fillCircle(mid, mid, 8 * intensity + 4);
+      // Radiating lines suggesting impact force
+      const lineAlpha = 0.8 * intensity;
+      this.lineStyle(1, 0xFFAA22, lineAlpha);
+      this.lineBetween(mid, mid, mid - 10, mid - 8);
+      this.lineBetween(mid, mid, mid + 10, mid - 8);
+      this.lineBetween(mid, mid, mid, mid - 12);
     }
 
     // Border
@@ -98,8 +122,24 @@ export class SpringLauncher extends TrapBase {
       this.launchAnimTimer = Math.max(0, this.launchAnimTimer - delta);
     }
 
+    // Tick flash timer
+    if (this.flashTimer > 0) {
+      this.flashTimer = Math.max(0, this.flashTimer - delta);
+    }
+
     // Animate spring oscillation when ready
     this.springPhase += delta * 0.008;
+    this.clear();
+    this.draw();
+  }
+
+  /**
+   * Trigger the orange burst flash on activation.
+   * Called by NightScene immediately after a zombie is launched.
+   */
+  triggerActivationEffect(): void {
+    this.flashTimer = 180; // 180ms orange burst
+    this.launchAnimTimer = 250; // spring animation continues a bit longer
     this.clear();
     this.draw();
   }

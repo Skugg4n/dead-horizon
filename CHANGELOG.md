@@ -1,5 +1,153 @@
 # Dead Horizon -- Changelog
 
+## [2.5.6] - 2026-04-04
+
+### Procedurella ljudeffekter for fällor, boss och zoner
+
+**src/systems/AudioManager.ts:**
+- 11 nya SoundId-typer tillagda: `trap_nail_board`, `trap_trip_wire`, `trap_glass_shards`, `trap_tar_pit`, `trap_shock_wire`, `trap_spring_launcher`, `trap_chain_wall`, `boss_roar`, `boss_stomp`, `zone_complete`, `final_night_start`.
+- 11 nya generatorfunktioner med procedurellt genererade ljud via Web Audio API:
+  - Nail Board: vasst crunch-ljud med trä + metallkaraktär.
+  - Trip Wire: snap/twang-ljud av spänd trad som brister.
+  - Glass Shards: höga frekvenser, kortvarig glaskrasch.
+  - Tar Pit: låg bubblig squelch-effekt, viskos karaktär.
+  - Shock Wire: elektrisk buzz + crackle-urladdning.
+  - Spring Launcher: metalliskt THUNK + nedgående fjäder-boing.
+  - Chain Wall: metalliskt kedjeklirr med oregelbunden rattle-pattern.
+  - Boss Roar: djupt sub-bas vrål, 1.6 sekunder, modulerad med vibrato.
+  - Boss Stomp: tungt fotsteg, sub-bas med snabb decay.
+  - Zone Complete: uppåtstigande fanfar C4-E4-G4-C5, 1.8 sekunder.
+  - Final Night Start: dissonant doom-ackord (triton D+Ab), 2 sekunder.
+- Trap- och boss-ljud tillagda i PITCH_VARIED_SOUNDS för variation.
+
+**src/scenes/NightScene.ts:**
+- `trap_nail_board` spelas vid nail board-träff i checkZombieStructureInteractions().
+- `trap_trip_wire` spelas vid trip wire-utlösning.
+- `trap_glass_shards` spelas vid glasskärv-kontakt (throttlad via 600ms cooldown).
+- `trap_tar_pit` spelas vid tar pit-kontakt (throttlad via 800ms cooldown).
+- `trap_shock_wire` spelas vid shock wire-aktivering.
+- `trap_spring_launcher` spelas vid spring launcher-aktivering.
+- `trap_chain_wall` spelas i wall collider när chainWallRef hittas.
+- ChainWall.onZombieContact() anropas nu korrekt fran wall collider-callback.
+- `boss_roar` spelas via nytt 'boss-spawning'-event.
+- `final_night_start` spelas i showFinalNightBanner().
+
+**src/systems/WaveManager.ts:**
+- Emittar 'boss-spawning'-event innan boss-zombie skapas.
+
+**src/entities/Zombie.ts:**
+- Import av AudioManager tillagd.
+- `stompTimer`-property (private, number) för att rytmisera stompsound.
+- Boss-update: var 700ms spelas `boss_stomp` nar boss ror sig (velocity > 5).
+- stompTimer nollstalls i reset() for korrekt pool-reuse.
+
+**src/scenes/ZoneCompleteScene.ts:**
+- Import av AudioManager tillagd.
+- `zone_complete`-fanfar spelas vid scenstart.
+
+## [2.5.5] - 2026-04-04
+
+### Visuella effekter for nya fällor
+
+**src/structures/NailBoard.ts:**
+- Alpha-blekning proportionell mot kvarvarande uses (0.4-1.0 alpha).
+- Röd flash-overlay (120ms) vid varje aktivering via `triggerActivationEffect()`.
+- `update(delta)` metod för att animera flash-timern.
+
+**src/structures/TripWire.ts:**
+- Alpha-blekning proportionell mot kvarvarande uses.
+- Vit "snap"-flash (150ms) med bredd-linje och vertikal burst vid aktivering.
+- `triggerActivationEffect()` och `update(delta)` metoder.
+
+**src/structures/GlassShards.ts:**
+- Kontinuerlig sparkle-animation: 8 kors-formade gnistpunkter som tänds/slocknar individuellt med sin-waves.
+- `animUpdate(delta)` anropas varje frame från NightScene.
+- Pre-beräknade offset-arrayer och positioner för noll allokering per frame.
+
+**src/structures/TarPit.ts:**
+- `markZombieInZone()` metod -- när zombie fångas ökar bubble-hastigheten och alpha.
+- Tredje liten bubbla för djup. Amber-border intensifieras när zombie är i zon.
+- Animationshastighetsmultiplikator: 0.003 normalt, 0.005 med zombie.
+
+**src/structures/ShockWire.ts:**
+- `dischargeTimer` (200ms): vid aktivering renderas bred vit/blå arc-flash + branch-linjer + corona.
+- `triggerActivationEffect()` metod kallad från NightScene vid zombie-chock.
+
+**src/structures/SpringLauncher.ts:**
+- `flashTimer` (180ms): orange/gul burst-overlay med radiella linjer vid launch.
+- `triggerActivationEffect()` kombinerar flash + launchAnimTimer.
+
+**src/structures/ChainWall.ts:**
+- `glintTimer` (120ms): silverglans-overlay + ljusa post-highlights vid kontaktskada.
+- `triggerActivationEffect()` kallad från `onZombieContact()`.
+
+**src/scenes/NightScene.ts:**
+- Ny `shockEmitter` (blå/vit, 10 partiklar) vid ShockWire-aktivering.
+- Ny `nailBloodEmitter` (röd, 5 partiklar) vid NailBoard-träff.
+- `triggerActivationEffect()` anropas för NailBoard, TripWire, ShockWire, SpringLauncher.
+- `markZombieInZone()` anropas för TarPit inom zombie-loopen.
+- `animUpdate()` anropas för GlassShards varje frame.
+- `update(delta)` anropas för NailBoard och TripWire varje frame.
+- Ny particle-textur `particle_blue` (66CCFF) för el-effekter.
+
+## [2.5.4] - 2026-04-04
+
+### Forest-zon atmosfar -- ambient ljud och boss-natt belysning
+
+**src/systems/AudioManager.ts:**
+- Lade till forest_ambient_day -- procedurellt ljud med 3 fagelroster (warbler, thrush, wren-ticking) ovanpa bladrustlande vindsbrus. Loopas i 8 sekunders buffer med crossfade.
+- Lade till forest_ambient_night -- syrsor (detunade oscillatorer med 14 Hz stridulation-puls), uggla i fjärran (tvåtons-hoot), kvistknack-transienter, och låg vindunderton. Loopas i 10 sekunders buffer.
+- startAmbient() utokad med parametrar forest_day och forest_night for zon-specifika ambient-ljud.
+- Fixade noUncheckedIndexedAccess-fel i nya generatorfunktioner.
+
+**src/scenes/DayScene.ts:**
+- create(): startar forest_day ambient nar zonen ar forest, annars fallback till generisk day.
+
+**src/scenes/NightScene.ts:**
+- create(): startar forest_night ambient nar zonen ar forest, annars fallback till generisk night.
+- setupLighting(): boss-natt (nightNumber >= 5) ger mörkare bakgrund (#150A0A) plus rod Graphics-overlay.
+- updateLighting(): pulsar overlayns alpha med ~0.15 Hz sinusvag. Intensitet rampar fran 0.04 till 0.18 alpha over 90 sekunder.
+- update(): ackumulerar bossNightTime for lighting-pulsen.
+- Fixade shockEmitter till lokal variabel i setupParticles (anvandes aldrig som class field).
+
+**src/structures/GlassShards.ts:**
+- Fixade noUncheckedIndexedAccess-fel i drawVisuals(): sparkleOffsets[i] ?? 0 och null-check pa sparklePositions[i].
+
+## [2.5.3] - 2026-04-04 18:00
+
+### UI Polish -- ZoneCompleteScene, Blueprint popup, FINAL NIGHT banner, Zone panel
+
+**src/scenes/ZoneCompleteScene.ts:**
+- Dramatisk bakgrund: driftande partiklar (gron/bla/guld) som flödar uppat, morkare bakgrundsfarg
+- "ZONE COMPLETE" header: större (24px), glow-lager bakom som pulsar
+- Zonnamn: fade-in med delay istallet for direkt visning
+- Stats-summary: kills, nights survived, traps built i redigare layout med rad-etiketter
+- Next zone-sektion: guld box med border, zonnamn scale-in med Back.easeOut, shimmer-puls
+- "ALL ZONES CLEARED": guld puls-animation
+- "BACK TO MENU"-knapp: fade-in, hover byter farg och stoppar blink, tydligare interaktion
+
+**src/ui/LootRunPanel.ts:**
+- Blueprint-fynd ersatt med prominent guldbox med border
+- "NEW BLUEPRINT FOUND!" scale-in med Back.easeOut + pulse-glow
+- Blueprint-namn och "New trap unlocked"-hint fade-in
+- Box-shake animation pa 120ms delay for extra dramatik
+
+**src/scenes/NightScene.ts -- showFinalNightBanner():**
+- Kamera-skakning (shake 600ms, 0.012 intensitet) vid banner-visning
+- Halvt genomskinligt morkare full-screen overlay bakom baren
+- Sub-text andrat till "WAVE 5 OF 5" med fade-in
+- Pulsande rod text-effekt (5 ganger yoyo) efter scale-in
+- Banner + overlay fade-out synkroniserat
+
+**src/scenes/MenuScene.ts -- buildZonePanel():**
+- Active zone: tjockare orange border (2px, #C5620B) och varmre bakgrund
+- Cleared zone: gron border (#2A7A2A) och gront-tintad bakgrund
+- Locked zone: bardzo mörkt, knappt synlig border for klart intryckt
+- Progress-bar for delvis klarade zoner (1-4 waves) med 5 segment-dividers
+- Lock-ikon ritad med Graphics (kropp + bygel) for lasta zoner
+- Tre stjarnor (***) i guld for klarade zoner
+- Panel nagot bredare for battre layout
+
 ## [2.5.2] - 2026-04-04
 
 ### 7 nya fällor -- Tier 1 (passiva) och Tier 2 (mekaniska)

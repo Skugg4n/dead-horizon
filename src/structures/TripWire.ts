@@ -20,6 +20,15 @@ export class TripWire extends Phaser.GameObjects.Graphics {
   /** Remaining uses before the wire breaks. */
   private usesRemaining: number;
 
+  /** Maximum uses (for alpha calculation). */
+  private readonly maxUses: number;
+
+  /**
+   * Snap flash timer. When > 0, a bright white "snap" line is rendered.
+   * Counts down to zero each frame.
+   */
+  private snapTimer: number = 0;
+
   constructor(
     scene: Phaser.Scene,
     instance: StructureInstance,
@@ -29,6 +38,7 @@ export class TripWire extends Phaser.GameObjects.Graphics {
     super(scene);
     this.structureInstance = instance;
     this.stunDuration = stunDuration;
+    this.maxUses = _maxUses > 0 ? _maxUses : 15;
     // Store remaining uses in structureInstance.hp so save/load reflects wear
     this.usesRemaining = instance.hp;
 
@@ -41,24 +51,66 @@ export class TripWire extends Phaser.GameObjects.Graphics {
   private draw(): void {
     this.clear();
 
+    // Alpha blekning proportionell mot kvarvarande uses
+    const wearAlpha = 0.3 + 0.7 * (this.usesRemaining / this.maxUses);
+    this.setAlpha(wearAlpha);
+
     // Nearly invisible ground (wire blends into terrain)
     this.fillStyle(0x1A1A1A, 0.15);
     this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
 
-    // The wire itself: thin horizontal line across the tile
-    // Slightly visible so experienced players can spot it
-    const alpha = 0.5 - (1 - this.usesRemaining / 15) * 0.3;
-    this.lineStyle(1, 0xCCCC88, Math.max(alpha, 0.15));
-    this.lineBetween(0, TILE_SIZE / 2, TILE_SIZE, TILE_SIZE / 2);
+    if (this.snapTimer > 0) {
+      // Snap activation: bright white flash across the entire tile
+      // Intensity fades with the timer
+      const intensity = this.snapTimer / 150;
+      this.fillStyle(0xFFFFFF, 0.5 * intensity);
+      this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
 
-    // Wire tension anchors at both ends
-    this.fillStyle(0x886644, 0.7);
-    this.fillCircle(2, TILE_SIZE / 2, 2);
-    this.fillCircle(TILE_SIZE - 2, TILE_SIZE / 2, 2);
+      // Bright snap line -- thick and bright to simulate wire snapping
+      this.lineStyle(2, 0xFFFFFF, intensity);
+      this.lineBetween(0, TILE_SIZE / 2, TILE_SIZE, TILE_SIZE / 2);
 
-    // Faint cross-wire
-    this.lineStyle(1, 0xCCCC88, alpha * 0.5);
-    this.lineBetween(TILE_SIZE / 2, 0, TILE_SIZE / 2, TILE_SIZE);
+      // Vertical snap burst in center
+      this.lineStyle(1, 0xEEEEAA, intensity * 0.8);
+      this.lineBetween(TILE_SIZE / 2, TILE_SIZE / 2 - 6, TILE_SIZE / 2, TILE_SIZE / 2 + 6);
+    } else {
+      // The wire itself: thin horizontal line across the tile
+      // Slightly visible so experienced players can spot it
+      const alpha = 0.5 - (1 - this.usesRemaining / this.maxUses) * 0.3;
+      this.lineStyle(1, 0xCCCC88, Math.max(alpha, 0.15));
+      this.lineBetween(0, TILE_SIZE / 2, TILE_SIZE, TILE_SIZE / 2);
+
+      // Wire tension anchors at both ends
+      this.fillStyle(0x886644, 0.7);
+      this.fillCircle(2, TILE_SIZE / 2, 2);
+      this.fillCircle(TILE_SIZE - 2, TILE_SIZE / 2, 2);
+
+      // Faint cross-wire
+      this.lineStyle(1, 0xCCCC88, alpha * 0.5);
+      this.lineBetween(TILE_SIZE / 2, 0, TILE_SIZE / 2, TILE_SIZE);
+    }
+  }
+
+  /**
+   * Call each frame from NightScene to animate snap effect.
+   * @param delta Frame time in ms.
+   */
+  update(delta: number): void {
+    if (this.snapTimer > 0) {
+      this.snapTimer = Math.max(0, this.snapTimer - delta);
+      this.clear();
+      this.draw();
+    }
+  }
+
+  /**
+   * Trigger the visible wire-snap effect on activation.
+   * Called by NightScene immediately after a zombie is stunned.
+   */
+  triggerActivationEffect(): void {
+    this.snapTimer = 150; // 150ms white flash/snap
+    this.clear();
+    this.draw();
   }
 
   /** Consume one use. Returns true if the wire has snapped completely. */

@@ -254,6 +254,10 @@ Mål: Spelet känns bra, balansen fungerar, inga stora buggar.
 - [x] 5B.2 Tooltips och hjalptext
 - [x] 5B.3 Tutorial/onboarding for nya spelare
 - [x] 5B.4 Responsiv layout (olika skarmstorlekar)
+- [x] 5B.5 ZoneCompleteScene -- dramatisk animation, partiklar, stats-summary
+- [x] 5B.6 Blueprint-fynd popup -- guld-glow, scale-in, shake-animation
+- [x] 5B.7 FINAL NIGHT banner -- kamera-skakning, morkt overlay, pulsande rod text
+- [x] 5B.8 Zone-panel i menyn -- tydlig locked/unlocked/cleared-visuell, las-ikon, progress-bar, stjarnor
 
 ### 5C: Balansering
 
@@ -275,6 +279,9 @@ Mål: Spelet känns bra, balansen fungerar, inga stora buggar.
 - [x] 5E.2 Zombie-ljud (groan, attack)
 - [x] 5E.3 Ambient sounds (vind, djur)
 - [x] 5E.4 Bakgrundsmusik (dag och natt)
+- [x] 5E.5 Fäll-ljud (nail board, trip wire, glass shards, tar pit, shock wire, spring launcher, chain wall)
+- [x] 5E.6 Boss-ljud (roar vid spawn, stomp under rörelse)
+- [x] 5E.7 Zon-ljud (zone_complete fanfar, final_night_start doom-ackord)
 
 **Leverans:** v1.0 -- polished, balanserat, spelbart spel med alla kärnfunktioner.
 

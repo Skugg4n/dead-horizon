@@ -23,6 +23,12 @@ export class NailBoard extends Phaser.GameObjects.Graphics {
   /** Remaining uses before the board is destroyed. */
   private usesRemaining: number;
 
+  /** Maximum uses (for alpha calculation). */
+  private readonly maxUses: number;
+
+  /** Flash overlay timer in ms. Active when > 0. */
+  private flashTimer: number = 0;
+
   constructor(
     scene: Phaser.Scene,
     instance: StructureInstance,
@@ -34,6 +40,7 @@ export class NailBoard extends Phaser.GameObjects.Graphics {
     this.structureInstance = instance;
     this.trapDamage = trapDamage;
     this.crippleDuration = crippleDuration;
+    this.maxUses = _maxUses > 0 ? _maxUses : 20;
     // Store remaining uses in structureInstance.hp so save/load reflects wear
     this.usesRemaining = instance.hp;
 
@@ -45,6 +52,10 @@ export class NailBoard extends Phaser.GameObjects.Graphics {
 
   private draw(): void {
     this.clear();
+
+    // Alpha blekning proportionell mot kvarvarande uses (visuell wear-indikator)
+    const wearAlpha = 0.4 + 0.6 * (this.usesRemaining / this.maxUses);
+    this.setAlpha(wearAlpha);
 
     // Worn wooden plank background
     this.fillStyle(0x3D2A0A);
@@ -72,15 +83,43 @@ export class NailBoard extends Phaser.GameObjects.Graphics {
       this.lineBetween(p.x, p.y + 2, p.x, p.y + 6);
     }
 
-    // Wear indicator: darken when few uses remain
+    // Extra darkening overlay when critically low on uses
     if (this.usesRemaining <= 5) {
       this.fillStyle(0x000000, 0.3);
+      this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    }
+
+    // Red flash overlay when recently activated (blood-hit feedback)
+    if (this.flashTimer > 0) {
+      this.fillStyle(0xCC1111, 0.6);
       this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
     }
 
     // Border
     this.lineStyle(1, 0xE8DCC8, 0.25);
     this.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+  }
+
+  /**
+   * Call each frame from NightScene to animate flash.
+   * @param delta Frame time in ms.
+   */
+  update(delta: number): void {
+    if (this.flashTimer > 0) {
+      this.flashTimer = Math.max(0, this.flashTimer - delta);
+      this.clear();
+      this.draw();
+    }
+  }
+
+  /**
+   * Trigger a brief red activation flash (blood-hit feedback).
+   * Called by NightScene immediately after a zombie is damaged.
+   */
+  triggerActivationEffect(): void {
+    this.flashTimer = 120; // 120ms red flash
+    this.clear();
+    this.draw();
   }
 
   /** Consume one use. Returns true if the board is now destroyed. */

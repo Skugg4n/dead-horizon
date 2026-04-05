@@ -105,8 +105,12 @@ export class DayScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#2A491F');
     this.cameras.main.fadeIn(800, 0, 0, 0);
 
-    // Start day ambient sound
-    AudioManager.startAmbient('day');
+    // Start day ambient sound -- use zone-specific variant when available
+    if (this.gameState.zone === 'forest') {
+      AudioManager.startAmbient('forest_day');
+    } else {
+      AudioManager.startAmbient('day');
+    }
 
     this.createMap();
     this.renderPlacedStructures();

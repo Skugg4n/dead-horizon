@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import enemiesData from '../data/enemies.json';
+import { AudioManager } from '../systems/AudioManager';
 
 export type ZombieBehavior = 'walker' | 'runner' | 'brute' | 'spitter' | 'screamer' | 'boss';
 
@@ -60,6 +61,8 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   // Boss behavior
   spawnOnDeath: string | null = null;
   spawnCount: number = 0;
+  /** Countdown in ms before next stomp sound. Resets to ~700ms each stomp. */
+  private stompTimer: number = 0;
 
   // F5: Aggro behavior -- determined at spawn time
   // 'base_seeker': moves toward base (70% of zombies)
@@ -217,9 +220,18 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       this.crippleTimer = Math.max(0, this.crippleTimer - delta);
     }
 
-    // Boss pulsing glow
+    // Boss pulsing glow + periodic stomp sound while moving
     if (this.behavior === 'boss') {
       this.updateBossPulse(delta);
+      // Stomp sound every ~700ms while the boss is actively moving
+      this.stompTimer -= delta;
+      if (this.stompTimer <= 0 && this.stunTimer <= 0) {
+        const vel = this.body ? Math.abs(this.body.velocity.x) + Math.abs(this.body.velocity.y) : 0;
+        if (vel > 5) {
+          AudioManager.play('boss_stomp');
+        }
+        this.stompTimer = 700;
+      }
     }
 
     // Screamer pulsing
@@ -510,6 +522,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.spitterTimer = 0;
     this.screamTimer = 0;
     this.pulseTimer = 0;
+    this.stompTimer = 0;
     this.aggroType = 'base_seeker';
     this.flankTarget = null;
     this.crippleTimer = 0;

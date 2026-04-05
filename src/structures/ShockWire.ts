@@ -25,6 +25,12 @@ export class ShockWire extends TrapBase {
   /** Spark phase for animated electric effect. */
   private sparkPhase: number = 0;
 
+  /**
+   * Discharge flash timer. Active immediately after activation.
+   * While > 0, a bright blue/white arc flash is rendered.
+   */
+  private dischargeTimer: number = 0;
+
   constructor(scene: Phaser.Scene, instance: StructureInstance) {
     super(
       scene,
@@ -62,7 +68,27 @@ export class ShockWire extends TrapBase {
     this.fillCircle(4, mid, 3);
     this.fillCircle(TILE_SIZE - 4, mid, 3);
 
-    if (isActive) {
+    if (this.dischargeTimer > 0) {
+      // Discharge flash: bright white/blue blast across the entire tile
+      const intensity = this.dischargeTimer / 200;
+      this.fillStyle(0xAADDFF, 0.4 * intensity);
+      this.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+
+      // Bright central arc -- thicker and brighter than normal
+      this.lineStyle(3, 0xFFFFFF, intensity);
+      this.lineBetween(6, mid, TILE_SIZE - 6, mid);
+
+      // Branch arcs radiating from center
+      const branchY = mid + Math.sin(this.sparkPhase * 4) * 6;
+      this.lineStyle(1, 0x88CCFF, intensity * 0.8);
+      this.lineBetween(TILE_SIZE / 2, mid, TILE_SIZE / 2 - 4, branchY);
+      this.lineBetween(TILE_SIZE / 2, mid, TILE_SIZE / 2 + 3, branchY - 4);
+
+      // Glow corona
+      this.lineStyle(4, 0x2266CC, 0.2 * intensity);
+      this.lineBetween(4, mid, TILE_SIZE - 4, mid);
+
+    } else if (isActive) {
       // Animated arc: zigzag lightning between posts
       const spark = Math.sin(this.sparkPhase) * 5;
       this.lineStyle(1, 0x44AAFF, 0.9);
@@ -98,12 +124,28 @@ export class ShockWire extends TrapBase {
   override update(delta: number): void {
     super.update(delta);
 
+    // Count down discharge flash
+    if (this.dischargeTimer > 0) {
+      this.dischargeTimer = Math.max(0, this.dischargeTimer - delta);
+    }
+
     // Animate spark effect when active
     if (this.isReady() && !this.malfunctioned) {
       this.sparkPhase += delta * 0.015;
-      this.clear();
-      this.draw();
     }
+
+    this.clear();
+    this.draw();
+  }
+
+  /**
+   * Trigger the electric discharge visual effect.
+   * Called by NightScene immediately after a zombie is shocked.
+   */
+  triggerActivationEffect(): void {
+    this.dischargeTimer = 200; // 200ms bright discharge flash
+    this.clear();
+    this.draw();
   }
 
   onZombieContact(zombie: Zombie): void {

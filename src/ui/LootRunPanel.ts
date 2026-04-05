@@ -491,23 +491,87 @@ export class LootRunPanel {
       yOffset += 16;
     }
 
-    // Show blueprint find if one was found
+    // Show blueprint find if one was found -- special highlighted block
     if (result.foundBlueprintId) {
-      yOffset += 4;
-      const bpLabel = this.scene.add.text(0, yOffset, 'Blueprint found!', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '10px',
-        color: '#30C5C5',
-      });
-      content.add(bpLabel);
-      yOffset += 16;
-      const bpLine = this.scene.add.text(8, yOffset, `+ ${result.foundBlueprintId.replace(/_/g, ' ')}`, {
+      yOffset += 8;
+
+      // Gold background highlight box behind the blueprint section
+      const bpBg = this.scene.add.graphics();
+      bpBg.fillStyle(0x1A1400, 0.9);
+      bpBg.lineStyle(1, 0xC5A030, 0.85);
+      bpBg.strokeRect(0, yOffset - 4, contentWidth, 56);
+      bpBg.fillRect(0, yOffset - 4, contentWidth, 56);
+      content.add(bpBg);
+
+      // "NEW BLUEPRINT FOUND!" header in gold with glow effect
+      const bpHeader = this.scene.add.text(contentWidth / 2, yOffset + 2, 'NEW BLUEPRINT FOUND!', {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '9px',
-        color: '#00FFFF',
-      });
+        color: '#FFD700',
+      }).setOrigin(0.5, 0).setAlpha(0).setScale(0.5);
+      content.add(bpHeader);
+
+      // Blueprint name line
+      const blueprintDisplayName = result.foundBlueprintId.replace(/_/g, ' ').toUpperCase();
+      const bpLine = this.scene.add.text(contentWidth / 2, yOffset + 22, `+ ${blueprintDisplayName}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#FFE066',
+      }).setOrigin(0.5, 0).setAlpha(0);
       content.add(bpLine);
-      yOffset += 16;
+
+      // Sub-hint label
+      const bpHint = this.scene.add.text(contentWidth / 2, yOffset + 38, 'New trap unlocked in build menu', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#A07820',
+      }).setOrigin(0.5, 0).setAlpha(0);
+      content.add(bpHint);
+
+      // Scale-in + fade-in animation for the header (dramatic pop)
+      this.scene.tweens.add({
+        targets: bpHeader,
+        scaleX: 1,
+        scaleY: 1,
+        alpha: 1,
+        duration: 350,
+        ease: 'Back.easeOut',
+      });
+
+      this.scene.tweens.add({
+        targets: [bpLine, bpHint],
+        alpha: 1,
+        duration: 300,
+        delay: 200,
+        ease: 'Power2',
+      });
+
+      // Subtle shake on the bg box after the pop
+      this.scene.time.delayedCall(120, () => {
+        this.scene.tweens.add({
+          targets: bpBg,
+          x: { from: -3, to: 3 },
+          duration: 60,
+          yoyo: true,
+          repeat: 3,
+          ease: 'Linear',
+          onComplete: () => { bpBg.x = 0; },
+        });
+      });
+
+      // Pulse glow on header text after entrance
+      this.scene.time.delayedCall(400, () => {
+        this.scene.tweens.add({
+          targets: bpHeader,
+          alpha: { from: 1.0, to: 0.55 },
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      });
+
+      yOffset += 64;
     }
 
     yOffset += 8;

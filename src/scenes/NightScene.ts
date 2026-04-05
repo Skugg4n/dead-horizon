@@ -119,6 +119,10 @@ export class NightScene extends Phaser.Scene {
   private muzzleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private trapEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  // Shock Wire discharge: blue/white spark particles
+  private shockEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  // Nail Board blood: small red burst on hit
+  private nailBloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   // Player damage feedback: blood splatter particles and screen-edge vignette flash
   private playerBloodEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private vignetteFlash!: Phaser.GameObjects.Graphics;
@@ -151,6 +155,9 @@ export class NightScene extends Phaser.Scene {
   private gameOverShown: boolean = false;
   // Last frame delta (ms) -- stored so mechanical trap update can access it outside update()
   private _lastDelta: number = 16;
+  // Boss-night atmosphere: red overlay that pulses in intensity over time
+  private bossNightOverlay: Phaser.GameObjects.Graphics | null = null;
+  private bossNightTime: number = 0; // accumulated time (ms) for pulse calculation
 
   constructor() {
     super({ key: 'NightScene' });
@@ -243,7 +250,12 @@ export class NightScene extends Phaser.Scene {
 
     // Start night ambient sound + F4 day-to-night whoosh
     AudioManager.play('day_to_night');
-    AudioManager.startAmbient('night');
+    // Use zone-specific ambient when available (forest has richer night sounds)
+    if (this.gameState.zone === 'forest') {
+      AudioManager.startAmbient('forest_night');
+    } else {
+      AudioManager.startAmbient('night');
+    }
 
     // Start wave 1 after a brief delay
     this.time.delayedCall(1500, () => {
@@ -271,6 +283,10 @@ export class NightScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     this._lastDelta = delta;
+    // Accumulate boss-night timer for lighting pulse
+    if (this.bossNightOverlay) {
+      this.bossNightTime += delta;
+    }
     this.player.update(delta);
     this.hud.updateStaminaBar(this.player.stamina, this.player.maxStamina);
 
@@ -984,6 +1000,15 @@ export class NightScene extends Phaser.Scene {
               AudioManager.play('structure_damage');
             }
           }
+
+          // Chain Wall: deal contact damage and play chain rattle sound
+          const chainWallData = wallBody.getData('chainWallRef');
+          const chainWallRef = chainWallData instanceof ChainWall ? chainWallData : undefined;
+          if (chainWallRef) {
+            chainWallRef.onZombieContact(zombie);
+            // Chain rattle on contact (throttled by 300ms cooldown in AudioManager)
+            AudioManager.play('trap_chain_wall');
+          }
         }
       },
     );
@@ -1243,6 +1268,11 @@ export class NightScene extends Phaser.Scene {
     });
 
     // Boss spawns minions on death
+    // Play boss roar when a boss zombie is about to spawn
+    this.events.on('boss-spawning', () => {
+      AudioManager.play('boss_roar');
+    });
+
     this.events.on('boss-death-spawn', (boss: Zombie) => {
       if (!boss.spawnOnDeath) return;
       const rawConfig = enemiesData.enemies.find(e => e.id === boss.spawnOnDeath);
@@ -2137,6 +2167,15 @@ export class NightScene extends Phaser.Scene {
         ) {
           zombie.takeDamage(nb.trapDamage);
           zombie.applyCripple(nb.crippleDuration);
+          // Red flash on the board + small blood burst particles
+          nb.triggerActivationEffect();
+          this.nailBloodEmitter.emitParticleAt(
+            nb.structureInstance.x + TILE_SIZE / 2,
+            nb.structureInstance.y + TILE_SIZE / 2,
+            5,
+          );
+          // Play crunch sound on each nail board hit
+          AudioManager.play('trap_nail_board');
           const destroyed = nb.consumeUse();
           if (destroyed) {
             this._nailBoards.splice(i, 1);
@@ -2157,6 +2196,16 @@ export class NightScene extends Phaser.Scene {
           zombie.y >= ty && zombie.y <= ty + TILE_SIZE
         ) {
           zombie.applyStun(tw.stunDuration);
+          // Visible wire-snap flash effect
+          tw.triggerActivationEffect();
+          // White particle burst at snap point
+          this.trapEmitter.emitParticleAt(
+            tw.structureInstance.x + TILE_SIZE / 2,
+            tw.structureInstance.y + TILE_SIZE / 2,
+            4,
+          );
+          // Play snap/twang sound when wire is triggered
+          AudioManager.play('trap_trip_wire');
           const destroyed = tw.consumeUse();
           if (destroyed) {
             this._tripWires.splice(i, 1);
@@ -2170,6 +2219,8 @@ export class NightScene extends Phaser.Scene {
         if (gs.containsPoint(zombie.x, zombie.y)) {
           // Damage proportional to frame time (5 dmg/s)
           zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000);
+          // Occasional glass tinkling (throttled by 600ms cooldown in AudioManager)
+          AudioManager.play('trap_glass_shards');
         }
       }
 
@@ -2182,6 +2233,10 @@ export class NightScene extends Phaser.Scene {
             body.velocity.x *= tp.slowFactor;
             body.velocity.y *= tp.slowFactor;
           }
+          // Signal animation system that a zombie is caught -- intensifies bubbles
+          tp.markZombieInZone();
+          // Occasional squelch sound (throttled by 800ms cooldown in AudioManager)
+          AudioManager.play('trap_tar_pit');
         }
       }
     });
@@ -2189,6 +2244,19 @@ export class NightScene extends Phaser.Scene {
     // Animate tar pits (bubbling effect) -- once per frame, not per zombie
     for (const tp of this._tarPits) {
       if (tp.isAlive()) tp.animUpdate(this._lastDelta);
+    }
+
+    // Animate glass shards sparkle -- once per frame, not per zombie
+    for (const gs of this._glassShards) {
+      if (gs.isAlive()) gs.animUpdate(this._lastDelta);
+    }
+
+    // Animate nail boards and trip wires (flash timers) -- once per frame
+    for (const nb of this._nailBoards) {
+      if (nb.isAlive()) nb.update(this._lastDelta);
+    }
+    for (const tw of this._tripWires) {
+      if (tw.isAlive()) tw.update(this._lastDelta);
     }
 
     // -----------------------------------------------------------------------
@@ -2381,7 +2449,12 @@ export class NightScene extends Phaser.Scene {
         ) {
           if (!sw.tryActivate()) break;
           sw.onZombieContact(zombie);
-          this.trapEmitter.emitParticleAt(sx + TILE_SIZE / 2, sy + TILE_SIZE / 2, 6);
+          // Discharge flash on the wire tile
+          sw.triggerActivationEffect();
+          // Blue/white spark particles at wire position
+          this.shockEmitter.emitParticleAt(sx + TILE_SIZE / 2, sy + TILE_SIZE / 2, 10);
+          // Electric zap sound on shock wire activation
+          AudioManager.play('trap_shock_wire');
           // If all uses are spent, destroy
           if (sw.uses === 0) {
             this._shockWires.splice(i, 1);
@@ -2409,7 +2482,12 @@ export class NightScene extends Phaser.Scene {
         ) {
           if (!sl.tryActivate()) break;
           sl.onZombieContact(zombie);
-          this.trapEmitter.emitParticleAt(slx + TILE_SIZE / 2, sly + TILE_SIZE / 2, 8);
+          // Orange burst flash on the launcher tile
+          sl.triggerActivationEffect();
+          // Orange particles burst outward at impact
+          this.trapEmitter.emitParticleAt(slx + TILE_SIZE / 2, sly + TILE_SIZE / 2, 10);
+          // Metallic THUNK + boing sound on spring launcher activation
+          AudioManager.play('trap_spring_launcher');
           break; // one trigger per frame per launcher
         }
       }
@@ -2803,17 +2881,81 @@ export class NightScene extends Phaser.Scene {
       emitting: false,
     });
     this.playerBloodEmitter.setDepth(12); // above player (depth 10)
+
+    // Shock Wire discharge: blue/white sparks emitted on activation
+    if (!this.textures.exists('particle_blue')) {
+      const bg = this.make.graphics({ x: 0, y: 0 });
+      bg.fillStyle(0x66CCFF);
+      bg.fillCircle(2, 2, 2);
+      bg.generateTexture('particle_blue', 4, 4);
+      bg.destroy();
+    }
+    this.shockEmitter = this.add.particles(0, 0, 'particle_blue', {
+      speed: { min: 80, max: 220 },
+      angle: { min: 0, max: 360 },
+      lifespan: 250,
+      scale: { start: 1.2, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: { onEmit: () => (Math.random() > 0.5 ? 0x44AAFF : 0xFFFFCC) },
+      emitting: false,
+    });
+    this.shockEmitter.setDepth(8);
+
+    // Nail Board blood: small red burst on hit
+    this.nailBloodEmitter = this.add.particles(0, 0, 'particle_red', {
+      speed: { min: 30, max: 90 },
+      angle: { min: 160, max: 380 },
+      lifespan: 300,
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: 0xAA0000,
+      emitting: false,
+    });
+    this.nailBloodEmitter.setDepth(6);
   }
 
   private setupLighting(): void {
-    // Night uses same terrain as day -- no overlays, no glow, no vignette
-    // Darkness comes from slightly darker background only
-    // Match the darkest grass tile color to hide gaps between tiles
-    this.cameras.main.setBackgroundColor('#1E3216');
+    // Night uses same terrain as day -- no overlays, no glow, no vignette.
+    // Darkness comes from a slightly darker background color.
+    const nightNumber = this.gameState.progress.currentWave;
+    const isBossNight = nightNumber >= 5;
+
+    if (isBossNight) {
+      // Boss night: noticeably darker with a reddish-brown tint
+      this.cameras.main.setBackgroundColor('#150A0A');
+
+      // Semi-transparent red overlay -- very subtle at first, pulses via updateLighting()
+      // Note from LESSONS.md: NEVER use full-canvas RenderTexture. Use a scroll-fixed Graphics.
+      this.bossNightOverlay = this.add.graphics();
+      this.bossNightOverlay.setDepth(95); // below damage overlay (99) but above terrain
+      this.bossNightOverlay.setScrollFactor(0);
+      this.bossNightOverlay.setAlpha(0);
+      this.bossNightTime = 0;
+    } else {
+      this.cameras.main.setBackgroundColor('#1E3216');
+    }
   }
 
   private updateLighting(): void {
-    // No lighting effects -- kept as empty method for API compatibility
+    // Boss-night red pulse: overlay alpha oscillates between 0 and a growing maximum.
+    // Intensity ramps up slowly over the first 60 seconds so it starts subtle.
+    if (!this.bossNightOverlay) return;
+
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+
+    // Maximum alpha grows from 0 to 0.18 over 90 seconds then holds
+    const rampFactor = Math.min(this.bossNightTime / 90000, 1);
+    const maxAlpha = 0.04 + rampFactor * 0.14; // 0.04 at start, up to 0.18 at 90s
+
+    // Slow pulse: sin wave at ~0.15 Hz (one full pulse every ~6.5s)
+    const pulse = 0.5 + 0.5 * Math.sin(this.bossNightTime * 0.00095);
+    const alpha = maxAlpha * pulse;
+
+    this.bossNightOverlay.clear();
+    this.bossNightOverlay.fillStyle(0x8B0000, 1); // dark red
+    this.bossNightOverlay.fillRect(0, 0, w, h);
+    this.bossNightOverlay.setAlpha(alpha);
   }
 
   private setupDamageOverlay(): void {
@@ -3187,7 +3329,7 @@ export class NightScene extends Phaser.Scene {
 
   /**
    * Show a dramatic "FINAL NIGHT" banner when wave 5 starts.
-   * Overrides the normal wave announcement with a larger, red-tinted display.
+   * Includes camera shake, darkened full-screen backdrop, and pulsing red text.
    */
   private showFinalNightBanner(): void {
     const cx = GAME_WIDTH / 2;
@@ -3195,49 +3337,98 @@ export class NightScene extends Phaser.Scene {
 
     const container = this.add.container(0, 0).setDepth(180).setScrollFactor(0);
 
-    // Background bar
+    // Deep doom sound for final night dread
+    AudioManager.play('final_night_start');
+
+    // Camera shake for physical impact on banner display
+    this.cameras.main.shake(600, 0.012);
+
+    // Full-screen dark overlay behind the bar -- fades in then out with banner
+    const overlay = this.add.graphics().setScrollFactor(0).setDepth(179).setAlpha(0);
+    overlay.fillStyle(0x000000, 0.5);
+    overlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.tweens.add({
+      targets: overlay,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2',
+    });
+
+    // Background bar -- thicker and more opaque than before
     const bar = this.add.graphics();
-    bar.fillStyle(0x1A0000, 0.82);
-    bar.fillRect(0, cy - 36, GAME_WIDTH, 72);
-    bar.lineStyle(2, 0xAA0000, 0.9);
-    bar.lineBetween(0, cy - 36, GAME_WIDTH, cy - 36);
-    bar.lineBetween(0, cy + 36, GAME_WIDTH, cy + 36);
+    bar.fillStyle(0x1E0000, 0.96);
+    bar.fillRect(0, cy - 44, GAME_WIDTH, 88);
+    // Bright red accent lines on top and bottom
+    bar.lineStyle(2, 0xFF2200, 0.85);
+    bar.lineBetween(0, cy - 44, GAME_WIDTH, cy - 44);
+    bar.lineBetween(0, cy + 44, GAME_WIDTH, cy + 44);
     container.add(bar);
 
-    // Sub-text
-    const subText = this.add.text(cx, cy - 16, 'WAVE 5', {
+    // Sub-text: "WAVE 5 OF 5" -- fades in slightly after bar appears
+    const subText = this.add.text(cx, cy - 24, 'WAVE 5 OF 5', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#AA3322',
-    }).setOrigin(0.5, 0.5);
+    }).setOrigin(0.5, 0.5).setAlpha(0);
     container.add(subText);
 
-    // Main "FINAL NIGHT" text
-    const mainText = this.add.text(cx, cy + 8, 'FINAL NIGHT', {
+    this.tweens.add({
+      targets: subText,
+      alpha: 1,
+      duration: 250,
+      delay: 150,
+      ease: 'Power2',
+    });
+
+    // Main "FINAL NIGHT" text -- scale-in with dramatic bounce
+    const mainText = this.add.text(cx, cy + 10, 'FINAL NIGHT', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '20px',
+      fontSize: '22px',
       color: '#FF2200',
-    }).setOrigin(0.5, 0.5);
+    }).setOrigin(0.5, 0.5).setScale(0.5);
     container.add(mainText);
 
-    // Scale-in for drama
-    mainText.setScale(0.5);
     this.tweens.add({
       targets: mainText,
       scaleX: 1,
       scaleY: 1,
-      duration: 300,
+      duration: 320,
       ease: 'Back.easeOut',
     });
 
-    // Fade out after 2.5s
+    // Pulsing red text effect -- starts after scale-in settles
+    this.time.delayedCall(370, () => {
+      this.tweens.add({
+        targets: mainText,
+        alpha: { from: 1.0, to: 0.45 },
+        duration: 420,
+        yoyo: true,
+        repeat: 4,
+        ease: 'Sine.easeInOut',
+        onComplete: () => {
+          // Ensure fully visible before final fade-out
+          mainText.setAlpha(1);
+        },
+      });
+    });
+
+    // Fade out banner + overlay after 2.8s
     this.tweens.add({
       targets: container,
       alpha: 0,
-      delay: 2500,
-      duration: 600,
+      delay: 2800,
+      duration: 700,
       ease: 'Power2',
       onComplete: () => container.destroy(),
+    });
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      delay: 2800,
+      duration: 700,
+      ease: 'Power2',
+      onComplete: () => overlay.destroy(),
     });
   }
 

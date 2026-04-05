@@ -24,6 +24,18 @@ export class TarPit extends Phaser.GameObjects.Graphics {
   /** Animation phase for bubbling tar effect. */
   private bubblePhase: number = 0;
 
+  /**
+   * Secondary bubble phase offset for the second bubble to desynchronise them.
+   * Pre-computed to avoid allocation each frame.
+   */
+  private readonly bubble2Offset: number = Math.PI * 0.7;
+
+  /**
+   * Whether at least one zombie is currently in the zone.
+   * Used to speed up bubble animation when active.
+   */
+  private zombieInZone: boolean = false;
+
   constructor(
     scene: Phaser.Scene,
     instance: StructureInstance,
@@ -51,34 +63,68 @@ export class TarPit extends Phaser.GameObjects.Graphics {
     this.fillStyle(0x0D0900);
     this.fillRect(0, 0, w, h);
 
-    // Tar surface sheen: slightly lighter patches
     const cx = w / 2;
     const cy = h / 2;
+
+    // Surface sheen patches that undulate slowly
     const bubble = Math.sin(this.bubblePhase) * 3;
+    const bubble2 = Math.sin(this.bubblePhase + this.bubble2Offset) * 2;
 
     this.fillStyle(0x1A1000, 0.8);
     this.fillEllipse(cx - 8, cy - 2 + bubble, 24, 10);
     this.fillStyle(0x2A1800, 0.6);
     this.fillEllipse(cx + 4, cy + 4 - bubble * 0.5, 18, 8);
 
-    // Bubbles
-    const bubbleAlpha = 0.3 + Math.abs(Math.sin(this.bubblePhase * 1.3)) * 0.3;
-    this.fillStyle(0x3D2500, bubbleAlpha);
-    this.fillCircle(cx - 12, cy, 4 + bubble);
-    this.fillCircle(cx + 10, cy - 3, 3 + Math.abs(bubble) * 0.5);
+    // Bubbles rising -- more pronounced when zombie is in zone
+    const baseAlpha = this.zombieInZone ? 0.5 : 0.3;
+    const bubbleAlpha = baseAlpha + Math.abs(Math.sin(this.bubblePhase * 1.3)) * 0.3;
+    const bubble2Alpha = baseAlpha + Math.abs(Math.sin(this.bubblePhase * 1.7)) * 0.25;
 
-    // Slow indicator: faint amber border
-    this.lineStyle(1, 0x886600, 0.4);
+    // Bubble 1: left side
+    const b1Size = 4 + Math.abs(bubble);
+    this.fillStyle(0x3D2500, bubbleAlpha);
+    this.fillCircle(cx - 12, cy + bubble2, b1Size);
+
+    // Bubble 2: right side, offset timing
+    const b2Size = 3 + Math.abs(bubble2) * 0.5;
+    this.fillStyle(0x3D2500, bubble2Alpha);
+    this.fillCircle(cx + 10, cy - 3 + bubble * 0.3, b2Size);
+
+    // Third small bubble for depth
+    const b3Phase = Math.sin(this.bubblePhase * 2.1 + 1.2);
+    if (b3Phase > 0) {
+      this.fillStyle(0x2E1C00, b3Phase * 0.35);
+      this.fillCircle(cx - 2, cy - 5 + bubble * 0.7, 2 + b3Phase);
+    }
+
+    // Slow indicator: faint amber border -- brighter when zombie is caught
+    const borderAlpha = this.zombieInZone ? 0.7 : 0.4;
+    this.lineStyle(1, 0x886600, borderAlpha);
     this.strokeRect(0, 0, w, h);
+
+    // Reset per-frame zombie flag (updated again if zombie is found in zone)
+    this.zombieInZone = false;
   }
 
   /**
-   * Advance animation. Call from NightScene.update() or per frame update.
+   * Advance animation. Call from NightScene.update() once per frame.
+   * @param delta Frame time in ms.
    */
   animUpdate(delta: number): void {
-    this.bubblePhase += delta * 0.003;
+    // Slightly faster animation when zombie is actively stuck in tar
+    const speed = this.zombieInZone ? 0.005 : 0.003;
+    this.bubblePhase += delta * speed;
     this.clear();
     this.draw();
+  }
+
+  /**
+   * Signal that at least one zombie is currently in the zone this frame.
+   * Call from NightScene before animUpdate() each frame.
+   * Increases bubble animation intensity.
+   */
+  markZombieInZone(): void {
+    this.zombieInZone = true;
   }
 
   /**
