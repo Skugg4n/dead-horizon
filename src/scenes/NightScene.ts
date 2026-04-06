@@ -77,6 +77,7 @@ export class NightScene extends Phaser.Scene {
   private refugeeManager!: RefugeeManager;
   private hud!: HUD;
   private shootCooldown: number = 0;
+  private isShooting: boolean = false;
   private pillboxAssignments: { structure: StructureInstance; refugee: RefugeeInstance; cooldown: number }[] = [];
   private kills: number = 0;
   private loadedAmmo: number = 0;
@@ -167,6 +168,7 @@ export class NightScene extends Phaser.Scene {
     this.gameState = SaveManager.load();
     this.kills = 0;
     this.shootCooldown = 0;
+    this.isShooting = false;
     this.weaponUsedThisNight = new Set();
     // Auto-load ammo: calculated after weaponManager is created (see below)
     this.fogPenalty = data?.fogPenalty ?? 0;
@@ -375,9 +377,9 @@ export class NightScene extends Phaser.Scene {
     // Pillbox refugee shooting
     this.updatePillboxShooting(delta);
 
-    // Auto-shoot
+    // Shoot: triggered by player input (space / mouse click)
     this.shootCooldown = Math.max(0, this.shootCooldown - delta);
-    if (this.shootCooldown <= 0) {
+    if (this.isShooting && this.shootCooldown <= 0) {
       this.tryAutoShoot();
     }
 
@@ -1398,6 +1400,15 @@ export class NightScene extends Phaser.Scene {
         this.showPauseOverlay();
       }
     });
+
+    // Shoot input: Space key or mouse click = shoot nearest enemy
+    // Hold = auto-fire (respects cooldown)
+    const spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    spaceKey.on('down', () => { this.isShooting = true; });
+    spaceKey.on('up', () => { this.isShooting = false; });
+
+    this.input.on('pointerdown', () => { this.isShooting = true; });
+    this.input.on('pointerup', () => { this.isShooting = false; });
   }
 
   /**
@@ -3219,7 +3230,7 @@ export class NightScene extends Phaser.Scene {
   private showTutorialOverlay(): void {
     const steps = [
       { title: 'MOVE', text: 'Use WASD or arrow keys\nto move your character.' },
-      { title: 'SHOOT', text: 'You auto-shoot the\nclosest enemy in range.' },
+      { title: 'SHOOT', text: 'Click or hold SPACE to\nshoot closest enemy in range.' },
       { title: 'SPRINT', text: 'Hold SHIFT to sprint.\nWatch your stamina bar.' },
       { title: 'SWITCH', text: 'Press 1-5 to switch\nweapons during combat.' },
       { title: 'SURVIVE', text: `Survive ${this.waveManager.getMaxWaves()} wave(s).\nYou keep everything\nwhen you die.` },

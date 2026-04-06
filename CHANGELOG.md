@@ -1,5 +1,13 @@
 # Dead Horizon -- Changelog
 
+## [2.6.0] - 2026-04-06
+
+### Manual shooting replaces auto-shoot
+- Removed auto-shoot: player must now click or hold SPACE to fire
+- Single click = single shot, hold = auto-fire (respects fire rate cooldown)
+- Still auto-aims at nearest enemy in range
+- Tutorial text updated to reflect new controls
+
 ## [2.5.6] - 2026-04-04
 
 ### Procedurella ljudeffekter for fällor, boss och zoner
