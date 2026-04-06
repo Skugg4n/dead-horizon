@@ -1,5 +1,15 @@
 # Dead Horizon -- Changelog
 
+## [2.6.2] - 2026-04-06
+
+### UI/UX fixes (screenshot-verified)
+- New Tier 1 traps now show in TRAPS tab (were landing in WALLS)
+- Build menu stays open during placement -- switch structures freely
+- Closing build menu exits placement mode clearly
+- Remove raw event type badge (HORDE_WARNING) from EventDialog
+- Remove "Auto-loaded at night" ammo tooltip (DayScene + EquipmentPanel)
+- Fix idle/walk sprite mismatch: idle now uses walk frame 0
+
 ## [2.6.1] - 2026-04-06
 
 ### Ammo + fire trap fixes

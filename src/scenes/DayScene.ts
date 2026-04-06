@@ -740,7 +740,7 @@ export class DayScene extends Phaser.Scene {
     const RESOURCE_TOOLTIPS: Record<ResourceType, string> = {
       scrap: 'SCRAP: Build structures and barricades',
       food: 'FOOD: Refugees eat 1 per day each',
-      ammo: 'AMMO: Auto-loaded at night. 0 = melee only',
+      ammo: 'AMMO: Used when shooting (click/space)',
       parts: 'PARTS: Upgrade and repair weapons',
       meds: 'MEDS: Heal injured refugees (REST job)',
     };
@@ -880,6 +880,11 @@ export class DayScene extends Phaser.Scene {
       () => this.gameState.unlockedBlueprints,
       (structureId: string) => this.startPlacement(structureId),
     );
+    // When build menu is closed (via [X] or backdrop), cancel placement
+    this.buildMenu.setOnClose(() => {
+      this.buildMenuVisible = false;
+      this.cancelPlacement();
+    });
     // Register containers with the UI camera so click zones always align
     this.addToUI(this.buildMenu.getContainer());
     this.addToUI(this.buildMenu.getBackdrop());
@@ -956,10 +961,9 @@ export class DayScene extends Phaser.Scene {
     this.ghostGraphics.setDepth(50);
     this.addToWorld(this.ghostGraphics);
 
-    this.buildMenu.hide();
-    this.buildMenuVisible = false;
+    // Keep build menu visible so player can switch structures or close to exit
     const data = this.buildingManager.getStructureData(structureId);
-    this.showInfo(`Click to place ${data?.name ?? structureId}. Right-click to cancel.`);
+    this.showInfo(`Click to place ${data?.name ?? structureId}. ESC/right-click to cancel.`);
   }
 
   private cancelPlacement(): void {

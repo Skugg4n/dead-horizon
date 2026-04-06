@@ -101,7 +101,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       } else {
         if (this.anims.isPlaying && this.anims.currentAnim?.key === 'player-walk') {
           this.stop();
-          this.setTexture('player');
+          // Use first frame of walk sheet so idle matches walk appearance
+          this.setTexture('player_walk', 0);
         }
       }
     } else {

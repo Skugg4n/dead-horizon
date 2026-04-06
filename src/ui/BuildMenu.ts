@@ -71,7 +71,10 @@ const STRUCTURE_ICONS: Record<string, string> = {
 };
 
 // Which primitives belong to TRAPS vs WALLS
-const PRIMITIVE_TRAP_IDS = new Set(['trap', 'spike_strip', 'sandbags', 'pit_trap', 'bear_trap', 'landmine', 'oil_slick']);
+const PRIMITIVE_TRAP_IDS = new Set([
+  'trap', 'spike_strip', 'sandbags', 'pit_trap', 'bear_trap', 'landmine', 'oil_slick',
+  'nail_board', 'trip_wire', 'glass_shards', 'tar_pit',
+]);
 
 // Blueprint definitions and always-available trap IDs (from blueprints.json)
 const ALL_BLUEPRINTS = blueprintsJson.blueprints as BlueprintData[];
@@ -100,6 +103,7 @@ export class BuildMenu {
   private getMaxAP: () => number;
   private getResources: () => Record<ResourceType, number>;
   private onSelect: (structureId: string) => void;
+  private onClose: (() => void) | null = null;
 
   // The overall container added to UI camera
   private container: Phaser.GameObjects.Container;
@@ -178,6 +182,11 @@ export class BuildMenu {
     this.visible = false;
     this.backdrop.setVisible(false);
     this.container.setVisible(false);
+    if (this.onClose) this.onClose();
+  }
+
+  setOnClose(cb: () => void): void {
+    this.onClose = cb;
   }
 
   isVisible(): boolean {
