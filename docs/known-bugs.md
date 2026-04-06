@@ -1,7 +1,7 @@
 # Dead Horizon -- Known Bugs & Issues
 
 Denna fil trackar alla kända buggar och uppgifter. Stryks INTE förrän verifierade som fixade.
-Uppdaterad: 2026-04-05, v2.5.1
+Uppdaterad: 2026-04-06, v2.6.1
 
 ---
 
@@ -60,9 +60,8 @@ Uppdaterad: 2026-04-05, v2.5.1
 ## GAMEPLAY (designat, ej implementerat)
 
 ### GP1: Zon-progression
-- Forest→City→Military→Endless
-- docs/zone-progression.md
-- Status: DESIGN KLAR
+- Forest→City→Military med zone panel, FINAL NIGHT, ZoneCompleteScene
+- Status: IMPLEMENTERAD (v2.5.0) -- kvar: Pack Your Bag, Endless Mode
 
 ### GP2: Pack Your Bag (mellan-zon-val)
 - Välj vapen (max 4) och resurser (max 50) att ta med
@@ -70,18 +69,17 @@ Uppdaterad: 2026-04-05, v2.5.1
 - Status: DESIGN KLAR
 
 ### GP3: Blueprint-system
-- Böcker som låser upp nya fällor
-- docs/trap-mechanics.md
-- Status: DESIGN KLAR
+- Blueprints hittas på loot runs, filtrerar build-menyn
+- Status: IMPLEMENTERAD (v2.5.0)
 
 ### GP4: Fäll-leveling
 - Uppgradera fällor med parts (Lv 1→3)
 - docs/trap-mechanics.md
 - Status: DESIGN KLAR
 
-### GP5: ~44 fällor kvar att implementera
-- docs/trap-catalog.md har 50 fällor, 6 implementerade
-- Status: DESIGN KLAR
+### GP5: ~37 fällor kvar att implementera
+- docs/trap-catalog.md har 50 fällor, 13 implementerade
+- Status: PÅGÅENDE
 
 ### GP6: Refugees förenkling till passiv "Camp Crew"
 - Passiva bonusar istället för jobb-system
@@ -97,10 +95,9 @@ Uppdaterad: 2026-04-05, v2.5.1
 
 ## UX/POLISH
 
-### UX1: Ammo-mekanik förvirrande
-- Auto-load finns men kommuniceras dåligt
-- docs/inventory-redesign.md
-- Status: DELVIS FIXAD
+### UX1: Ammo-mekanik
+- Manuell shooting (v2.6.0) + laddar allt ammo (v2.6.1)
+- Status: FIXAD
 
 ### UX2: Meds-syfte otydligt
 - Behöver visas i refugee-panel
