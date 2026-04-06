@@ -1,5 +1,13 @@
 # Dead Horizon -- Changelog
 
+## [2.6.1] - 2026-04-06
+
+### Ammo + fire trap fixes
+- Load ALL available ammo at night (was capped by ammoPerNight per weapon)
+- Remove "auto-loaded at night" text from equipment panel
+- Show "No fuel: Fire Pit offline!" when traps lack food for fuel
+- Simplified autoLoadAmmo() -- no more per-weapon rationing
+
 ## [2.6.0] - 2026-04-06
 
 ### Manual shooting replaces auto-shoot

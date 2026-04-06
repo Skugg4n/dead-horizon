@@ -211,7 +211,7 @@ export class EquipmentPanel {
 
     // ---- Stats footer ----
     y += 8;
-    const ammoInfo = this.scene.add.text(0, y, `AMMO: ${this.gameState.inventory.resources.ammo} (auto-loaded at night)`, {
+    const ammoInfo = this.scene.add.text(0, y, `AMMO: ${this.gameState.inventory.resources.ammo}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#4A90D9',

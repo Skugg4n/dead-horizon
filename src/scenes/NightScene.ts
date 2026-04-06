@@ -626,6 +626,8 @@ export class NightScene extends Phaser.Scene {
     const glassShardsdef = structuresData.structures.find(s => s.id === 'glass_shards');
     const tarPitDef      = structuresData.structures.find(s => s.id === 'tar_pit');
 
+    const noFuelTraps: string[] = [];
+
     for (const structure of this.gameState.base.structures) {
       console.log(`[NightScene] createStructures: ${structure.structureId} at (${structure.x}, ${structure.y})`);
       try {
@@ -702,8 +704,8 @@ export class NightScene extends Phaser.Scene {
             if (this.resourceManager.canAfford({ food: spinner.fuelPerNight })) {
               this.resourceManager.spend('food', spinner.fuelPerNight);
             } else {
-              // No fuel -- trap does not operate tonight
               spinner.malfunctioned = true;
+              noFuelTraps.push('Blade Spinner');
             }
           }
           this._bladeSpinners.push(spinner);
@@ -719,6 +721,7 @@ export class NightScene extends Phaser.Scene {
               this.resourceManager.spend('food', pit.fuelPerNight);
             } else {
               pit.malfunctioned = true;
+              noFuelTraps.push('Fire Pit');
             }
           }
           this._firePits.push(pit);
@@ -850,6 +853,14 @@ export class NightScene extends Phaser.Scene {
       } catch (err) {
         console.error(`[NightScene] Failed to create structure ${structure.structureId}:`, err);
       }
+    }
+
+    // Warn player about traps that couldn't start due to lack of fuel (food)
+    if (noFuelTraps.length > 0) {
+      const unique = [...new Set(noFuelTraps)];
+      this.time.delayedCall(500, () => {
+        if (this.hud) this.hud.showMessage(`No fuel: ${unique.join(', ')} offline!`);
+      });
     }
   }
 
@@ -1412,78 +1423,39 @@ export class NightScene extends Phaser.Scene {
   }
 
   /**
-   * Auto-load ammo from stockpile for all equipped ranged weapons at night start.
-   * Deducts from gameState.inventory.resources.ammo.
-   * Saves updated resources so ammo is correctly consumed.
-   * Returns total loaded ammo (same pool shared between both weapons).
-   *
-   * Always shows a HUD message at night start:
-   *   Success: "Ammo loaded: Pistol (2), Rifle (3) = 5 used, 10 left"
-   *   Partial:  "Low ammo! Pistol: OK, Rifle: NO AMMO"
+   * Load all available ammo from stockpile at night start.
+   * Player controls fire rate manually (click/space to shoot).
+   * Returns total loaded ammo.
    */
   private autoLoadAmmo(): number {
     const weapons = this.gameState.inventory.weapons;
     const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
     const equippedIds = [primaryWeaponId, secondaryWeaponId].filter((id): id is string => id !== null);
 
-    let totalAmmoNeeded = 0;
-    const weaponAmmoNeeds: { name: string; ammoPerNight: number }[] = [];
-
+    // Check if any equipped weapon uses ammo
+    let hasRanged = false;
     for (const id of equippedIds) {
       const instance = weapons.find(w => w.id === id);
       if (!instance) continue;
       const data = WeaponManager.getWeaponData(instance.weaponId);
-      if (!data || data.ammoPerNight <= 0) continue; // melee = 0
-      weaponAmmoNeeds.push({ name: data.name, ammoPerNight: data.ammoPerNight });
-      totalAmmoNeeded += data.ammoPerNight;
+      if (data && data.ammoPerNight > 0) hasRanged = true;
     }
 
-    if (totalAmmoNeeded === 0) {
-      // All equipped weapons are melee -- no ammo needed
+    if (!hasRanged) return 0;
+
+    const available = this.gameState.inventory.resources.ammo;
+    if (available <= 0) {
+      this.time.delayedCall(200, () => {
+        if (this.hud) this.hud.showMessage('NO AMMO!');
+      });
       return 0;
     }
 
-    const available = this.gameState.inventory.resources.ammo;
-    const toLoad = Math.min(available, totalAmmoNeeded);
-    const leftAfter = available - toLoad;
-
-    // Deduct from stockpile
-    this.gameState.inventory.resources.ammo -= toLoad;
-    // Persist the deduction immediately (night-start save)
+    // Load all available ammo
+    this.gameState.inventory.resources.ammo = 0;
     SaveManager.save(this.gameState);
 
-    if (toLoad < totalAmmoNeeded) {
-      // Partial load -- show which weapons got ammo and which ran dry
-      const parts: string[] = [];
-      let remaining = toLoad;
-      for (const wn of weaponAmmoNeeds) {
-        if (remaining >= wn.ammoPerNight) {
-          parts.push(`${wn.name}: OK`);
-          remaining -= wn.ammoPerNight;
-        } else {
-          parts.push(`${wn.name}: NO AMMO`);
-        }
-      }
-      // Delay so HUD is ready before message displays
-      this.time.delayedCall(200, () => {
-        if (this.hud) {
-          this.hud.showMessage(`Low ammo! ${parts.join(', ')}`);
-        }
-      });
-    } else {
-      // Full load -- show confirmation: "Ammo loaded: Pistol (2), Rifle (3) = 5 used, 10 left"
-      const weaponSummary = weaponAmmoNeeds
-        .map(wn => `${wn.name} (${wn.ammoPerNight})`)
-        .join(', ');
-      const msg = `Ammo loaded: ${weaponSummary} = ${toLoad} used, ${leftAfter} left`;
-      this.time.delayedCall(200, () => {
-        if (this.hud) {
-          this.hud.showMessage(msg);
-        }
-      });
-    }
-
-    return toLoad;
+    return available;
   }
 
   /** Show NO AMMO warning if the currently equipped weapon is ranged and out of ammo. */
