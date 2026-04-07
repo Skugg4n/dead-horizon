@@ -1179,7 +1179,7 @@ export class DayScene extends Phaser.Scene {
       if (!data) return;
 
       if (!this.buildingManager.hasEnoughAP(structureId, this.currentAP)) {
-        this.showInfo('Not enough AP!');
+        this.showInfo('Not enough time!');
         AudioManager.play('ui_error');
       } else if (!this.buildingManager.canAfford(structureId)) {
         this.showInfo('Not enough resources!');
@@ -1539,7 +1539,7 @@ export class DayScene extends Phaser.Scene {
     // Check AP
     const apCost = next.apCost ?? 0;
     if (this.currentAP < apCost) {
-      this.showInfo('Not enough AP!');
+      this.showInfo('Not enough time!');
       return;
     }
 

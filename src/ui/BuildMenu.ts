@@ -447,7 +447,7 @@ export class BuildMenu {
     const scrap = resources.scrap ?? 0;
     const parts = resources.parts ?? 0;
     const food  = resources.food ?? 0;
-    const resourceStr = `S:${scrap}  P:${parts}  F:${food}  AP:${ap}/${maxAP}`;
+    const resourceStr = `S:${scrap}  P:${parts}  F:${food}  ${ap}h/${maxAP}h`;
     const resText = this.scene.add.text(PADDING, HEADER_H / 2, resourceStr, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
@@ -630,7 +630,7 @@ export class BuildMenu {
     // AP cost
     const hasAP = this.getCurrentAP() >= s.apCost;
     const apColor = !isUnlocked ? FONT_MUTED : hasAP ? FONT_YELLOW : FONT_RED;
-    const apText = this.scene.add.text(costX, y + 18, `${s.apCost}AP`, {
+    const apText = this.scene.add.text(costX, y + 18, `${s.apCost}h`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: apColor,
@@ -702,7 +702,7 @@ export class BuildMenu {
     }
 
     if (!hasAP) {
-      reasons.push({ text: 'Not enough AP', color: FONT_RED });
+      reasons.push({ text: 'Not enough time', color: FONT_RED });
     }
 
     return reasons;

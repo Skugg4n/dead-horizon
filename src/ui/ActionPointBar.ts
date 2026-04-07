@@ -51,7 +51,7 @@ export class ActionPointBar {
   }
 
   private redraw(): void {
-    this.label.setText(`AP ${this.currentAP}/${this.maxAP}`);
+    this.label.setText(`${this.currentAP}h / ${this.maxAP}h`);
 
     this.pips.clear();
     const pipY = BAR_Y + 14;

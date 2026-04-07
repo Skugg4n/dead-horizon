@@ -163,9 +163,11 @@ export class WaveManager {
       this.waveActive = false;
       this.scene.events.emit('wave-complete', this.currentWave);
 
-      // Trigger all-waves-complete when the last wave for this night is done
+      // Trigger all-waves-complete after a short pause so player sees the last kill
       if (this.currentWave >= this.maxWaves) {
-        this.scene.events.emit('all-waves-complete');
+        this.scene.time.delayedCall(1500, () => {
+          this.scene.events.emit('all-waves-complete');
+        });
       }
     }
   }
