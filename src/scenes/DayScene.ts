@@ -507,15 +507,28 @@ export class DayScene extends Phaser.Scene {
       this.addToWorld(img);
       this.structureSprites.push(img);
     } else {
-      // Programmatic fallback
+      // Programmatic fallback with colored tile + short label
       const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
+      const data = this.buildingManager.getStructureData(structure.structureId);
+      const w = (data?.widthTiles ?? 1) * TILE_SIZE;
       const g = this.add.graphics();
       g.fillStyle(color);
-      g.fillRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+      g.fillRect(structure.x, structure.y, w, TILE_SIZE);
       g.lineStyle(1, 0xE8DCC8, 0.6);
-      g.strokeRect(structure.x, structure.y, TILE_SIZE, TILE_SIZE);
+      g.strokeRect(structure.x, structure.y, w, TILE_SIZE);
       this.addToWorld(g);
       this.structureSprites.push(g);
+
+      // Short name label so player can identify structures
+      const shortName = (data?.name ?? structure.structureId).split(' ').map(s => s[0]).join('');
+      const label = this.add.text(
+        structure.x + w / 2,
+        structure.y + TILE_SIZE / 2,
+        shortName,
+        { fontFamily: '"Press Start 2P", monospace', fontSize: '6px', color: '#FFFFFF', stroke: '#000000', strokeThickness: 2 }
+      ).setOrigin(0.5).setDepth(5);
+      this.addToWorld(label);
+      this.structureSprites.push(label);
     }
 
     // Level indicator
@@ -994,12 +1007,7 @@ export class DayScene extends Phaser.Scene {
     if (structData) {
       if (structData.widthTiles && structData.widthTiles > 1) {
         ghostW = structData.widthTiles * TILE_SIZE;
-        ghostH = structData.widthTiles * TILE_SIZE;
-      } else if (structData.zoneRadius && structData.zoneRadius > TILE_SIZE / 2) {
-        // zoneRadius describes a circular zone -- use diameter capped to nearest tile
-        const tiles = Math.round((structData.zoneRadius * 2) / TILE_SIZE);
-        ghostW = tiles * TILE_SIZE;
-        ghostH = tiles * TILE_SIZE;
+        // Height stays 1 tile -- these are wide structures, not squares
       }
     }
 
