@@ -1,5 +1,31 @@
 # Dead Horizon -- Changelog
 
+## [2.7.7] - 2026-04-04
+
+### Forbattrade karaktarsportrait och nya struktur-sprites
+
+**public/assets/sprites/characters/ -- 4 forstarkta 64x64 portraits:**
+- `portrait_soldier.png` -- Militarhjälm (HELMET_GREEN), bestämd blick, olivgrön uniform, axelinmarkning
+- `portrait_scavenger.png` -- Mork huva, smutsigt ansikte (smuts-pixels), sliten grå jacka, skarf
+- `portrait_engineer.png` -- Metallbagade glasogon med linsglimt, verktygsväst med fickor, rufsigt hår
+- `portrait_medic.png` -- Vit/rod medicinband i pannan, stetoskop antytt, vit labbrock med rott kors pa bröstet
+
+**public/assets/sprites/ -- 6 nya 32x32 struktur-sprites:**
+- `struct_spike_strip.png` -- Metallist med 7 uppåtpekande spikar, blodflackar pa nagra
+- `struct_sandbags.png` -- Pyramidhog (3+2+1) sandsakkar i tan med ropbindning
+- `struct_bear_trap.png` -- Oppna metallkäftar med taggar, fjader-spole, blodfläckar
+- `struct_landmine.png` -- Rund halvbegravd mina, irisregande kupolyta, detonatorknapp
+- `struct_oil_slick.png` -- Oregelbunden oljeblobb med regnbagsskimmer (lila/teal/amber)
+- `struct_pit_trap.png` -- Morkt oval grop med kamouflage-kvistar, synliga palspetsar inne i gropen
+
+**src/scenes/BootScene.ts:**
+- Lade till load.image for alla 6 nya struktur-sprites
+
+**src/config/constants.ts:**
+- Versionsnummer uppgraderaat till 2.7.7
+
+**sprite_gen_v277.py** -- generatorskript i projektroten
+
 ## [2.5.8] - 2026-04-04
 
 ### Multi-tile ghost preview + keyboard nav improvements

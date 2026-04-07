@@ -116,6 +116,14 @@ export class BootScene extends Phaser.Scene {
     this.load.image('decor_log', 'assets/sprites/terrain/decor_log.png');
     this.load.image('decor_lantern', 'assets/sprites/terrain/decor_lantern.png');
 
+    // Trap / hazard structure sprites (32x32)
+    this.load.image('struct_spike_strip', 'assets/sprites/struct_spike_strip.png');
+    this.load.image('struct_sandbags',    'assets/sprites/struct_sandbags.png');
+    this.load.image('struct_bear_trap',   'assets/sprites/struct_bear_trap.png');
+    this.load.image('struct_landmine',    'assets/sprites/struct_landmine.png');
+    this.load.image('struct_oil_slick',   'assets/sprites/struct_oil_slick.png');
+    this.load.image('struct_pit_trap',    'assets/sprites/struct_pit_trap.png');
+
     // Character portraits (64x64) for character select screen
     this.load.image('portrait_soldier',   'assets/sprites/characters/portrait_soldier.png');
     this.load.image('portrait_scavenger', 'assets/sprites/characters/portrait_scavenger.png');
