@@ -29,6 +29,7 @@ import { SpringLauncher } from '../structures/SpringLauncher';
 import { ChainWall } from '../structures/ChainWall';
 import type { TrapBase } from '../structures/TrapBase';
 import { HUD } from '../ui/HUD';
+import { GameLog } from '../ui/GameLog';
 import { WeaponManager } from '../systems/WeaponManager';
 import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { SkillManager } from '../systems/SkillManager';
@@ -76,6 +77,7 @@ export class NightScene extends Phaser.Scene {
   private achievementManager!: AchievementManager;
   private refugeeManager!: RefugeeManager;
   private hud!: HUD;
+  private gameLog!: GameLog;
   private shootCooldown: number = 0;
   private isShooting: boolean = false;
   private gamePaused: boolean = false;
@@ -229,6 +231,7 @@ export class NightScene extends Phaser.Scene {
     this.refugeeManager = new RefugeeManager(this, this.gameState);
     this.setupPillboxRefugees();
     this.hud = new HUD(this);
+    this.gameLog = new GameLog(this);
     this.hud.updateAmmo(this.loadedAmmo);
     this.updateWeaponHUD();
     // F3: Initialize base HP bar
@@ -863,6 +866,7 @@ export class NightScene extends Phaser.Scene {
       const unique = [...new Set(noFuelTraps)];
       this.time.delayedCall(500, () => {
         if (this.hud) this.hud.showMessage(`No fuel: ${unique.join(', ')} offline!`);
+        if (this.gameLog) this.gameLog.addMessage(`No fuel: ${unique.join(', ')} offline!`, '#FF8C00');
       });
     }
   }
@@ -1117,14 +1121,17 @@ export class NightScene extends Phaser.Scene {
       // Final night: wave 5 in a 5-wave night gets a special banner
       if (wave === 5 && maxWaves === 5) {
         this.showFinalNightBanner();
+        this.gameLog.addMessage('FINAL WAVE -- survive!', '#FF4444');
       } else {
         this.hud.showWaveAnnouncement(wave);
+        this.gameLog.addMessage(`Wave ${wave} started`, '#FFD700');
       }
       AudioManager.play('wave_start');
     });
 
     this.events.on('wave-complete', (wave: number) => {
       this.hud.showMessage('WAVE CLEAR!');
+      this.gameLog.addMessage(`Wave ${wave} cleared!`, '#44FF88');
       AudioManager.play('wave_clear');
       // Golden screen flash
       this.cameras.main.flash(400, 197, 160, 11);
@@ -1286,6 +1293,7 @@ export class NightScene extends Phaser.Scene {
     // Boss spawns minions on death
     // Play boss roar when a boss zombie is about to spawn
     this.events.on('boss-spawning', () => {
+      this.gameLog.addMessage('BOSS INCOMING!', '#FF2222');
       AudioManager.play('boss_roar');
     });
 
@@ -1452,6 +1460,7 @@ export class NightScene extends Phaser.Scene {
     if (available <= 0) {
       this.time.delayedCall(200, () => {
         if (this.hud) this.hud.showMessage('NO AMMO!');
+        if (this.gameLog) this.gameLog.addMessage('No ammo!', '#FF4444');
       });
       return 0;
     }
@@ -1470,6 +1479,7 @@ export class NightScene extends Phaser.Scene {
       const s = this.weaponManager.getWeaponStats(w);
       if (s.weaponClass !== 'melee' && this.loadedAmmo <= 0) {
         this.hud.showMessage('NO AMMO -- switch to melee!');
+        this.gameLog.addMessage('No ammo! Switch to melee!', '#FF4444');
         AudioManager.play('ui_error');
       }
     }
@@ -2582,6 +2592,7 @@ export class NightScene extends Phaser.Scene {
       if (!this.resourceManager.canAfford({ parts: REPAIR_COST.parts })) {
         // Can't afford repair -- show message and cancel
         this.hud.showMessage('Need 1 PARTS to repair!');
+        this.gameLog.addMessage('Need 1 PARTS to repair!', '#FF8C00');
         this.showFloatingText(this.player.x, this.player.y - 20, 'Need 1 PARTS!');
         nearest.isBeingRepaired = false;
         nearest.repairProgress  = 0;
@@ -3068,6 +3079,8 @@ export class NightScene extends Phaser.Scene {
     this.baseHp = Math.max(0, this.baseHp - amount);
     this.baseDamageTaken += amount;
     this.hud.updateBaseHpBar(this.baseHp, this.baseMaxHp);
+    // Throttled to max once per 5 seconds so the log doesn't spam
+    this.gameLog.addBaseDamageMessage();
     AudioManager.play('structure_damage');
 
     // Base destroyed: game over
@@ -3166,24 +3179,15 @@ export class NightScene extends Phaser.Scene {
     }).setOrigin(0.5);
     container.add(gearText);
 
-    // Click to continue prompt
-    const continueText = this.add.text(GAME_WIDTH / 2, py + panelH - 22, 'Click to continue', {
+    // Continue prompt -- hidden until ready
+    const continueText = this.add.text(GAME_WIDTH / 2, py + panelH - 22, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: '#6B6B6B',
     }).setOrigin(0.5);
     container.add(continueText);
 
-    // Blink the continue prompt
-    this.tweens.add({
-      targets: continueText,
-      alpha: 0.3,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-    });
-
-    // Make the panel itself clickable (not fullscreen)
+    // Make the panel clickable
     panel.setInteractive(
       new Phaser.Geom.Rectangle(px, py, panelW, panelH),
       Phaser.Geom.Rectangle.Contains,
@@ -3193,9 +3197,16 @@ export class NightScene extends Phaser.Scene {
       this.scene.start('DayScene');
     };
 
-    // 3 second delay before input is accepted -- prevents accidental skip
-    this.time.delayedCall(3000, () => {
-      continueText.setText('Press any key to continue');
+    // Short delay to prevent accidental skip from shooting
+    this.time.delayedCall(800, () => {
+      continueText.setText('Click or press any key');
+      this.tweens.add({
+        targets: continueText,
+        alpha: 0.3,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+      });
       panel.on('pointerdown', goToDay);
       const keyHandler = (_evt: KeyboardEvent) => { goToDay(); };
       this.input.keyboard?.on('keydown', keyHandler);

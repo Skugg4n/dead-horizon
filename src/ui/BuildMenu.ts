@@ -10,7 +10,7 @@
 import Phaser from 'phaser';
 import { BuildingManager } from '../systems/BuildingManager';
 import type { StructureData } from '../systems/BuildingManager';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
+import { GAME_HEIGHT } from '../config/constants';
 import baseLevelsJson from '../data/base-levels.json';
 import blueprintsJson from '../data/blueprints.json';
 import type { BlueprintData, ResourceType } from '../config/types';
@@ -18,8 +18,8 @@ import type { BlueprintData, ResourceType } from '../config/types';
 // ------------------------------------------------------------------
 // Layout constants
 // ------------------------------------------------------------------
-const PANEL_W = 300;
-const PANEL_X = Math.floor((GAME_WIDTH - PANEL_W) / 2);
+const PANEL_W = 280;
+const PANEL_X = 8;  // Left side of screen
 const PANEL_Y = 48;
 const HEADER_H = 28;   // resource bar height
 const TAB_H = 24;      // tab strip height
@@ -147,17 +147,11 @@ export class BuildMenu {
     this.getUnlockedBlueprints = getUnlockedBlueprints;
     this.onSelect = onSelect;
 
-    // Full-screen backdrop -- closes menu on click-outside
+    // Backdrop -- no longer closes on click (menu stays open during placement)
+    // Player uses [X] button, ESC, or BUILD toggle to close
     this.backdrop = scene.add.graphics();
-    this.backdrop.fillStyle(0x000000, 0.01);
-    this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.backdrop.setDepth(109);
     this.backdrop.setVisible(false);
-    this.backdrop.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    this.backdrop.on('pointerdown', () => this.hide());
 
     this.container = scene.add.container(PANEL_X, PANEL_Y);
     this.container.setDepth(110);

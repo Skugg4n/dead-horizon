@@ -1,17 +1,49 @@
 # Dead Horizon -- Changelog
 
-## [2.6.4] - 2026-04-07
+## [2.7.0] - 2026-04-07
 
-### Bugfixes
-- Fix pause can't be unpaused: replaced scene.pause() with flag-based
-  pause (physics.pause + gamePaused flag) so ESC still works
-- Fix DayScene crash: renderPlacedStructures called before setupCameras
-  caused "Cannot read 'ignore' of undefined" on uiCamera
+### Feature: GameLog UI component
 
-### Polish
-- Add icons for 7 new traps in build menu (were showing "?")
-- Fix wave/message announcements flashing too fast (2-2.5s delay)
-- Show meds cost in REST job button: "REST (1 med)"
+**src/ui/GameLog.ts** (new file):
+- Chat-box style scrolling log in lower-left corner (x=4, y=418, 252x104px).
+- Shows last 8 messages; newest at bottom, older entries fade to darker grey.
+- Semi-transparent dark background with rounded border (depth 200).
+- setScrollFactor(0) for NightScene single-camera; DayScene registers via addToUI().
+- `addMessage(text, color?)` appends a new line.
+- `addBaseDamageMessage()` is throttled: max one "Base took damage!" per 5 seconds.
+- `show()`, `hide()`, `clear()`, `getContainer()` public API.
+
+**NightScene integration:**
+- Wave started: "Wave N started" (gold) or "FINAL WAVE -- survive!" (red).
+- Wave cleared: "Wave N cleared!" (green).
+- Boss spawning: "BOSS INCOMING!" (bright red).
+- No fuel traps: "No fuel: X offline!" (orange).
+- No ammo (at night start or during play): "No ammo!" / "No ammo! Switch to melee!" (red).
+- Base took damage: throttled, max once per 5s (red), via addBaseDamageMessage().
+- Repair blocked by missing resources: "Need 1 PARTS to repair!" (orange).
+
+**DayScene integration:**
+- Built structure: "Built [name]" (light blue).
+- Loot run finished: summarises gained resources, flags weapon/blueprint finds (gold).
+- Refugee rescued: "Rescued [name]!" (green).
+- Random event triggered: "Event: [name]" or "HORDE WARNING: [name]" depending on type.
+- Event outcome result string also logged when not "No effect".
+- New loot-run-finished listener cleaned up on scene shutdown.
+
+### Additional fixes in this release
+- Build menu: moved to LEFT side, stays open during placement
+- Removed backdrop click-to-close (closed menu when clicking map to place)
+- Fix encounter fight: weapons passed to resolveFight (was empty array [])
+- Fix death screen: text hidden until clickable (0.8s delay, was 3s with fake text)
+- Fix DayScene crash: setupCameras before renderPlacedStructures
+- Fix pause ESC: flag-based instead of scene.pause (killed input)
+- Trap icons for 7 new traps in build menu
+- Message timing: 2-2.5s visible before fade
+- Meds cost shown: "REST (1 med)"
+- Remove raw event type badge from EventDialog
+- Idle sprite = walk frame 0 (VB5)
+- Base HP scales: Tent=200, Camp=350, Outpost=500, Settlement=750
+- Result/GameOver clickable after 1s (was 3s)
 
 ## [2.6.2] - 2026-04-06
 

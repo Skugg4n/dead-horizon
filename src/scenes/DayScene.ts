@@ -28,6 +28,7 @@ import { createUIButton } from '../ui/UIButton';
 import { CLOSE_ALL_PANELS } from '../ui/UIPanel';
 import { BuildMenu } from '../ui/BuildMenu';
 import { AudioManager } from '../systems/AudioManager';
+import { GameLog } from '../ui/GameLog';
 
 // Parse structure colors from JSON (string hex to number)
 const STRUCTURE_COLORS: Record<string, number> = Object.fromEntries(
@@ -71,6 +72,7 @@ export class DayScene extends Phaser.Scene {
   private uiCamera!: Phaser.Cameras.Scene2D.Camera;
 
   // UI elements
+  private gameLog!: GameLog;
   private buildMenu!: BuildMenu;
   private buildMenuVisible: boolean = false;
   private buildMenuOpening: boolean = false;
@@ -130,6 +132,11 @@ export class DayScene extends Phaser.Scene {
       }
     });
     this.createInfoText();
+
+    // Game log -- scrolling message history in lower-left corner.
+    // Must be registered on the UI camera (dual-camera setup in DayScene).
+    this.gameLog = new GameLog(this);
+    this.addToUI(this.gameLog.getContainer());
 
     // Weapon system
     this.weaponManager = new WeaponManager(this, this.gameState);
@@ -212,12 +219,33 @@ export class DayScene extends Phaser.Scene {
       const newRefugee = this.refugeeManager.addRefugee();
       if (newRefugee) {
         this.showInfo(`Rescued ${newRefugee.name} during loot run!`);
+        this.gameLog.addMessage(`Rescued ${newRefugee.name}!`, '#88FF88');
       }
     });
 
     // Track loot run completions for achievements
     this.events.on('loot-run-complete', () => {
       this.gameState.stats.lootRunsCompleted++;
+    });
+
+    // Log loot run results to GameLog when available
+    this.events.on('loot-run-finished', (result: { loot: Partial<Record<string, number>>; foundBlueprintId: string | null; weaponDropId: string | null }) => {
+      // Summarise gathered resources as "+N scrap +M food" etc.
+      const gains = Object.entries(result.loot)
+        .filter(([, v]) => (v ?? 0) > 0)
+        .map(([k, v]) => `+${v} ${k}`)
+        .join(' ');
+      if (gains) {
+        this.gameLog.addMessage(`Loot run: ${gains}`, '#88DDFF');
+      } else {
+        this.gameLog.addMessage('Loot run complete', '#88DDFF');
+      }
+      if (result.foundBlueprintId) {
+        this.gameLog.addMessage('Blueprint found!', '#FFD700');
+      }
+      if (result.weaponDropId) {
+        this.gameLog.addMessage('Weapon found!', '#FFD700');
+      }
     });
 
     // Event system
@@ -249,6 +277,7 @@ export class DayScene extends Phaser.Scene {
       this.events.off('award-looting-xp');
       this.events.off('refugee-rescued');
       this.events.off('loot-run-complete');
+      this.events.off('loot-run-finished');
       this.events.off('update');
 
       this.tweens.killAll();
@@ -1196,6 +1225,7 @@ export class DayScene extends Phaser.Scene {
 
       const data = this.buildingManager.getStructureData(structureId);
       this.showInfo(`${data?.name ?? 'Structure'} placed!`);
+      this.gameLog.addMessage(`Built ${data?.name ?? 'structure'}`, '#88DDFF');
       AudioManager.play('ui_build');
       // Keep placement mode active so player can place more of the same structure
       this.updateResourceDisplay();
@@ -1444,9 +1474,19 @@ export class DayScene extends Phaser.Scene {
     const event = this.eventManager.rollEvent();
     if (!event) return;
 
+    // Log the event name; horde warnings get a distinct color
+    const isHorde = event.type === 'HORDE_WARNING';
+    const logColor = isHorde ? '#FF4444' : '#FFD700';
+    const prefix = isHorde ? 'HORDE WARNING: ' : 'Event: ';
+    this.gameLog.addMessage(`${prefix}${event.name}`, logColor);
+
     this.eventDialog.show(event, (choice: EventChoice) => {
       const result = this.eventManager.applyChoice(event, choice);
       this.showInfo(result);
+      // Log the event outcome as well
+      if (result && result !== 'No effect') {
+        this.gameLog.addMessage(result, '#cccccc');
+      }
       this.updateResourceDisplay();
     });
   }

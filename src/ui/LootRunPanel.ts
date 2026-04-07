@@ -373,7 +373,7 @@ export class LootRunPanel {
 
       this.encounterDialog.show(strength, threshold, (choice) => {
         if (choice === 'fight') {
-          this.lootManager.resolveFight(result, [], this.selectedCompanions);
+          this.lootManager.resolveFight(result, equippedWeapons, this.selectedCompanions);
         } else {
           this.lootManager.resolveFlee(result);
         }
