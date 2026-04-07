@@ -74,6 +74,15 @@ export class DayScene extends Phaser.Scene {
   // always match their visual positions regardless of main camera scroll.
   private uiCamera!: Phaser.Cameras.Scene2D.Camera;
 
+  // Day-cycle lighting overlay -- redrawn whenever AP changes
+  private dayLightOverlay!: Phaser.GameObjects.Graphics;
+
+  // Tracks last AP value for lighting change detection in update()
+  private _lastLightingAP: number = -1;
+
+  // "Night is approaching" warning text in HUD (shown at 1h left)
+  private nightWarningText: Phaser.GameObjects.Text | null = null;
+
   // UI elements
   private gameLog!: GameLog;
   private buildMenu!: BuildMenu;
@@ -281,6 +290,15 @@ export class DayScene extends Phaser.Scene {
       this.checkRandomEvent();
     }
 
+    // Day-cycle lighting overlay: sits above world, below all UI panels (depth 90)
+    // Drawn on the main camera (world-space) but uses setScrollFactor(0) so it covers the screen
+    this.dayLightOverlay = this.add.graphics();
+    this.dayLightOverlay.setDepth(90).setScrollFactor(0);
+    this.updateDayLighting();
+
+    // Dawn fade-in animation (overlay at depth 500 so it covers everything including UI)
+    this.showDawnAnimation();
+
     this.events.emit('day-started', this.gameState.progress.currentWave);
 
     // Clean up all event listeners on scene shutdown to prevent memory leaks
@@ -297,8 +315,7 @@ export class DayScene extends Phaser.Scene {
     });
     } catch (e) {
       console.error('DayScene create() failed:', e);
-      // Save is likely corrupted -- clear it and restart fresh
-      SaveManager.clearSave();
+      // NEVER clear save -- preserve player progress even if scene fails
       this.scene.start('MenuScene');
     }
   }
@@ -317,6 +334,134 @@ export class DayScene extends Phaser.Scene {
     // Speed Run: accumulate day-phase time into the persistent timer
     if (this.gameState.activeChallenge === 'speed_run') {
       this.gameState.speedRunTimer += delta;
+    }
+
+    // Refresh day-lighting overlay when AP changes (AP only changes on player actions, not every frame)
+    if (this.dayLightOverlay && this.currentAP !== this._lastLightingAP) {
+      this.updateDayLighting();
+      this._lastLightingAP = this.currentAP;
+    }
+  }
+
+  /**
+   * Dawn fade-in animation shown at the start of each day.
+   * Creates a fullscreen dark overlay that fades to transparent over 2 seconds,
+   * while "A new dawn rises." and "Day N" text fade in underneath.
+   * All objects are registered on the UI camera (addToUI) so they sit above everything.
+   */
+  private showDawnAnimation(): void {
+    const dayNumber = this.gameState.progress.currentWave;
+
+    // Fullscreen dark overlay -- covers both world and UI at dawn
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x0A0505, 1);
+    overlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    overlay.setDepth(500).setScrollFactor(0);
+    this.addToUI(overlay);
+
+    const dawnText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, 'A new dawn rises.', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '12px',
+      color: '#D4920B',
+    }).setOrigin(0.5).setDepth(501).setScrollFactor(0).setAlpha(0);
+    this.addToUI(dawnText);
+
+    const dayText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20, `Day ${dayNumber}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '16px',
+      color: '#E8DCC8',
+    }).setOrigin(0.5).setDepth(501).setScrollFactor(0).setAlpha(0);
+    this.addToUI(dayText);
+
+    // Text fades in immediately and slightly delayed
+    this.tweens.add({ targets: dawnText, alpha: 1, duration: 800 });
+    this.tweens.add({ targets: dayText, alpha: 1, duration: 800, delay: 500 });
+
+    // Overlay fades out over 2s (500ms delay so text is readable against darkness first)
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 2000,
+      delay: 500,
+      onComplete: () => {
+        overlay.destroy();
+        dawnText.destroy();
+        dayText.destroy();
+      },
+    });
+  }
+
+  /**
+   * Redraws the day-cycle lighting overlay based on remaining AP (hours left in the day).
+   * 12h = warm orange glow at dawn, 6h = clear midday, 0h = dark reddish dusk.
+   * Called from update() whenever currentAP changes.
+   */
+  private updateDayLighting(): void {
+    if (!this.dayLightOverlay) return;
+
+    const hoursLeft = this.currentAP;
+
+    let color: number;
+    let alpha: number;
+
+    if (hoursLeft >= 9) {
+      // Morning: warm orange fading to clear as day progresses toward midday
+      color = 0xFF8800;
+      alpha = ((hoursLeft - 9) / 3) * 0.1; // 0.1 at 12h, 0 at 9h
+    } else if (hoursLeft >= 3) {
+      // Midday to afternoon: clear, no tint
+      color = 0xFFDD00;
+      alpha = 0;
+    } else {
+      // Evening: darkening red-orange as night approaches
+      color = 0xFF4400;
+      alpha = ((3 - hoursLeft) / 3) * 0.15; // 0 at 3h, 0.15 at 0h
+    }
+
+    this.dayLightOverlay.clear();
+    if (alpha > 0) {
+      this.dayLightOverlay.fillStyle(color, alpha);
+      this.dayLightOverlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    }
+
+    // Show or hide the "Night is approaching" warning at 1h left
+    this.updateNightWarning(hoursLeft);
+  }
+
+  /**
+   * Shows a "Night is approaching..." warning text when 1 AP or fewer remain.
+   * Creates the text on first call, hides it again if AP somehow goes back up (debug).
+   */
+  private updateNightWarning(hoursLeft: number): void {
+    if (hoursLeft <= 1 && hoursLeft > 0) {
+      if (!this.nightWarningText) {
+        // Create warning text -- positioned in the top center area below the top bar
+        this.nightWarningText = this.add.text(GAME_WIDTH / 2, 46, 'Night is approaching...', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#FF4400',
+          backgroundColor: '#1A0800',
+          padding: { left: 6, right: 6, top: 3, bottom: 3 },
+        }).setOrigin(0.5, 0).setDepth(110).setScrollFactor(0).setAlpha(0);
+        this.addToUI(this.nightWarningText);
+
+        // Fade in the warning
+        this.tweens.add({ targets: this.nightWarningText, alpha: 1, duration: 600 });
+      }
+      // Pulse the warning text to draw attention
+      if (!this.tweens.isTweening(this.nightWarningText)) {
+        this.tweens.add({
+          targets: this.nightWarningText,
+          alpha: 0.4,
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+    } else if (this.nightWarningText && hoursLeft > 1) {
+      // AP was increased (e.g., debug) -- hide warning
+      this.nightWarningText.destroy();
+      this.nightWarningText = null;
     }
   }
 
