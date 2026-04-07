@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { UIPanel } from './UIPanel';
 import { WeaponManager } from '../systems/WeaponManager';
 import { renderResourceCosts } from './resourceIcons';
-import type { GameState, WeaponInstance, WeaponUpgradeType, UpgradeDefinition } from '../config/types';
+import type { GameState, WeaponInstance, WeaponUpgradeType, UpgradeDefinition, WeaponUltimate } from '../config/types';
 
 const PANEL_WIDTH = 380;
 
@@ -746,7 +746,98 @@ export class EquipmentPanel {
       }
     });
 
-    const backY = y + available.length * entrySpacing + 8;
+    // --- Ultimate unlock section (only shown when weapon is level 4) ---
+    const weaponData = WeaponManager.getWeaponData(weapon.weaponId);
+    const ultimateData: WeaponUltimate | undefined = weaponData?.ultimate;
+    const ultimateBaseY = y + available.length * entrySpacing + 4;
+    let ultimateRowHeight = 0;
+
+    if (ultimateData && weapon.level === 4) {
+      // Show the ultimate upgrade option
+      const { parts, scrap } = ultimateData.cost;
+      const canAffordParts = this.gameState.inventory.resources.parts >= parts;
+      const canAffordScrap = this.gameState.inventory.resources.scrap >= scrap;
+      const canAfford = canAffordParts && canAffordScrap;
+
+      const divider = this.scene.add.graphics();
+      divider.lineStyle(1, 0xFFD700, 0.4);
+      divider.lineBetween(0, ultimateBaseY + 2, contentWidth, ultimateBaseY + 2);
+      content.add(divider);
+
+      const ultiLabel = this.scene.add.text(0, ultimateBaseY + 8, `ULTIMATE: ${ultimateData.name}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#FFD700',
+      });
+      content.add(ultiLabel);
+
+      const ultiDesc = this.scene.add.text(0, ultimateBaseY + 22, ultimateData.description, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#AAB8C2',
+        wordWrap: { width: contentWidth - 60 },
+      });
+      content.add(ultiDesc);
+
+      const costLabel = `${parts}P + ${scrap}S`;
+      const costColor = canAfford ? '#FFD700' : '#6B6B6B';
+      const ultiCostText = this.scene.add.text(contentWidth, ultimateBaseY + 8, costLabel, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: costColor,
+      });
+      ultiCostText.setOrigin(1, 0);
+      content.add(ultiCostText);
+
+      // Clickable upgrade button
+      const ultiRowH = 50;
+      ultimateRowHeight = ultiRowH + 8;
+      const ultiBg = this.scene.add.graphics();
+      ultiBg.fillStyle(0x1A1A00, 0);
+      ultiBg.fillRect(-4, ultimateBaseY + 2, contentWidth + 8, ultiRowH);
+      content.add(ultiBg);
+
+      if (canAfford) {
+        ultiBg.setInteractive(
+          new Phaser.Geom.Rectangle(-4, ultimateBaseY + 2, contentWidth + 8, ultiRowH),
+          Phaser.Geom.Rectangle.Contains,
+        );
+        if (ultiBg.input) ultiBg.input.cursor = 'pointer';
+        ultiBg.on('pointerover', () => {
+          ultiBg.clear();
+          ultiBg.fillStyle(0x333300, 0.6);
+          ultiBg.fillRect(-4, ultimateBaseY + 2, contentWidth + 8, ultiRowH);
+          ultiLabel.setColor('#FFFF00');
+        });
+        ultiBg.on('pointerout', () => {
+          ultiBg.clear();
+          ultiBg.fillStyle(0x1A1A00, 0);
+          ultiBg.fillRect(-4, ultimateBaseY + 2, contentWidth + 8, ultiRowH);
+          ultiLabel.setColor('#FFD700');
+        });
+        ultiBg.on('pointerdown', () => {
+          this.weaponManager.unlockUltimate(weapon.id);
+          this.onResourceChange();
+          this.buildUpgradeView(weaponId);
+        });
+      }
+    } else if (ultimateData && weapon.level >= 5) {
+      // Weapon already has ultimate unlocked -- show status
+      const divider = this.scene.add.graphics();
+      divider.lineStyle(1, 0xFFD700, 0.4);
+      divider.lineBetween(0, ultimateBaseY + 2, contentWidth, ultimateBaseY + 2);
+      content.add(divider);
+
+      const ultiActiveLabel = this.scene.add.text(0, ultimateBaseY + 8, `ULTIMATE ACTIVE: ${ultimateData.name}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#FFD700',
+      });
+      content.add(ultiActiveLabel);
+      ultimateRowHeight = 24;
+    }
+
+    const backY = ultimateBaseY + ultimateRowHeight + 8;
     const backBtn = this.scene.add.text(0, backY, '[ BACK ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',

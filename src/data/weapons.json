@@ -13,7 +13,14 @@
       "fireRate": 500,
       "rarity": "common",
       "maxDurability": 50,
-      "specialEffect": null
+      "specialEffect": null,
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "hunting_knife",
@@ -26,7 +33,14 @@
       "fireRate": 450,
       "rarity": "common",
       "maxDurability": 60,
-      "specialEffect": { "type": "bleed", "chance": 0.25, "value": 5, "duration": 2000 }
+      "specialEffect": { "type": "bleed", "chance": 0.25, "value": 5, "duration": 2000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "baseball_bat",
@@ -39,7 +53,14 @@
       "fireRate": 700,
       "rarity": "common",
       "maxDurability": 80,
-      "specialEffect": { "type": "knockback", "chance": 0.3, "value": 40, "duration": 0 }
+      "specialEffect": { "type": "knockback", "chance": 0.3, "value": 40, "duration": 0 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "crowbar",
@@ -52,7 +73,14 @@
       "fireRate": 600,
       "rarity": "uncommon",
       "maxDurability": 100,
-      "specialEffect": { "type": "cripple", "chance": 0.25, "value": 0.5, "duration": 3000 }
+      "specialEffect": { "type": "cripple", "chance": 0.25, "value": 0.5, "duration": 3000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "two_by_four",
@@ -65,7 +93,14 @@
       "fireRate": 650,
       "rarity": "common",
       "maxDurability": 40,
-      "specialEffect": { "type": "stun", "chance": 0.15, "value": 0, "duration": 1000 }
+      "specialEffect": { "type": "stun", "chance": 0.15, "value": 0, "duration": 1000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "fire_axe",
@@ -78,7 +113,14 @@
       "fireRate": 900,
       "rarity": "rare",
       "maxDurability": 45,
-      "specialEffect": { "type": "cleave", "chance": 0.2, "value": 30, "duration": 0 }
+      "specialEffect": { "type": "cleave", "chance": 0.2, "value": 30, "duration": 0 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "machete",
@@ -117,7 +159,14 @@
       "fireRate": 400,
       "rarity": "common",
       "maxDurability": 40,
-      "specialEffect": null
+      "specialEffect": null,
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Piercing Shot",
+        "description": "Projectile passes through first zombie to hit the next",
+        "type": "piercing_shot",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "9mm_compact",
@@ -130,7 +179,14 @@
       "fireRate": 300,
       "rarity": "common",
       "maxDurability": 50,
-      "specialEffect": null
+      "specialEffect": null,
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Piercing Shot",
+        "description": "Projectile passes through first zombie to hit the next",
+        "type": "piercing_shot",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "revolver",
@@ -169,7 +225,14 @@
       "fireRate": 800,
       "rarity": "uncommon",
       "maxDurability": 35,
-      "specialEffect": null
+      "specialEffect": null,
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Phosphor Rounds",
+        "description": "Sets zombie on fire: 8 dmg/s for 3 seconds",
+        "type": "phosphor_rounds",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "assault_rifle",
@@ -182,7 +245,14 @@
       "fireRate": 250,
       "rarity": "uncommon",
       "maxDurability": 45,
-      "specialEffect": null
+      "specialEffect": null,
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Phosphor Rounds",
+        "description": "Sets zombie on fire: 8 dmg/s for 3 seconds",
+        "type": "phosphor_rounds",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "scoped_rifle",
@@ -221,7 +291,14 @@
       "fireRate": 900,
       "rarity": "uncommon",
       "maxDurability": 30,
-      "specialEffect": null
+      "specialEffect": null,
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Buckshot",
+        "description": "Fires 5 pellets in a 30 degree spread",
+        "type": "buckshot",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "pump_shotgun",
@@ -234,7 +311,14 @@
       "fireRate": 1100,
       "rarity": "uncommon",
       "maxDurability": 50,
-      "specialEffect": { "type": "knockback", "chance": 0.4, "value": 20, "duration": 0 }
+      "specialEffect": { "type": "knockback", "chance": 0.4, "value": 20, "duration": 0 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Buckshot",
+        "description": "Fires 5 pellets in a 30 degree spread",
+        "type": "buckshot",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "combat_shotgun",
@@ -273,7 +357,14 @@
       "fireRate": 2500,
       "rarity": "uncommon",
       "maxDurability": 8,
-      "specialEffect": { "type": "incendiary", "chance": 1.0, "value": 40, "duration": 5000 }
+      "specialEffect": { "type": "incendiary", "chance": 1.0, "value": 40, "duration": 5000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Explosive Impact",
+        "description": "AOE explosion on impact: 60px radius, 50% dmg",
+        "type": "explosive_impact",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
     },
     {
       "id": "grenade_launcher",

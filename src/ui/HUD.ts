@@ -44,6 +44,8 @@ export class HUD {
   private weapon1DurBar!: Phaser.GameObjects.Graphics;
   private weapon1DurBarBg!: Phaser.GameObjects.Graphics;
   private weapon1EffectText!: Phaser.GameObjects.Text;
+  // Ultimate glow overlay -- shown when weapon is Lv5
+  private weapon1UltiGlow!: Phaser.GameObjects.Graphics;
 
   // Bottom HUD elements -- secondary weapon (slot 2)
   private weapon2SlotLabel!: Phaser.GameObjects.Text;
@@ -259,6 +261,11 @@ export class HUD {
     }).setOrigin(0, 0);
     this.container.add(this.weapon1EffectText);
 
+    // Ultimate glow: gold border around weapon 1 row -- hidden by default
+    this.weapon1UltiGlow = scene.add.graphics();
+    this.weapon1UltiGlow.setVisible(false);
+    this.container.add(this.weapon1UltiGlow);
+
     // ---- Weapon 2 row (bottom row) ------------------------------------
     const row2Y = barY + WEAPON2_ROW_Y;
 
@@ -430,12 +437,14 @@ export class HUD {
   /**
    * Update primary weapon display (slot 1).
    * Called whenever the active weapon changes or its stats change.
+   * weaponLevel: if >= 5, shows gold ultimate glow around the weapon row.
    */
   updateWeapon(
     name: string,
     durability: number,
     maxDurability: number,
-    specialEffect?: WeaponSpecialEffect | null
+    specialEffect?: WeaponSpecialEffect | null,
+    weaponLevel?: number
   ): void {
     this.weapon1Text.setText(name);
     this.weapon1Text.setColor(durability <= 0 ? '#F44336' : '#E8DCC8');
@@ -454,6 +463,15 @@ export class HUD {
       this.weapon1EffectText.setText(`${specialEffect.type.toUpperCase()} ${pct}%`);
     } else {
       this.weapon1EffectText.setText('');
+    }
+
+    // Ultimate glow: draw gold border around the weapon 1 row when Lv5
+    const isUltimate = (weaponLevel ?? 0) >= 5;
+    this.weapon1UltiGlow.setVisible(isUltimate);
+    if (isUltimate) {
+      this.weapon1UltiGlow.clear();
+      this.weapon1UltiGlow.lineStyle(2, 0xFFD700, 0.85);
+      this.weapon1UltiGlow.strokeRect(4, GAME_HEIGHT - BOTTOM_H + 2, 210, BOTTOM_H / 2 - 4);
     }
   }
 

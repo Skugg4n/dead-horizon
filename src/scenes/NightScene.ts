@@ -73,7 +73,7 @@ import { FogOfWar } from '../systems/FogOfWar';
 import { NightEventManager, BLOOD_MOON_SPEED_MULTIPLIER, BLOOD_MOON_HP_MULTIPLIER, RAIN_MALFUNCTION_BONUS, RAIN_FIRE_DAMAGE_MULTIPLIER } from '../systems/NightEventManager';
 import { distanceBetween, angleBetween } from '../utils/math';
 import { AudioManager } from '../systems/AudioManager';
-import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect } from '../config/types';
+import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect, WeaponUltimateType } from '../config/types';
 import type { ZombieConfig } from '../entities/Zombie';
 // zombie-loot.json replaced by per-enemy dropTable in enemies.json (v1.9.1)
 import structuresData from '../data/structures.json';
@@ -1442,15 +1442,30 @@ export class NightScene extends Phaser.Scene {
         const finalDamage = this.calcRangedDamage(proj);
         zombie.takeDamage(finalDamage);
 
-        // Piercing: projectile passes through the zombie -- do NOT deactivate
-        const isPiercing = proj.specialEffect?.type === 'piercing';
-        if (!isPiercing) {
+        // Piercing Shot ultimate: projectile passes through ONE zombie then deactivates
+        // Also handles the legacy specialEffect piercing type (silenced_pistol etc.)
+        const isSpecialPiercing = proj.specialEffect?.type === 'piercing';
+        const isUltimatePiercing = proj.piercing;
+
+        if (isUltimatePiercing) {
+          // Allow pass-through once; deactivate after the second hit
+          proj.piercingHitCount++;
+          if (proj.piercingHitCount > 1) {
+            proj.deactivate();
+          }
+          // Do not deactivate on first hit
+        } else if (!isSpecialPiercing) {
           proj.deactivate();
         }
 
         // Apply on-hit ranged effects that require a zombie target (knockback, incendiary)
         if (proj.specialEffect && zombie.active) {
           this.applyRangedSpecialEffect(zombie, proj, proj.specialEffect);
+        }
+
+        // Apply ultimate on-hit effects (phosphor burn, explosive_impact handled via specialEffect tag)
+        if (proj.ultimateType && zombie.active) {
+          this.applyRangedUltimateEffect(zombie, proj.ultimateType);
         }
       },
     );
@@ -2378,7 +2393,7 @@ export class NightScene extends Phaser.Scene {
     // Slot 1: primary
     if (primaryWeapon) {
       const stats = this.weaponManager.getWeaponStats(primaryWeapon);
-      this.hud.updateWeapon(stats.name, primaryWeapon.durability, primaryWeapon.maxDurability, stats.specialEffect);
+      this.hud.updateWeapon(stats.name, primaryWeapon.durability, primaryWeapon.maxDurability, stats.specialEffect, primaryWeapon.level);
     } else {
       this.hud.updateWeapon('--', 0, 1);
     }
@@ -2443,6 +2458,17 @@ export class NightScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Resolve the active ultimate type for the currently equipped weapon.
+   * Returns null if weapon is not level 5 or has no ultimate defined.
+   */
+  private getActiveUltimate(): WeaponUltimateType | null {
+    const weapon = this.weaponManager.getEquipped();
+    if (!weapon || weapon.level < 5) return null;
+    const data = WeaponManager.getWeaponData(weapon.weaponId);
+    return data?.ultimate?.type ?? null;
+  }
+
   private shootAt(target: Zombie): void {
     if (!target.active) return;
     const weapon = this.weaponManager.getEquipped();
@@ -2453,6 +2479,9 @@ export class NightScene extends Phaser.Scene {
 
     const stats = this.weaponManager.getWeaponStats(weapon);
     const isMelee = stats.weaponClass === 'melee';
+
+    // Resolve ultimate type before consuming ammo (may redirect firing logic entirely)
+    const ultimateType = this.getActiveUltimate();
 
     // Consume ammo for ranged weapons
     if (!isMelee) {
@@ -2479,6 +2508,94 @@ export class NightScene extends Phaser.Scene {
 
     // Melee weapons apply damage directly -- no projectiles
     if (isMelee) {
+      // --- ULTIMATE: Spin Attack ---
+      // Hits ALL enemies within 48px radius instead of just the nearest target.
+      if (ultimateType === 'spin_attack') {
+        const SPIN_RADIUS = 48;
+        let hitCount = 0;
+        this.zombieGroup.getChildren().forEach(child => {
+          const z = child as Zombie;
+          if (!z.active) return;
+          const dist = distanceBetween(this.player.x, this.player.y, z.x, z.y);
+          if (dist <= SPIN_RADIUS && hitCount < 10) { // cap at 10 for performance
+            hitCount++;
+            z.takeDamage(stats.damage);
+            AudioManager.play('melee_hit');
+            this.bloodEmitter.emitParticleAt(z.x, z.y, 5);
+            if (stats.specialEffect && z.active) {
+              this.applyMeleeSpecialEffect(z, stats.specialEffect);
+            }
+          }
+        });
+        // Visual: full circle arc showing spin radius
+        const arc = this.add.graphics();
+        arc.setDepth(9);
+        arc.lineStyle(3, 0xFFD700, 0.8);
+        arc.strokeCircle(this.player.x, this.player.y, SPIN_RADIUS);
+        this.tweens.add({
+          targets: arc,
+          alpha: 0,
+          scaleX: 1.3,
+          scaleY: 1.3,
+          duration: 250,
+          onComplete: () => arc.destroy(),
+        });
+        return;
+      }
+
+      // --- ULTIMATE: Cleave Pierce ---
+      // Hits the primary target and the zombie directly behind it (75% damage).
+      if (ultimateType === 'cleave_pierce') {
+        target.takeDamage(stats.damage);
+        AudioManager.play('melee_hit');
+        this.bloodEmitter.emitParticleAt(target.x, target.y, 6);
+        if (stats.specialEffect && target.active) {
+          this.applyMeleeSpecialEffect(target, stats.specialEffect);
+        }
+        // Find zombie directly behind target (same direction from player)
+        const hitAngle = angleBetween(this.player.x, this.player.y, target.x, target.y);
+        let bestBehind: Zombie | null = null;
+        let bestDist = Infinity;
+        this.zombieGroup.getChildren().forEach(child => {
+          const z = child as Zombie;
+          if (!z.active || z === target) return;
+          // Check if zombie is in the same direction (within 30 degrees) and further
+          const zAngle = angleBetween(this.player.x, this.player.y, z.x, z.y);
+          const angleDiff = Math.abs(Phaser.Math.Angle.Wrap(zAngle - hitAngle));
+          if (angleDiff < 0.52 /* ~30 degrees */) {
+            const dist = distanceBetween(this.player.x, this.player.y, z.x, z.y);
+            if (dist > distanceBetween(this.player.x, this.player.y, target.x, target.y) && dist < bestDist) {
+              bestDist = dist;
+              bestBehind = z;
+            }
+          }
+        });
+        if (bestBehind) {
+          const pierceDamage = Math.round(stats.damage * 0.75);
+          (bestBehind as Zombie).takeDamage(pierceDamage);
+          if ((bestBehind as Zombie).active) this.bloodEmitter.emitParticleAt((bestBehind as Zombie).x, (bestBehind as Zombie).y, 4);
+        }
+        // Visual: elongated double-arc
+        const arc = this.add.graphics();
+        arc.setDepth(9);
+        arc.lineStyle(2, 0xFFAA00, 0.8);
+        arc.beginPath();
+        arc.arc(this.player.x, this.player.y, stats.range, hitAngle - 0.6, hitAngle + 0.6, false);
+        arc.strokePath();
+        arc.lineStyle(1, 0xFFAA00, 0.4);
+        arc.beginPath();
+        arc.arc(this.player.x, this.player.y, stats.range * 1.8, hitAngle - 0.4, hitAngle + 0.4, false);
+        arc.strokePath();
+        this.tweens.add({
+          targets: arc,
+          alpha: 0,
+          duration: 220,
+          onComplete: () => arc.destroy(),
+        });
+        return;
+      }
+
+      // Default melee: single target hit
       target.takeDamage(stats.damage);
       AudioManager.play('melee_hit');
       this.bloodEmitter.emitParticleAt(target.x, target.y, 6);
@@ -2513,25 +2630,59 @@ export class NightScene extends Phaser.Scene {
       target.x, target.y
     );
 
+    // --- ULTIMATE: Buckshot -- 5 pellets in 30 degree spread ---
+    if (ultimateType === 'buckshot') {
+      const SPREAD = Math.PI / 6; // 30 degrees total
+      const pelletCount = 5;
+      for (let i = 0; i < pelletCount; i++) {
+        const spreadOffset = -SPREAD / 2 + (SPREAD / (pelletCount - 1)) * i;
+        this.fireProjectile(angle + spreadOffset, Math.round(stats.damage / 3), stats.specialEffect);
+      }
+      return;
+    }
+
+    // --- ULTIMATE: Explosive Impact -- AOE on projectile impact ---
+    if (ultimateType === 'explosive_impact') {
+      // Explosive impact handled via special synthetic effect applied post-hit.
+      // We fire a single projectile and tag it for explosion handling in the collision callback.
+      // Store on projectile as a synthetic specialEffect with type 'cleave' and 60px radius.
+      const explosiveEffect: WeaponSpecialEffect = {
+        type: 'cleave',
+        chance: 1.0,
+        value: 60,   // radius in px
+        duration: 0,
+      };
+      this.fireProjectile(angle, stats.damage, explosiveEffect);
+      return;
+    }
+
     if (stats.weaponClass === 'shotgun') {
       // Shotgun fires a spread of 3 pellets -- each pellet carries the special effect
       const spreadAngles = [angle - 0.15, angle, angle + 0.15];
       for (const a of spreadAngles) {
-        this.fireProjectile(a, Math.round(stats.damage / 3), stats.specialEffect);
+        // Phosphor rounds on shotgun: tag each pellet with the ultimate type
+        const projUltimate = ultimateType === 'phosphor_rounds' ? 'phosphor_rounds' as WeaponUltimateType : null;
+        this.fireProjectile(a, Math.round(stats.damage / 3), stats.specialEffect, false, projUltimate);
       }
+    } else if (ultimateType === 'piercing_shot') {
+      // Piercing Shot: mark the projectile so it passes through the first zombie
+      this.fireProjectile(angle, stats.damage, stats.specialEffect, true, 'piercing_shot');
+    } else if (ultimateType === 'phosphor_rounds') {
+      // Phosphor Rounds: tag projectile so collision callback applies burn DOT
+      this.fireProjectile(angle, stats.damage, stats.specialEffect, false, 'phosphor_rounds');
     } else {
       this.fireProjectile(angle, stats.damage, stats.specialEffect);
     }
   }
 
-  private fireProjectile(angle: number, damage: number, specialEffect: WeaponSpecialEffect | null = null): void {
+  private fireProjectile(angle: number, damage: number, specialEffect: WeaponSpecialEffect | null = null, piercing: boolean = false, ultimateType: WeaponUltimateType | null = null): void {
     const existing = this.projectileGroup.getFirstDead(false) as Projectile | null;
     if (existing) {
-      existing.fire(this.player.x, this.player.y, angle, damage, specialEffect);
+      existing.fire(this.player.x, this.player.y, angle, damage, specialEffect, piercing, ultimateType);
     } else {
       const proj = new Projectile(this, this.player.x, this.player.y);
       this.projectileGroup.add(proj);
-      proj.fire(this.player.x, this.player.y, angle, damage, specialEffect);
+      proj.fire(this.player.x, this.player.y, angle, damage, specialEffect, piercing, ultimateType);
     }
   }
 
@@ -2781,6 +2932,29 @@ export class NightScene extends Phaser.Scene {
       case 'bleed':
       case 'cripple':
       case 'stun':
+        break;
+    }
+  }
+
+  /**
+   * Apply ranged ultimate on-hit effects that are not covered by specialEffect.
+   * Currently handles: phosphor_rounds (burn DOT on the hit zombie).
+   * piercing_shot, buckshot, explosive_impact are handled in shootAt / specialEffect respectively.
+   */
+  private applyRangedUltimateEffect(zombie: Zombie, ultimateType: WeaponUltimateType): void {
+    switch (ultimateType) {
+      case 'phosphor_rounds': {
+        // Set zombie on fire: 8 dmg/s for 3 seconds
+        // applyBurn refreshes duration if already burning
+        zombie.applyBurn(8, 3000);
+        break;
+      }
+      // Other ultimate types handled elsewhere -- no-op here
+      case 'spin_attack':
+      case 'cleave_pierce':
+      case 'buckshot':
+      case 'piercing_shot':
+      case 'explosive_impact':
         break;
     }
   }

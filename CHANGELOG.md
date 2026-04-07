@@ -1,5 +1,59 @@
 # Dead Horizon -- Changelog
 
+## [v4.2.0] - 2026-04-04 22:00 -- Weapon Ultimates: unika abilities vid Lv5
+
+### Nya typer i types.ts
+- `WeaponUltimateType`: union type for alle 6 ultimate-typer
+- `WeaponUltimateCost`, `WeaponUltimate`: strukturer for ultimate-data per vapen
+- `WeaponData` utokad med `maxLevel?` och `ultimate?` faelt
+
+### Uppdatering av weapons.json
+- 10 vapen far `ultimate`-faelt och `maxLevel: 5`:
+  - crowbar, baseball_bat, two_by_four: Spin Attack (48px radius mot ALLA)
+  - rusty_knife, hunting_knife, fire_axe: Cleave (genomstick + 75% skada bakre)
+  - worn_pistol, 9mm_compact: Piercing Shot (projektil gar igenom forsta zombie)
+  - hunting_rifle, assault_rifle: Phosphor Rounds (8 dmg/s i 3s, orange glow)
+  - pump_shotgun, sawed_off: Buckshot (5 projektiler i 30 graders kon)
+  - molotov: Explosive Impact (AOE 60px, 50% skada, via cleave-specialEffect)
+
+### Projectile.ts
+- Ny `piercing: boolean` -- sant om Piercing Shot ultimate ar aktivt
+- Ny `piercingHitCount: number` -- raknar antal zombie-traffar (genomstick stoppas efter 1)
+- Ny `ultimateType: WeaponUltimateType | null` -- taggad vid avlosning
+- `fire()` tar emot `piercing` och `ultimateType` som valfria parametrar
+
+### Zombie.ts
+- Ny `burnDamage: number` och `burnTimer: number` -- publik state for phosphor DOT
+- Ny `private burnTickAccum: number` -- ackumulator for 1-sekunders tick
+- `applyBurn(dmgPerSec, durationMs)` -- publika metod; uppdaterar/forlangar brand
+- `update()`: hanterar phosphor burn DOT, orange tint (0xFF6600) medan zombie brinner
+
+### NightScene.ts
+- `getActiveUltimate()` -- hjalpmetod; returnerar WeaponUltimateType | null for equippat vapen
+- `shootAt()`: branchar pa ultimate-typ fore normal skjutlogik:
+  - spin_attack: skadar upp till 10 fiender inom 48px, visuell gul cirkel-arc
+  - cleave_pierce: traff + genomstick (bakre zombie), visuell dubbel-arc
+  - buckshot: 5 projektiler i 30 graders spread
+  - explosive_impact: skjuter med syntetisk cleave-effekt (60px, chance 1.0)
+  - piercing_shot: markerar projektilen som `piercing=true`
+  - phosphor_rounds: taggad `ultimateType` pa projektilen
+- `fireProjectile()` tar emot `piercing` och `ultimateType`
+- Overlap-callback: hanterar `isUltimatePiercing` (genomstick) och anropar `applyRangedUltimateEffect`
+- `applyRangedUltimateEffect()`: ny metod; anropar `zombie.applyBurn(8, 3000)` vid phosphor_rounds
+
+### WeaponManager.ts
+- `canUnlockUltimate(weaponInstanceId)` -- kollar niva 4, ultimate definierat, resurser racker
+- `unlockUltimate(weaponInstanceId)` -- kostnad 15 parts + 5 scrap, satter niva 5
+
+### EquipmentPanel.ts
+- Import av `WeaponUltimate` fran types
+- `buildUpgradeView()`: visar ultimate-sektion vid niva 4 med kostnad + klickbart kop
+- Visar "ULTIMATE ACTIVE" om vapnet redan ar Lv5
+
+### HUD.ts
+- `weapon1UltiGlow: Phaser.GameObjects.Graphics` -- gul border runt vapenrad 1
+- `updateWeapon()` tar emot `weaponLevel?` -- visar/doljer gul glow vid Lv5
+
 ## [v4.1.0] - 2026-04-04 19:00 -- Bug fixes: 7 utvarderingsproblem atgardade
 
 ### NightScene.ts -- Fix 1: Top Traps aggregerar per trap-typ, inte per instans

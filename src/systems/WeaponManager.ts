@@ -364,6 +364,45 @@ export class WeaponManager {
   }
 
   // ---------------------------------------------------------------------------
+  // Ultimate unlock API (Lv4 -> Lv5)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Check whether the weapon can be upgraded to level 5 (ultimate unlock).
+   * Conditions: weapon must be level 4, have an ultimate defined in weapons.json,
+   * and the player must have enough parts + scrap.
+   */
+  canUnlockUltimate(weaponInstanceId: string): boolean {
+    const weapon = this.gameState.inventory.weapons.find(w => w.id === weaponInstanceId);
+    if (!weapon || weapon.level !== 4) return false;
+    const data = WeaponManager.getWeaponData(weapon.weaponId);
+    if (!data?.ultimate) return false;
+    const { parts, scrap } = data.ultimate.cost;
+    return (
+      this.gameState.inventory.resources.parts >= parts &&
+      this.gameState.inventory.resources.scrap >= scrap
+    );
+  }
+
+  /**
+   * Unlock the ultimate: promote weapon from level 4 to level 5 and consume resources.
+   * Returns true on success.
+   */
+  unlockUltimate(weaponInstanceId: string): boolean {
+    if (!this.canUnlockUltimate(weaponInstanceId)) return false;
+    const weapon = this.gameState.inventory.weapons.find(w => w.id === weaponInstanceId);
+    if (!weapon) return false;
+    const data = WeaponManager.getWeaponData(weapon.weaponId);
+    if (!data?.ultimate) return false;
+    const { parts, scrap } = data.ultimate.cost;
+    this.gameState.inventory.resources.parts -= parts;
+    this.gameState.inventory.resources.scrap -= scrap;
+    weapon.level = 5;
+    this.scene.events.emit('weapon-leveled', weapon);
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
   // Legacy single-level upgrade API (kept for backward compat; delegates to new)
   // ---------------------------------------------------------------------------
 

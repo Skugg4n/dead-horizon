@@ -158,6 +158,12 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   private crippleTimer: number = 0;   // -50% speed
   private stunTimer: number = 0;      // 0% speed (full stop)
 
+  // Phosphor burn DOT (from Phosphor Rounds ultimate)
+  // burnTimer > 0 means zombie is on fire; damage applied per second in update()
+  burnDamage: number = 0;  // damage per second
+  burnTimer: number = 0;   // remaining burn duration in ms
+  private burnTickAccum: number = 0; // accumulator for 1-second burn ticks
+
   // Pulsing tint for boss/screamer
   private pulseTimer: number = 0;
   private baseTint: number | null = null;
@@ -403,6 +409,22 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.soundTargetTimer = Zombie.SOUND_TARGET_DURATION;
   }
 
+  /**
+   * Apply or refresh phosphor burn DOT.
+   * dmgPerSec: damage dealt per second.
+   * durationMs: how long the burn lasts in milliseconds.
+   * Refreshes if already burning (takes the longer duration).
+   */
+  applyBurn(dmgPerSec: number, durationMs: number): void {
+    this.burnDamage = dmgPerSec;
+    // Refresh to full duration if new burn is longer than remaining
+    if (durationMs > this.burnTimer) {
+      this.burnTimer = durationMs;
+    }
+    // Reset tick accumulator so first tick fires after 1 full second
+    this.burnTickAccum = 0;
+  }
+
   update(delta: number): void {
     if (!this.target || !this.active) return;
 
@@ -423,6 +445,26 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     }
     if (this.crippleTimer > 0) {
       this.crippleTimer = Math.max(0, this.crippleTimer - delta);
+    }
+
+    // Phosphor burn DOT: apply burnDamage per second while burnTimer > 0
+    if (this.burnTimer > 0) {
+      this.burnTimer -= delta;
+      this.burnTickAccum += delta;
+      // Apply one tick of damage every 1000ms
+      if (this.burnTickAccum >= 1000) {
+        this.burnTickAccum -= 1000;
+        this.takeDamage(this.burnDamage);
+      }
+      // Glow orange while burning
+      if (this.burnTimer > 0) {
+        this.setTint(0xFF6600);
+      } else {
+        // Burn expired -- restore tint
+        this.burnTimer = 0;
+        this.burnTickAccum = 0;
+        this.restoreTint();
+      }
     }
 
     // Boss pulsing glow + periodic stomp sound while moving

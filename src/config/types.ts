@@ -94,6 +94,27 @@ export type WeaponUpgradeType =
   | 'quick_grip'
   | 'serrated_edge';
 
+// Ultimate ability types unlocked at weapon level 5
+export type WeaponUltimateType =
+  | 'spin_attack'
+  | 'cleave_pierce'
+  | 'buckshot'
+  | 'phosphor_rounds'
+  | 'piercing_shot'
+  | 'explosive_impact';
+
+export interface WeaponUltimateCost {
+  parts: number;
+  scrap: number;
+}
+
+export interface WeaponUltimate {
+  name: string;
+  description: string;
+  type: WeaponUltimateType;
+  cost: WeaponUltimateCost;
+}
+
 // One upgrade slot on a weapon instance -- tracks which upgrade and its current level (1-based)
 export interface WeaponUpgrade {
   id: WeaponUpgradeType;
@@ -149,6 +170,10 @@ export interface WeaponData {
   rarity: Rarity;
   maxDurability: number;
   specialEffect: WeaponSpecialEffect | null;
+  // Weapon level cap (default 4, extended to 5 when ultimate is defined)
+  maxLevel?: number;
+  // Ultimate ability unlocked when weapon reaches level 5
+  ultimate?: WeaponUltimate;
 }
 
 // Legacy type -- kept only for SaveManager migration path; new code uses WeaponUpgrade[]
