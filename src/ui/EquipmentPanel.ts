@@ -480,7 +480,43 @@ export class EquipmentPanel {
       }
     }
 
-    return y + rowH + 2;
+    // SCRAP button -- dismantle weapon for parts + scrap
+    const scrapValues: Record<string, { scrap: number; parts: number }> = {
+      common:    { scrap: 2, parts: 1 },
+      uncommon:  { scrap: 3, parts: 2 },
+      rare:      { scrap: 5, parts: 3 },
+      legendary: { scrap: 8, parts: 5 },
+    };
+    const sv = scrapValues[w.rarity] ?? { scrap: 2, parts: 1 };
+    const scrapBtn = this.scene.add.text(0, y + 28, `[SCRAP +${sv.scrap}S +${sv.parts}P]`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '7px',
+      color: '#AA6633',
+    }).setInteractive({ useHandCursor: true });
+    scrapBtn.on('pointerover', () => scrapBtn.setColor('#FFD700'));
+    scrapBtn.on('pointerout', () => scrapBtn.setColor('#AA6633'));
+    scrapBtn.on('pointerdown', () => {
+      // Remove weapon from inventory
+      const idx = this.gameState.inventory.weapons.indexOf(w);
+      if (idx >= 0) {
+        this.gameState.inventory.weapons.splice(idx, 1);
+        // Unequip if equipped
+        if (this.gameState.equipped.primaryWeaponId === w.id) {
+          this.gameState.equipped.primaryWeaponId = null;
+        }
+        if (this.gameState.equipped.secondaryWeaponId === w.id) {
+          this.gameState.equipped.secondaryWeaponId = null;
+        }
+        // Add resources
+        this.gameState.inventory.resources.scrap += sv.scrap;
+        this.gameState.inventory.resources.parts += sv.parts;
+        this.onResourceChange();
+        this.rebuild();
+      }
+    });
+    content.add(scrapBtn);
+
+    return y + rowH + 14;
   }
 
   // ---------------------------------------------------------------------------
