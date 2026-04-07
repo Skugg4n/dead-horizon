@@ -419,6 +419,11 @@ export class HUD {
     this.waveText.setText(`Night ${night} / ${maxNights}`);
   }
 
+  /** Set endless mode display: "Endless -- Night N" instead of "Night N / N". */
+  setEndlessNight(night: number): void {
+    this.waveText.setText(`Endless -- N${night}`);
+  }
+
   /** Update wave + enemy count sub-line. */
   updateWave(wave: number, maxWaves: number = 5): void {
     this.waveSubText.setText(`Wave ${wave}/${maxWaves}`);

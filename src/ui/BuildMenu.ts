@@ -77,7 +77,9 @@ const STRUCTURE_ICONS: Record<string, string> = {
   chain_wall:     '⛓️',
 };
 
-// BASIC tab: primitive traps (no mechanical systems)
+// BASIC tab: primitive traps (no mechanical systems).
+// Note: bear_trap, landmine, oil_slick have category='special' in structures.json
+// but they belong here visually -- the tab logic has an explicit ID override below.
 const BASIC_TRAP_IDS = new Set([
   'nail_board', 'trip_wire', 'glass_shards', 'tar_pit', 'spike_strip',
   'trap', 'bear_trap', 'landmine', 'oil_slick', 'sandbags', 'pit_trap',
@@ -684,14 +686,16 @@ export class BuildMenu {
 
   /** Determine which tab a structure belongs to based on its category and id. */
   private getTabForStructure(s: StructureData): TabName {
-    if (s.category === 'special') return 'SPECIAL';
+    // BASIC_TRAP_IDS is checked first so that bear_trap / landmine / oil_slick
+    // (which have category='special' in structures.json) still show in BASIC.
+    if (BASIC_TRAP_IDS.has(s.id)) return 'BASIC';
     // Specific wall/blocker ids go to WALLS regardless of category
     if (WALL_IDS.has(s.id)) return 'WALLS';
-    // Mechanical traps (not walls) go to MACHINES tab
-    if (s.category === 'machine') return 'MACHINES';
-    // Primitive trap ids go to BASIC tab
-    if (BASIC_TRAP_IDS.has(s.id)) return 'BASIC';
-    // Remaining primitives (barricade, wall, etc.) default to WALLS
+    // All mechanical/heavy/combo categories go to MACHINES tab
+    if (s.category === 'machine' || s.category === 'heavy' || s.category === 'combo') return 'MACHINES';
+    // Remaining specials (pillbox, shelter, storage, farm) go to SPECIAL tab
+    if (s.category === 'special') return 'SPECIAL';
+    // Remaining primitives (barricade, wall) default to WALLS
     return 'WALLS';
   }
 

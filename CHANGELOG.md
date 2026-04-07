@@ -1,5 +1,18 @@
 # Dead Horizon -- Changelog
 
+## [v4.9.1] - 2026-04-04 -- Kod-audit runda 2: tab-sortering, endless-HUD, kod-rensning
+
+### Varfor
+Andra audit-rundan identifierade misplacerade strukturer i BuildMenu-flikar, forvirrande "Night N / N" i Endless mode, och onodiga console.log-anrop i hot path.
+
+### Andrat
+- **BuildMenu tab-fix**: getTabForStructure() kontrollerar nu BASIC_TRAP_IDS FORE category='special'. bear_trap, landmine, oil_slick hamnar nu korrekt i BASIC-fliken (de hade category='special' men ar primitiva fallor).
+- **BuildMenu tab-fix 2**: heavy- och combo-kategorier (tractor_wheel_roller, wrecking_ball, log_avalanche, falling_car, treadmill_blades, fan_glass, elevator_shaft, rube_goldberg) hamnar nu i MACHINES-fliken istallet for WALLS.
+- **HUD Endless mode**: Nytt setEndlessNight(n) visas "Endless -- N1" istallet for forvirrande "Night N / N".
+- **NightScene**: Borttagen verbose console.log per struktur i createStructures() -- loggade varje placering i hot path vid nattstart.
+- **ZoneCompleteScene**: Borttagen console.log pa zoneProgress vid zone completion.
+- GAME_VERSION: 4.9.1
+
 ## [v4.9.0] - 2026-04-04 -- 8-fix audit: UI, visuals, balans och UX
 
 ### Varfor

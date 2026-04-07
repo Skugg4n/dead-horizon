@@ -286,3 +286,11 @@ Om nagon failar, fixa INNAN push. GitHub Pages visar senaste LYCKADE deploy, sa 
 ### for-loop arrayaccess med noUncheckedIndexedAccess
 **Problem:** TypeScript strict mode flaggar `for (let i = ...; ) { const ev = arr[i]; ev.property }` som "possibly undefined" om tsconfig har noUncheckedIndexedAccess.
 **Losning:** Lagg till `if (!ev) continue;` guard direkt efter index-accessen.
+
+### BuildMenu tab-prioritering -- ID-check maste ga fore category-check
+**Problem:** Strukturer som bear_trap, landmine, oil_slick har category='special' i structures.json (korrekt -- de ar "special unlockable" ur game-design-perspektiv) men ska visas i BASIC-fliken i BuildMenu. Den gamla getTabForStructure() kontrollerade category === 'special' FORST och skickade dem till SPECIAL-fliken.
+**Losning:** Kontrollera BASIC_TRAP_IDS.has(s.id) INNAN category-checken. ID-baserade overrides ska alltid ga fore generella kategori-regler i BuildMenu. Samma princip: WALL_IDS.has(s.id) kontrolleras fore machine-kategori (chain_wall har cat=machine men ska vara i WALLS).
+
+### Verbose console.log i hot path skadar performance
+**Problem:** NightScene.createStructures() loggade varje struktur vid nattstart (`[NightScene] createStructures: barricade at (x, y)`). Med 20+ strukturer = 20+ konsolrader per nattstart, och dev-tools slow-down vid stora saves.
+**Losning:** Ta bort console.log i slingor som kors per struktur/entitet. Anvand kommentarer istallet. Behall loggar bara for fel (console.error/warn) eller engangshandelseser.

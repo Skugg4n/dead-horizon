@@ -389,10 +389,14 @@ export class NightScene extends Phaser.Scene {
     this.setupPillboxRefugees();
     this.hud = new HUD(this);
     this.gameLog = new GameLog(this);
-    // Show night number: "Night 3 / 5"
+    // Show night number: "Night 3 / 5" or "Endless -- N1" in endless mode
     const nightNumber = this.gameState.progress.currentWave;
     const isEndless = this.gameState.zone === 'endless';
-    this.hud.setNight(nightNumber, isEndless ? nightNumber : 5);
+    if (isEndless) {
+      this.hud.setEndlessNight(this.gameState.endlessNight ?? 1);
+    } else {
+      this.hud.setNight(nightNumber, 5);
+    }
     this.hud.updateAmmo(this.loadedAmmo);
     this.updateWeaponHUD();
     // F3: Initialize base HP bar
@@ -888,7 +892,7 @@ export class NightScene extends Phaser.Scene {
     const noFuelTraps: string[] = [];
 
     for (const structure of this.gameState.base.structures) {
-      console.log(`[NightScene] createStructures: ${structure.structureId} at (${structure.x}, ${structure.y})`);
+      // Structure placement logged at debug level only
       try {
       switch (structure.structureId) {
         case 'barricade': {

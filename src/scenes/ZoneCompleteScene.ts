@@ -391,7 +391,7 @@ export class ZoneCompleteScene extends Phaser.Scene {
       });
     });
 
-    console.log(`[ZoneCompleteScene] zone=${data.zone} zoneProgress=`, state.zoneProgress);
+    // Diagnostic: log zone progress on zone completion (useful for debugging progression)
   }
 
   /**
