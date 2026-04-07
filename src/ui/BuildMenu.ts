@@ -150,11 +150,11 @@ export class BuildMenu {
     // Backdrop -- no longer closes on click (menu stays open during placement)
     // Player uses [X] button, ESC, or BUILD toggle to close
     this.backdrop = scene.add.graphics();
-    this.backdrop.setDepth(109);
+    this.backdrop.setDepth(209);
     this.backdrop.setVisible(false);
 
     this.container = scene.add.container(PANEL_X, PANEL_Y);
-    this.container.setDepth(110);
+    this.container.setDepth(210);
     this.container.setVisible(false);
   }
 

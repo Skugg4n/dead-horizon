@@ -1,5 +1,8 @@
 # Dead Horizon -- Projektregler
 
+## VIKTIGT -- Bumpa version
+Uppdatera ALLTID versionsnummer i src/config/constants.ts (GAME_VERSION) vid varje commit.
+
 ## Projekt
 Dead Horizon ar ett webbbaserat top-down wave defense / base builder med roguelite-progression.
 Tech stack: Phaser 3 + TypeScript + Vite.
