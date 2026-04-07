@@ -113,8 +113,8 @@ export class DayScene extends Phaser.Scene {
     }
 
     this.createMap();
-    this.renderPlacedStructures();
     this.setupCameras();
+    this.renderPlacedStructures();
 
     // UI layer (created after cameras so addToUI works)
     this.createTopBar();

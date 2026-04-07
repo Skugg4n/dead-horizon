@@ -1,5 +1,18 @@
 # Dead Horizon -- Changelog
 
+## [2.6.4] - 2026-04-07
+
+### Bugfixes
+- Fix pause can't be unpaused: replaced scene.pause() with flag-based
+  pause (physics.pause + gamePaused flag) so ESC still works
+- Fix DayScene crash: renderPlacedStructures called before setupCameras
+  caused "Cannot read 'ignore' of undefined" on uiCamera
+
+### Polish
+- Add icons for 7 new traps in build menu (were showing "?")
+- Fix wave/message announcements flashing too fast (2-2.5s delay)
+- Show meds cost in REST job button: "REST (1 med)"
+
 ## [2.6.2] - 2026-04-06
 
 ### UI/UX fixes (screenshot-verified)

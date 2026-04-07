@@ -78,6 +78,7 @@ export class NightScene extends Phaser.Scene {
   private hud!: HUD;
   private shootCooldown: number = 0;
   private isShooting: boolean = false;
+  private gamePaused: boolean = false;
   private pillboxAssignments: { structure: StructureInstance; refugee: RefugeeInstance; cooldown: number }[] = [];
   private kills: number = 0;
   private loadedAmmo: number = 0;
@@ -284,6 +285,7 @@ export class NightScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    if (this.gamePaused) return;
     this._lastDelta = delta;
     // Accumulate boss-night timer for lighting pulse
     if (this.bossNightOverlay) {
@@ -1400,14 +1402,16 @@ export class NightScene extends Phaser.Scene {
     // E key for repair mechanic (hold near malfunctioned trap)
     this._repairKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
-    // ESC to pause
+    // ESC to pause/unpause (flag-based so input still works while paused)
     const escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     escKey.on('down', () => {
-      if (this.scene.isPaused()) {
-        this.scene.resume();
+      if (this.gamePaused) {
+        this.gamePaused = false;
+        this.physics.resume();
         this.pauseOverlay?.setVisible(false);
       } else {
-        this.scene.pause();
+        this.gamePaused = true;
+        this.physics.pause();
         this.showPauseOverlay();
       }
     });
@@ -1504,7 +1508,8 @@ export class NightScene extends Phaser.Scene {
       Phaser.Geom.Rectangle.Contains
     );
     bg.on('pointerdown', () => {
-      this.scene.resume();
+      this.gamePaused = false;
+      this.physics.resume();
       this.pauseOverlay?.setVisible(false);
     });
   }
