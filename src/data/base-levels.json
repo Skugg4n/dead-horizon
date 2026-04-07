@@ -20,7 +20,7 @@
       "baseHp": 350,
       "cost": { "scrap": 30, "parts": 5 },
       "apCost": 3,
-      "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "shock_wire", "spring_launcher", "chain_wall"],
+      "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "shock_wire", "spring_launcher", "chain_wall", "circle_saw_trap", "razor_wire_carousel", "lawnmower_lane", "treadmill_of_doom", "pendulum_axe", "garage_door_smasher", "bug_zapper_xl", "car_battery_grid", "electric_fence", "net_launcher"],
       "fogRadius": 5,
       "visual": {
         "size": 64,
@@ -35,7 +35,7 @@
       "baseHp": 500,
       "cost": { "scrap": 60, "parts": 10 },
       "apCost": 5,
-      "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "washing_cannon", "storage", "farm", "shock_wire", "spring_launcher", "chain_wall"],
+      "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "washing_cannon", "storage", "farm", "shock_wire", "spring_launcher", "chain_wall", "circle_saw_trap", "razor_wire_carousel", "lawnmower_lane", "treadmill_of_doom", "pendulum_axe", "garage_door_smasher", "bug_zapper_xl", "car_battery_grid", "electric_fence", "net_launcher", "meat_grinder", "belt_sander_gauntlet", "power_drill_press", "piano_wire_web", "car_bomb", "napalm_sprinkler", "gas_main_igniter", "flamethrower_post", "shopping_cart_wall", "car_wreck_barrier", "dumpster_fortress", "glue_floor", "tractor_wheel_roller", "wrecking_ball", "log_avalanche", "falling_car"],
       "fogRadius": 7,
       "visual": {
         "size": 80,
@@ -50,7 +50,7 @@
       "baseHp": 750,
       "cost": { "scrap": 100, "parts": 20 },
       "apCost": 5,
-      "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "washing_cannon", "storage", "farm", "shock_wire", "spring_launcher", "chain_wall"],
+      "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "washing_cannon", "storage", "farm", "shock_wire", "spring_launcher", "chain_wall", "circle_saw_trap", "razor_wire_carousel", "lawnmower_lane", "treadmill_of_doom", "pendulum_axe", "garage_door_smasher", "bug_zapper_xl", "car_battery_grid", "electric_fence", "net_launcher", "meat_grinder", "belt_sander_gauntlet", "power_drill_press", "piano_wire_web", "combine_harvester", "car_bomb", "napalm_sprinkler", "gas_main_igniter", "flamethrower_post", "shopping_cart_wall", "car_wreck_barrier", "dumpster_fortress", "glue_floor", "tractor_wheel_roller", "wrecking_ball", "log_avalanche", "falling_car", "treadmill_blades", "fan_glass", "elevator_shaft", "rube_goldberg"],
       "fogRadius": 9,
       "visual": {
         "size": 96,

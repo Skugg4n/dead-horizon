@@ -79,7 +79,7 @@ export const ENCOUNTER_THRESHOLDS: Record<string, number> = {
   armory: 120,
 };
 
-export const GAME_VERSION = '3.0.0';
+export const GAME_VERSION = '3.1.0';
 
 // Base HP (used in NightScene for base health bar)
 export const BASE_MAX_HP = 200;

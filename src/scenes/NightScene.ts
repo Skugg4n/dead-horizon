@@ -27,6 +27,37 @@ import { TarPit } from '../structures/TarPit';
 import { ShockWire } from '../structures/ShockWire';
 import { SpringLauncher } from '../structures/SpringLauncher';
 import { ChainWall } from '../structures/ChainWall';
+import { CircleSawTrap } from '../structures/CircleSawTrap';
+import { RazorWireCarousel } from '../structures/RazorWireCarousel';
+import { LawnmowerLane } from '../structures/LawnmowerLane';
+import { TreadmillOfDoom } from '../structures/TreadmillOfDoom';
+import { PendulumAxe } from '../structures/PendulumAxe';
+import { GarageDoorSmasher } from '../structures/GarageDoorSmasher';
+import { BugZapperXL } from '../structures/BugZapperXL';
+import { CarBatteryGrid } from '../structures/CarBatteryGrid';
+import { ElectricFence } from '../structures/ElectricFence';
+import { NetLauncher } from '../structures/NetLauncher';
+import { MeatGrinder } from '../structures/MeatGrinder';
+import { BeltSanderGauntlet } from '../structures/BeltSanderGauntlet';
+import { PowerDrillPress } from '../structures/PowerDrillPress';
+import { PianoWireWeb } from '../structures/PianoWireWeb';
+import { CombineHarvester } from '../structures/CombineHarvester';
+import { CarBomb } from '../structures/CarBomb';
+import { NapalmSprinkler } from '../structures/NapalmSprinkler';
+import { GasMainIgniter } from '../structures/GasMainIgniter';
+import { FlamethrowerPost } from '../structures/FlamethrowerPost';
+import { GlueFloor } from '../structures/GlueFloor';
+import { ShoppingCartWall } from '../structures/ShoppingCartWall';
+import { CarWreckBarrier } from '../structures/CarWreckBarrier';
+import { DumpsterFortress } from '../structures/DumpsterFortress';
+import { TractorWheelRoller } from '../structures/TractorWheelRoller';
+import { WreckingBall } from '../structures/WreckingBall';
+import { LogAvalanche } from '../structures/LogAvalanche';
+import { FallingCar } from '../structures/FallingCar';
+import { TreadmillBlades } from '../structures/TreadmillBlades';
+import { FanGlass } from '../structures/FanGlass';
+import { ElevatorShaft } from '../structures/ElevatorShaft';
+import { RubeGoldberg } from '../structures/RubeGoldberg';
 import type { TrapBase } from '../structures/TrapBase';
 import { HUD } from '../ui/HUD';
 import { GameLog } from '../ui/GameLog';
@@ -112,6 +143,43 @@ export class NightScene extends Phaser.Scene {
   private _shockWires: ShockWire[] = [];
   private _springLaunchers: SpringLauncher[] = [];
   private _chainWalls: ChainWall[] = [];
+  // Tier 2 new mechanical traps (10 traps from trap-catalog.md)
+  private _circleSawTraps: CircleSawTrap[] = [];
+  private _razorWireCarousels: RazorWireCarousel[] = [];
+  private _lawnmowerLanes: LawnmowerLane[] = [];
+  private _treadmillsOfDoom: TreadmillOfDoom[] = [];
+  private _pendulumAxes: PendulumAxe[] = [];
+  private _garageDoorSmashers: GarageDoorSmasher[] = [];
+  private _bugZapperXLs: BugZapperXL[] = [];
+  private _carBatteryGrids: CarBatteryGrid[] = [];
+  private _electricFences: ElectricFence[] = [];
+  private _netLaunchers: NetLauncher[] = [];
+  // Tier 3 slaughter machines
+  private _meatGrinders: MeatGrinder[] = [];
+  private _beltSanderGauntlets: BeltSanderGauntlet[] = [];
+  private _powerDrillPresses: PowerDrillPress[] = [];
+  private _pianoWireWebs: PianoWireWeb[] = [];
+  private _combineHarvesters: CombineHarvester[] = [];
+  // Tier 3 explosive traps
+  private _carBombs: CarBomb[] = [];
+  private _napalmSprinklers: NapalmSprinkler[] = [];
+  private _gasMainIgniters: GasMainIgniter[] = [];
+  private _flamethrowerPosts: FlamethrowerPost[] = [];
+  // Tier 2-3 walls and passive blockers (new)
+  private _glueFloors: GlueFloor[] = [];
+  private _shoppingCartWalls: ShoppingCartWall[] = [];
+  private _carWreckBarriers: CarWreckBarrier[] = [];
+  private _dumpsterFortresses: DumpsterFortress[] = [];
+  // Tier 3 heavy/gravity traps
+  private _tractorWheelRollers: TractorWheelRoller[] = [];
+  private _wreckingBalls: WreckingBall[] = [];
+  private _logAvalanches: LogAvalanche[] = [];
+  private _fallingCars: FallingCar[] = [];
+  // Tier 3 combo traps
+  private _treadmillBlades: TreadmillBlades[] = [];
+  private _fanGlasses: FanGlass[] = [];
+  private _elevatorShafts: ElevatorShaft[] = [];
+  private _rubeGoldbergs: RubeGoldberg[] = [];
   // Repair interaction state
   private _repairTarget: TrapBase | null = null;
   private _repairProgressBar: Phaser.GameObjects.Graphics | null = null;
@@ -627,6 +695,38 @@ export class NightScene extends Phaser.Scene {
     this._shockWires = [];
     this._springLaunchers = [];
     this._chainWalls = [];
+    this._circleSawTraps = [];
+    this._razorWireCarousels = [];
+    this._lawnmowerLanes = [];
+    this._treadmillsOfDoom = [];
+    this._pendulumAxes = [];
+    this._garageDoorSmashers = [];
+    this._bugZapperXLs = [];
+    this._carBatteryGrids = [];
+    this._electricFences = [];
+    this._netLaunchers = [];
+    // Tier 3
+    this._meatGrinders = [];
+    this._beltSanderGauntlets = [];
+    this._powerDrillPresses = [];
+    this._pianoWireWebs = [];
+    this._combineHarvesters = [];
+    this._carBombs = [];
+    this._napalmSprinklers = [];
+    this._gasMainIgniters = [];
+    this._flamethrowerPosts = [];
+    this._glueFloors = [];
+    this._shoppingCartWalls = [];
+    this._carWreckBarriers = [];
+    this._dumpsterFortresses = [];
+    this._tractorWheelRollers = [];
+    this._wreckingBalls = [];
+    this._logAvalanches = [];
+    this._fallingCars = [];
+    this._treadmillBlades = [];
+    this._fanGlasses = [];
+    this._elevatorShafts = [];
+    this._rubeGoldbergs = [];
 
     const trapDef = structuresData.structures.find(s => s.id === 'trap');
     const defaultTrapDamage = trapDef && 'trapDamage' in trapDef ? (trapDef as { trapDamage: number }).trapDamage : 20;
@@ -879,6 +979,376 @@ export class NightScene extends Phaser.Scene {
           cwallBody.setVisible(false);
           cwallBody.refreshBody();
           cwallBody.setData('chainWallRef', cwall);
+          break;
+        }
+        case 'circle_saw_trap': {
+          const cst = new CircleSawTrap(this, structure);
+          if (Math.random() < cst.malfunctionChance) cst.malfunctioned = true;
+          if (!cst.malfunctioned && cst.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: cst.fuelPerNight })) {
+              this.resourceManager.spend('food', cst.fuelPerNight);
+            } else {
+              cst.malfunctioned = true;
+              noFuelTraps.push('Circle Saw Trap');
+            }
+          }
+          this._circleSawTraps.push(cst);
+          break;
+        }
+        case 'razor_wire_carousel': {
+          const rwc = new RazorWireCarousel(this, structure);
+          if (Math.random() < rwc.malfunctionChance) rwc.malfunctioned = true;
+          if (!rwc.malfunctioned && rwc.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: rwc.fuelPerNight })) {
+              this.resourceManager.spend('food', rwc.fuelPerNight);
+            } else {
+              rwc.malfunctioned = true;
+              noFuelTraps.push('Razor Wire Carousel');
+            }
+          }
+          this._razorWireCarousels.push(rwc);
+          break;
+        }
+        case 'lawnmower_lane': {
+          const ll = new LawnmowerLane(this, structure);
+          if (Math.random() < ll.malfunctionChance) ll.malfunctioned = true;
+          if (!ll.malfunctioned && ll.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: ll.fuelPerNight })) {
+              this.resourceManager.spend('food', ll.fuelPerNight);
+            } else {
+              ll.malfunctioned = true;
+              noFuelTraps.push('Lawnmower Lane');
+            }
+          }
+          this._lawnmowerLanes.push(ll);
+          break;
+        }
+        case 'treadmill_of_doom': {
+          const tod = new TreadmillOfDoom(this, structure);
+          if (Math.random() < tod.malfunctionChance) tod.malfunctioned = true;
+          if (!tod.malfunctioned && tod.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: tod.fuelPerNight })) {
+              this.resourceManager.spend('food', tod.fuelPerNight);
+            } else {
+              tod.malfunctioned = true;
+              noFuelTraps.push('Treadmill of Doom');
+            }
+          }
+          this._treadmillsOfDoom.push(tod);
+          break;
+        }
+        case 'pendulum_axe': {
+          const pa = new PendulumAxe(this, structure);
+          if (Math.random() < pa.malfunctionChance) pa.malfunctioned = true;
+          this._pendulumAxes.push(pa);
+          break;
+        }
+        case 'garage_door_smasher': {
+          const gds = new GarageDoorSmasher(this, structure);
+          if (Math.random() < gds.malfunctionChance) gds.malfunctioned = true;
+          if (!gds.malfunctioned && gds.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: gds.fuelPerNight })) {
+              this.resourceManager.spend('food', gds.fuelPerNight);
+            } else {
+              gds.malfunctioned = true;
+              noFuelTraps.push('Garage Door Smasher');
+            }
+          }
+          this._garageDoorSmashers.push(gds);
+          break;
+        }
+        case 'bug_zapper_xl': {
+          const bz = new BugZapperXL(this, structure);
+          if (Math.random() < bz.malfunctionChance) bz.malfunctioned = true;
+          if (!bz.malfunctioned && bz.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: bz.fuelPerNight })) {
+              this.resourceManager.spend('food', bz.fuelPerNight);
+            } else {
+              bz.malfunctioned = true;
+              noFuelTraps.push('Bug Zapper XL');
+            }
+          }
+          this._bugZapperXLs.push(bz);
+          break;
+        }
+        case 'car_battery_grid': {
+          const cbg = new CarBatteryGrid(this, structure);
+          if (Math.random() < cbg.malfunctionChance) cbg.malfunctioned = true;
+          this._carBatteryGrids.push(cbg);
+          break;
+        }
+        case 'electric_fence': {
+          const ef = new ElectricFence(this, structure);
+          if (Math.random() < ef.malfunctionChance) ef.malfunctioned = true;
+          if (!ef.malfunctioned && ef.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: ef.fuelPerNight })) {
+              this.resourceManager.spend('food', ef.fuelPerNight);
+            } else {
+              ef.malfunctioned = true;
+              noFuelTraps.push('Electric Fence');
+            }
+          }
+          this._electricFences.push(ef);
+          // Add physics body so zombies are blocked (same pattern as ChainWall)
+          const efBody = this.wallBodies.create(
+            structure.x + TILE_SIZE / 2,
+            structure.y + TILE_SIZE / 2,
+            '',
+          ) as Phaser.Physics.Arcade.Sprite;
+          efBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
+          efBody.setVisible(false);
+          efBody.refreshBody();
+          efBody.setData('electricFenceRef', ef);
+          break;
+        }
+        case 'net_launcher': {
+          const nl = new NetLauncher(this, structure);
+          if (Math.random() < nl.malfunctionChance) nl.malfunctioned = true;
+          this._netLaunchers.push(nl);
+          break;
+        }
+        // -----------------------------------------------------------------------
+        // Tier 3: Slaughter Machines
+        // -----------------------------------------------------------------------
+        case 'meat_grinder': {
+          const mg = new MeatGrinder(this, structure);
+          if (Math.random() < mg.malfunctionChance) {
+            mg.malfunctioned = true;
+          }
+          if (!mg.malfunctioned && mg.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: mg.fuelPerNight })) {
+              this.resourceManager.spend('food', mg.fuelPerNight);
+            } else {
+              mg.malfunctioned = true;
+              noFuelTraps.push('Meat Grinder');
+            }
+          }
+          this._meatGrinders.push(mg);
+          break;
+        }
+        case 'belt_sander_gauntlet': {
+          const bsg = new BeltSanderGauntlet(this, structure);
+          if (Math.random() < bsg.malfunctionChance) {
+            bsg.malfunctioned = true;
+          }
+          this._beltSanderGauntlets.push(bsg);
+          break;
+        }
+        case 'power_drill_press': {
+          const pdp = new PowerDrillPress(this, structure);
+          if (Math.random() < pdp.malfunctionChance) {
+            pdp.malfunctioned = true;
+          }
+          this._powerDrillPresses.push(pdp);
+          break;
+        }
+        case 'piano_wire_web': {
+          const pww = new PianoWireWeb(this, structure);
+          if (Math.random() < pww.malfunctionChance) {
+            pww.malfunctioned = true;
+          }
+          this._pianoWireWebs.push(pww);
+          break;
+        }
+        case 'combine_harvester': {
+          const ch = new CombineHarvester(this, structure);
+          if (Math.random() < ch.malfunctionChance) {
+            ch.malfunctioned = true;
+          }
+          if (!ch.malfunctioned && ch.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: ch.fuelPerNight })) {
+              this.resourceManager.spend('food', ch.fuelPerNight);
+            } else {
+              ch.malfunctioned = true;
+              noFuelTraps.push('Combine Harvester');
+            }
+          }
+          this._combineHarvesters.push(ch);
+          break;
+        }
+        // -----------------------------------------------------------------------
+        // Tier 3: Explosive Traps
+        // -----------------------------------------------------------------------
+        case 'car_bomb': {
+          const cb = new CarBomb(this, structure);
+          if (Math.random() < cb.malfunctionChance) {
+            cb.malfunctioned = true;
+          }
+          this._carBombs.push(cb);
+          break;
+        }
+        case 'napalm_sprinkler': {
+          const ns = new NapalmSprinkler(this, structure);
+          if (Math.random() < ns.malfunctionChance) {
+            ns.malfunctioned = true;
+          }
+          if (!ns.malfunctioned && ns.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: ns.fuelPerNight })) {
+              this.resourceManager.spend('food', ns.fuelPerNight);
+            } else {
+              ns.malfunctioned = true;
+              noFuelTraps.push('Napalm Sprinkler');
+            }
+          }
+          this._napalmSprinklers.push(ns);
+          break;
+        }
+        case 'gas_main_igniter': {
+          const gmi = new GasMainIgniter(this, structure);
+          if (Math.random() < gmi.malfunctionChance) {
+            gmi.malfunctioned = true;
+          }
+          this._gasMainIgniters.push(gmi);
+          break;
+        }
+        case 'flamethrower_post': {
+          const fp = new FlamethrowerPost(this, structure);
+          if (Math.random() < fp.malfunctionChance) {
+            fp.malfunctioned = true;
+          }
+          if (!fp.malfunctioned && fp.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: fp.fuelPerNight })) {
+              this.resourceManager.spend('food', fp.fuelPerNight);
+            } else {
+              fp.malfunctioned = true;
+              noFuelTraps.push('Flamethrower Post');
+            }
+          }
+          this._flamethrowerPosts.push(fp);
+          break;
+        }
+        // --- Tier 2-3 passive blockers ---
+        case 'glue_floor': {
+          const glueDef = structuresData.structures.find(s => s.id === 'glue_floor');
+          const slowFactor = (glueDef as { slowFactor?: number } | undefined)?.slowFactor ?? 0.10;
+          const widthTiles = (glueDef as { widthTiles?: number } | undefined)?.widthTiles ?? 3;
+          const gf = new GlueFloor(this, structure, slowFactor, widthTiles);
+          this._glueFloors.push(gf);
+          break;
+        }
+        case 'shopping_cart_wall': {
+          const scw = new ShoppingCartWall(this, structure);
+          this._shoppingCartWalls.push(scw);
+          const scwBody = this.wallBodies.create(
+            structure.x + TILE_SIZE / 2,
+            structure.y + TILE_SIZE / 2,
+            '',
+          ) as Phaser.Physics.Arcade.Sprite;
+          scwBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
+          scwBody.setVisible(false);
+          scwBody.refreshBody();
+          scwBody.setData('shoppingCartWallRef', scw);
+          break;
+        }
+        case 'car_wreck_barrier': {
+          const cwb = new CarWreckBarrier(this, structure);
+          this._carWreckBarriers.push(cwb);
+          const cwbBody = this.wallBodies.create(
+            structure.x + TILE_SIZE / 2,
+            structure.y + TILE_SIZE / 2,
+            '',
+          ) as Phaser.Physics.Arcade.Sprite;
+          cwbBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
+          cwbBody.setVisible(false);
+          cwbBody.refreshBody();
+          cwbBody.setData('carWreckBarrierRef', cwb);
+          break;
+        }
+        case 'dumpster_fortress': {
+          const df = new DumpsterFortress(this, structure);
+          this._dumpsterFortresses.push(df);
+          const dfBody = this.wallBodies.create(
+            structure.x + TILE_SIZE / 2,
+            structure.y + TILE_SIZE / 2,
+            '',
+          ) as Phaser.Physics.Arcade.Sprite;
+          dfBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
+          dfBody.setVisible(false);
+          dfBody.refreshBody();
+          dfBody.setData('dumpsterFortressRef', df);
+          break;
+        }
+        // --- Tier 3 heavy/gravity traps ---
+        case 'tractor_wheel_roller': {
+          const twr = new TractorWheelRoller(this, structure);
+          if (Math.random() < twr.malfunctionChance) twr.malfunctioned = true;
+          this._tractorWheelRollers.push(twr);
+          break;
+        }
+        case 'wrecking_ball': {
+          const wb = new WreckingBall(this, structure);
+          if (Math.random() < wb.malfunctionChance) wb.malfunctioned = true;
+          this._wreckingBalls.push(wb);
+          break;
+        }
+        case 'log_avalanche': {
+          const la = new LogAvalanche(this, structure);
+          if (Math.random() < la.malfunctionChance) la.malfunctioned = true;
+          this._logAvalanches.push(la);
+          break;
+        }
+        case 'falling_car': {
+          const fc = new FallingCar(this, structure);
+          if (Math.random() < fc.malfunctionChance) fc.malfunctioned = true;
+          this._fallingCars.push(fc);
+          break;
+        }
+        // --- Tier 3 combo traps ---
+        case 'treadmill_blades': {
+          const tb = new TreadmillBlades(this, structure);
+          if (Math.random() < tb.malfunctionChance) tb.malfunctioned = true;
+          if (!tb.malfunctioned && tb.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: tb.fuelPerNight })) {
+              this.resourceManager.spend('food', tb.fuelPerNight);
+            } else {
+              tb.malfunctioned = true;
+              noFuelTraps.push('Treadmill Blades');
+            }
+          }
+          this._treadmillBlades.push(tb);
+          break;
+        }
+        case 'fan_glass': {
+          const fg = new FanGlass(this, structure);
+          if (Math.random() < fg.malfunctionChance) fg.malfunctioned = true;
+          this._fanGlasses.push(fg);
+          break;
+        }
+        case 'elevator_shaft': {
+          const es = new ElevatorShaft(this, structure);
+          if (Math.random() < es.malfunctionChance) es.malfunctioned = true;
+          this._elevatorShafts.push(es);
+          break;
+        }
+        case 'rube_goldberg': {
+          const rg = new RubeGoldberg(this, structure);
+          if (Math.random() < rg.malfunctionChance) rg.malfunctioned = true;
+          if (!rg.malfunctioned && rg.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: rg.fuelPerNight })) {
+              this.resourceManager.spend('food', rg.fuelPerNight);
+            } else {
+              rg.malfunctioned = true;
+              noFuelTraps.push('Rube Goldberg');
+            }
+          }
+          // Wire up chain-step callback: each step deals AOE damage to nearby zombies
+          rg.onChainStep = (stepIndex: number, radius: number, damage: number) => {
+            const cx = rg.structureInstance.x + TILE_SIZE / 2;
+            const cy = rg.structureInstance.y + TILE_SIZE / 2;
+            const rSq = radius * radius;
+            this.zombieGroup.getChildren().forEach(child => {
+              const z = child as import('../entities/Zombie').Zombie;
+              if (!z.active) return;
+              const dx = z.x - cx;
+              const dy = z.y - cy;
+              if (dx * dx + dy * dy <= rSq) {
+                z.takeDamage(damage);
+              }
+            });
+            // Visual: emit particles at each step with escalating intensity
+            this.trapEmitter.emitParticleAt(cx, cy, (stepIndex + 1) * 6);
+          };
+          this._rubeGoldbergs.push(rg);
           break;
         }
         default: {
@@ -2028,6 +2498,18 @@ export class NightScene extends Phaser.Scene {
     this._shockWires     = this._shockWires.filter(t => t && t.active);
     this._springLaunchers = this._springLaunchers.filter(t => t && t.active);
     this._chainWalls     = this._chainWalls.filter(t => t && t.active);
+    this._glueFloors     = this._glueFloors.filter(t => t && t.active);
+    this._shoppingCartWalls = this._shoppingCartWalls.filter(t => t && t.active);
+    this._carWreckBarriers  = this._carWreckBarriers.filter(t => t && t.active);
+    this._dumpsterFortresses = this._dumpsterFortresses.filter(t => t && t.active);
+    this._tractorWheelRollers = this._tractorWheelRollers.filter(t => t && t.active);
+    this._wreckingBalls  = this._wreckingBalls.filter(t => t && t.active);
+    this._logAvalanches  = this._logAvalanches.filter(t => t && t.active);
+    this._fallingCars    = this._fallingCars.filter(t => t && t.active);
+    this._treadmillBlades = this._treadmillBlades.filter(t => t && t.active);
+    this._fanGlasses     = this._fanGlasses.filter(t => t && t.active);
+    this._elevatorShafts = this._elevatorShafts.filter(t => t && t.active);
+    this._rubeGoldbergs  = this._rubeGoldbergs.filter(t => t && t.active);
 
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
@@ -2289,6 +2771,18 @@ export class NightScene extends Phaser.Scene {
           AudioManager.play('trap_tar_pit');
         }
       }
+
+      // Glue Floor: 90% slow zone (wider than tar pit, 3 tiles)
+      for (const gf of this._glueFloors) {
+        if (!gf.isAlive()) continue;
+        if (gf.containsPoint(zombie.x, zombie.y)) {
+          const body = zombie.body;
+          if (body) {
+            body.velocity.x *= gf.slowFactor;
+            body.velocity.y *= gf.slowFactor;
+          }
+        }
+      }
     });
 
     // Animate tar pits (bubbling effect) -- once per frame, not per zombie
@@ -2307,6 +2801,11 @@ export class NightScene extends Phaser.Scene {
     }
     for (const tw of this._tripWires) {
       if (tw.isAlive()) tw.update(this._lastDelta);
+    }
+
+    // Animate glue floors (drip effect) -- once per frame
+    for (const gf of this._glueFloors) {
+      if (gf.isAlive()) gf.animUpdate(this._lastDelta);
     }
 
     // -----------------------------------------------------------------------
@@ -2546,6 +3045,717 @@ export class NightScene extends Phaser.Scene {
     // --- Chain Wall: update malfunction state; contact damage handled by wall collider ---
     for (const t of this._chainWalls) t.update(delta);
 
+    // --- Tractor Wheel Roller: single-use line damage, trigger on contact ---
+    for (const t of this._tractorWheelRollers) t.update(delta);
+    for (let i = this._tractorWheelRollers.length - 1; i >= 0; i--) {
+      const twr = this._tractorWheelRollers[i];
+      if (!twr || !twr.active || !twr.isReady()) continue;
+      const twrX = twr.structureInstance.x;
+      const twrY = twr.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= twrX && zombie.x <= twrX + TILE_SIZE &&
+            zombie.y >= twrY && zombie.y <= twrY + TILE_SIZE) {
+          if (!twr.tryActivate()) break;
+          twr.triggerRoll();
+          // Damage all zombies in a line (forward 4 tiles -- downward in Y)
+          const lineEndY = twrY + twr.rollDistance;
+          for (const c2 of this.zombieGroup.getChildren()) {
+            const z2 = c2 as Zombie;
+            if (!z2.active) continue;
+            if (z2.x >= twrX - TILE_SIZE / 2 && z2.x <= twrX + TILE_SIZE * 1.5 &&
+                z2.y >= twrY && z2.y <= lineEndY) {
+              z2.takeDamage(twr.damage);
+            }
+          }
+          this.trapEmitter.emitParticleAt(twrX + TILE_SIZE / 2, twrY + TILE_SIZE / 2, 12);
+          this._tractorWheelRollers.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // --- Wrecking Ball: AOE on zombie proximity, cd 10s ---
+    for (const t of this._wreckingBalls) t.update(delta);
+    for (const wb of this._wreckingBalls) {
+      if (!wb.active || !wb.isReady()) continue;
+      const cx = wb.structureInstance.x + TILE_SIZE / 2;
+      const cy = wb.structureInstance.y + TILE_SIZE / 2;
+      const rSq = wb.aoeRadius * wb.aoeRadius;
+      let triggered = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - cx;
+        const dy = zombie.y - cy;
+        if (dx * dx + dy * dy <= rSq) {
+          if (!triggered) {
+            if (!wb.tryActivate()) break;
+            triggered = true;
+            wb.triggerImpact();
+            this.trapEmitter.emitParticleAt(cx, cy, 14);
+          }
+          zombie.takeDamage(wb.damage);
+        }
+      }
+    }
+
+    // --- Log Avalanche: single-use line damage + pushback ---
+    for (const t of this._logAvalanches) t.update(delta);
+    for (let i = this._logAvalanches.length - 1; i >= 0; i--) {
+      const la = this._logAvalanches[i];
+      if (!la || !la.active || !la.isReady()) continue;
+      const laX = la.structureInstance.x;
+      const laY = la.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= laX && zombie.x <= laX + TILE_SIZE &&
+            zombie.y >= laY && zombie.y <= laY + TILE_SIZE) {
+          if (!la.tryActivate()) break;
+          la.triggerRoll();
+          // Damage + pushback for all zombies in the line
+          const lineEndY = laY + la.lineTiles * TILE_SIZE;
+          for (const c2 of this.zombieGroup.getChildren()) {
+            const z2 = c2 as Zombie;
+            if (!z2.active) continue;
+            if (z2.x >= laX - TILE_SIZE / 2 && z2.x <= laX + TILE_SIZE * 1.5 &&
+                z2.y >= laY && z2.y <= lineEndY) {
+              la.onZombieContact(z2);
+            }
+          }
+          this.trapEmitter.emitParticleAt(laX + TILE_SIZE / 2, laY + TILE_SIZE / 2, 10);
+          this._logAvalanches.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // --- Falling Car: single-use spot damage ---
+    for (const t of this._fallingCars) t.update(delta);
+    for (let i = this._fallingCars.length - 1; i >= 0; i--) {
+      const fc = this._fallingCars[i];
+      if (!fc || !fc.active || !fc.isReady()) continue;
+      const fcX = fc.structureInstance.x;
+      const fcY = fc.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= fcX && zombie.x <= fcX + TILE_SIZE &&
+            zombie.y >= fcY && zombie.y <= fcY + TILE_SIZE) {
+          if (!fc.tryActivate()) break;
+          fc.triggerDrop();
+          fc.onZombieContact(zombie);
+          this.trapEmitter.emitParticleAt(fcX + TILE_SIZE / 2, fcY + TILE_SIZE / 2, 16);
+          this._fallingCars.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // --- Treadmill Blades: continuous 25 dmg/s + pushback ---
+    for (const t of this._treadmillBlades) t.update(delta);
+    for (const tb of this._treadmillBlades) {
+      if (!tb.active || tb.malfunctioned) continue;
+      const tbX = tb.structureInstance.x;
+      const tbY = tb.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= tbX && zombie.x <= tbX + TILE_SIZE &&
+            zombie.y >= tbY && zombie.y <= tbY + TILE_SIZE) {
+          // Continuous delta-scaled damage
+          zombie.takeDamage(tb.damagePerSecond * delta / 1000);
+          // Pushback: push away from belt center (horizontal)
+          if (zombie.body) {
+            const cx = tbX + TILE_SIZE / 2;
+            const dx = zombie.x - cx;
+            const len = Math.abs(dx);
+            if (len > 0) {
+              zombie.body.velocity.x += (dx / len) * tb.pushbackVel;
+            }
+          }
+          tb.triggerActivationEffect();
+        }
+      }
+    }
+
+    // --- Fan Glass: continuous 15 dmg/s in forward cone ---
+    for (const t of this._fanGlasses) t.update(delta);
+    for (const fg of this._fanGlasses) {
+      if (!fg.active || !fg.isReady() || fg.malfunctioned) continue;
+      const cx = fg.structureInstance.x + TILE_SIZE / 2;
+      const cy = fg.structureInstance.y + TILE_SIZE / 2;
+      let hitAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - cx;
+        const dy = zombie.y - cy;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > fg.coneRange * fg.coneRange) continue;
+        // Cone check: forward half-plane (zombies come from outside, so angle ~0)
+        const angle = Math.atan2(dy, dx);
+        const absAngle = Math.abs(angle);
+        if (absAngle < fg.coneHalfAngle || Math.abs(angle - Math.PI) < fg.coneHalfAngle || Math.abs(angle + Math.PI) < fg.coneHalfAngle) {
+          zombie.takeDamage(fg.damagePerSecond * delta / 1000);
+          hitAny = true;
+        }
+      }
+      if (hitAny) {
+        fg.triggerActivationEffect();
+      }
+    }
+
+    // --- Elevator Shaft: instant kill on zombie contact, cd 15s ---
+    for (const t of this._elevatorShafts) t.update(delta);
+    for (const es of this._elevatorShafts) {
+      if (!es.active || !es.isReady()) continue;
+      const esX = es.structureInstance.x;
+      const esY = es.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= esX && zombie.x <= esX + TILE_SIZE &&
+            zombie.y >= esY && zombie.y <= esY + TILE_SIZE) {
+          if (!es.tryActivate()) break;
+          es.triggerDrop();
+          es.onZombieContact(zombie);
+          this.trapEmitter.emitParticleAt(esX + TILE_SIZE / 2, esY + TILE_SIZE / 2, 8);
+          break; // one zombie per activation
+        }
+      }
+    }
+
+    // --- Rube Goldberg: chain reaction on contact, cd 20s ---
+    for (const t of this._rubeGoldbergs) t.update(delta);
+    for (const rg of this._rubeGoldbergs) {
+      if (!rg.active || !rg.isReady()) continue;
+      const rgX = rg.structureInstance.x;
+      const rgY = rg.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= rgX && zombie.x <= rgX + TILE_SIZE &&
+            zombie.y >= rgY && zombie.y <= rgY + TILE_SIZE) {
+          if (!rg.tryActivate()) break;
+          rg.startChain();
+          rg.onZombieContact(zombie); // alarm step damage on trigger zombie
+          break; // one zombie triggers the chain
+        }
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Tier 3: Slaughter Machines
+    // -----------------------------------------------------------------------
+
+    // --- Meat Grinder: continuous AOE damage in 2-tile radius ---
+    for (const t of this._meatGrinders) t.update(delta);
+    for (const mg of this._meatGrinders) {
+      if (!mg.active || mg.malfunctioned || mg.overheated) continue;
+
+      const mgCX = mg.structureInstance.x + TILE_SIZE / 2;
+      const mgCY = mg.structureInstance.y + TILE_SIZE / 2;
+      const mgRSq = mg.zoneRadius * mg.zoneRadius;
+      let mgAnyInZone = false;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const mgDx = zombie.x - mgCX;
+        const mgDy = zombie.y - mgCY;
+        if (mgDx * mgDx + mgDy * mgDy <= mgRSq) {
+          mgAnyInZone = true;
+          zombie.takeDamage(mg.damagePerSecond * delta / 1000);
+        }
+      }
+
+      if (mgAnyInZone && mg.cooldownTimer <= 0) {
+        mg.tryActivate();
+        mg.triggerGoreEffect();
+        this.trapEmitter.emitParticleAt(mgCX, mgCY, 6);
+      }
+    }
+
+    // --- Belt Sander Gauntlet: continuous corridor damage ---
+    for (const t of this._beltSanderGauntlets) t.update(delta);
+    for (const bsg of this._beltSanderGauntlets) {
+      if (!bsg.active || bsg.malfunctioned || bsg.overheated) continue;
+
+      const bsgX = bsg.structureInstance.x;
+      const bsgY = bsg.structureInstance.y;
+      let bsgContact = false;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (
+          zombie.x >= bsgX && zombie.x <= bsgX + TILE_SIZE &&
+          zombie.y >= bsgY && zombie.y <= bsgY + TILE_SIZE
+        ) {
+          bsgContact = true;
+          zombie.takeDamage(bsg.damagePerSecond * delta / 1000);
+        }
+      }
+
+      if (bsgContact && bsg.cooldownTimer <= 0) {
+        bsg.tryActivate();
+        bsg.triggerSparkEffect();
+        this.trapEmitter.emitParticleAt(bsgX + TILE_SIZE / 2, bsgY + TILE_SIZE / 2, 5);
+      }
+    }
+
+    // --- Power Drill Press: single-target slam on contact, cooldown 4s ---
+    for (const t of this._powerDrillPresses) t.update(delta);
+    for (const pdp of this._powerDrillPresses) {
+      if (!pdp.active || !pdp.isReady()) continue;
+
+      const pdpX = pdp.structureInstance.x;
+      const pdpY = pdp.structureInstance.y;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (
+          zombie.x >= pdpX && zombie.x <= pdpX + TILE_SIZE &&
+          zombie.y >= pdpY && zombie.y <= pdpY + TILE_SIZE
+        ) {
+          if (!pdp.tryActivate()) break;
+          pdp.onZombieContact(zombie);
+          this.trapEmitter.emitParticleAt(pdpX + TILE_SIZE / 2, pdpY + TILE_SIZE / 2, 8);
+          break; // one target per press
+        }
+      }
+    }
+
+    // --- Piano Wire Web: slash damage on contact, 20 uses ---
+    for (const t of this._pianoWireWebs) t.update(delta);
+    for (let i = this._pianoWireWebs.length - 1; i >= 0; i--) {
+      const pww = this._pianoWireWebs[i];
+      if (!pww || !pww.active || !pww.isReady()) continue;
+
+      const pwwX = pww.structureInstance.x;
+      const pwwY = pww.structureInstance.y;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (
+          zombie.x >= pwwX && zombie.x <= pwwX + TILE_SIZE &&
+          zombie.y >= pwwY && zombie.y <= pwwY + TILE_SIZE
+        ) {
+          if (!pww.tryActivate()) break;
+          pww.onZombieContact(zombie);
+          this.trapEmitter.emitParticleAt(pwwX + TILE_SIZE / 2, pwwY + TILE_SIZE / 2, 5);
+          if (pww.uses === 0) {
+            this._pianoWireWebs.splice(i, 1);
+          }
+          break;
+        }
+      }
+    }
+
+    // --- Combine Harvester: continuous wide-zone damage (4-tile wide) ---
+    for (const t of this._combineHarvesters) t.update(delta);
+    for (const ch of this._combineHarvesters) {
+      if (!ch.active || ch.malfunctioned || ch.overheated) continue;
+
+      const chCenterX = ch.structureInstance.x + TILE_SIZE / 2;
+      const chY = ch.structureInstance.y;
+      const chHalfWidth = ch.zoneWidth / 2;
+      let chAnyInZone = false;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (
+          Math.abs(zombie.x - chCenterX) <= chHalfWidth &&
+          zombie.y >= chY && zombie.y <= chY + TILE_SIZE
+        ) {
+          chAnyInZone = true;
+          zombie.takeDamage(ch.damagePerSecond * delta / 1000);
+        }
+      }
+
+      if (chAnyInZone && ch.cooldownTimer <= 0) {
+        ch.tryActivate();
+        ch.triggerCarnageEffect();
+        this.trapEmitter.emitParticleAt(chCenterX, chY + TILE_SIZE / 2, 10);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Tier 3: Explosive Traps
+    // -----------------------------------------------------------------------
+
+    // --- Car Bomb: AOE explosion on contact, 1 use ---
+    for (let i = this._carBombs.length - 1; i >= 0; i--) {
+      const cb = this._carBombs[i];
+      if (!cb || !cb.active || cb.detonated || cb.malfunctioned || cb.uses === 0) continue;
+
+      cb.update(delta);
+
+      const cbX = cb.structureInstance.x;
+      const cbY = cb.structureInstance.y;
+      let cbTriggered = false;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (
+          zombie.x >= cbX && zombie.x <= cbX + TILE_SIZE &&
+          zombie.y >= cbY && zombie.y <= cbY + TILE_SIZE
+        ) {
+          cbTriggered = true;
+          break;
+        }
+      }
+
+      if (!cbTriggered) continue;
+      if (!cb.tryActivate()) continue;
+
+      cb.triggerDetonation();
+      const cbCX = cbX + TILE_SIZE / 2;
+      const cbCY = cbY + TILE_SIZE / 2;
+      const cbRSq = cb.explosionRadius * cb.explosionRadius;
+      this.trapEmitter.emitParticleAt(cbCX, cbCY, 20);
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const cbDx = zombie.x - cbCX;
+        const cbDy = zombie.y - cbCY;
+        if (cbDx * cbDx + cbDy * cbDy <= cbRSq) {
+          zombie.takeDamage(cb.explosionDamage);
+        }
+      }
+
+      this._carBombs.splice(i, 1);
+    }
+
+    // --- Napalm Sprinkler: continuous cone damage, cd 8s, fuel 4 ---
+    for (const t of this._napalmSprinklers) t.update(delta);
+    for (const ns of this._napalmSprinklers) {
+      if (!ns.active || ns.malfunctioned || ns.overheated) continue;
+
+      let nsAnyInCone = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (ns.isInCone(zombie.x, zombie.y)) { nsAnyInCone = true; break; }
+      }
+
+      if (!nsAnyInCone) continue;
+
+      if (ns.cooldownTimer <= 0) {
+        ns.tryActivate();
+        ns.triggerSpray();
+      }
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (ns.isInCone(zombie.x, zombie.y)) {
+          zombie.takeDamage(ns.damagePerSecond * delta / 1000);
+        }
+      }
+    }
+
+    // --- Gas Main Igniter: full-map-width line explosion, 1 use ---
+    for (let i = this._gasMainIgniters.length - 1; i >= 0; i--) {
+      const gmi = this._gasMainIgniters[i];
+      if (!gmi || !gmi.active || gmi.detonated || gmi.malfunctioned || gmi.uses === 0) continue;
+
+      gmi.update(delta);
+
+      const gmiCY = gmi.structureInstance.y + TILE_SIZE / 2;
+      let gmiTriggered = false;
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (Math.abs(zombie.y - gmiCY) <= gmi.detectionBand / 2) {
+          gmiTriggered = true;
+          break;
+        }
+      }
+
+      if (!gmiTriggered) continue;
+      if (!gmi.tryActivate()) continue;
+
+      gmi.triggerIgnition();
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (Math.abs(zombie.y - gmiCY) <= gmi.detectionBand / 2) {
+          gmi.onZombieContact(zombie);
+        }
+      }
+
+      this.trapEmitter.emitParticleAt(gmi.structureInstance.x + TILE_SIZE / 2, gmiCY, 15);
+      this._gasMainIgniters.splice(i, 1);
+    }
+
+    // --- Flamethrower Post: continuous cone damage, cd 5s, fuel 3 ---
+    for (const t of this._flamethrowerPosts) t.update(delta);
+    for (const fp of this._flamethrowerPosts) {
+      if (!fp.active || fp.malfunctioned || fp.overheated) continue;
+
+      let fpAnyInCone = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (fp.isInCone(zombie.x, zombie.y)) { fpAnyInCone = true; break; }
+      }
+
+      if (!fpAnyInCone) continue;
+
+      if (fp.cooldownTimer <= 0) {
+        fp.tryActivate();
+        fp.triggerFlame();
+      }
+
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (fp.isInCone(zombie.x, zombie.y)) {
+          zombie.takeDamage(fp.damagePerSecond * delta / 1000);
+        }
+      }
+    }
+
+    // --- Circle Saw Trap: contact damage on tile, cd 3s ---
+    for (const t of this._circleSawTraps) t.update(delta);
+    for (const cst of this._circleSawTraps) {
+      if (!cst.active || !cst.isReady()) continue;
+      const csx0 = cst.structureInstance.x;
+      const csy0 = cst.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= csx0 && zombie.x <= csx0 + TILE_SIZE && zombie.y >= csy0 && zombie.y <= csy0 + TILE_SIZE) {
+          if (!cst.tryActivate()) break;
+          cst.onZombieContact(zombie);
+          cst.triggerActivationEffect();
+          this.trapEmitter.emitParticleAt(csx0 + TILE_SIZE / 2, csy0 + TILE_SIZE / 2, 6);
+          break;
+        }
+      }
+    }
+
+    // --- Razor Wire Carousel: continuous AOE ring damage, always-on (overheat) ---
+    for (const rwc of this._razorWireCarousels) {
+      rwc.update(delta);
+      if (!rwc.active || rwc.malfunctioned || rwc.overheated) continue;
+      const rcx = rwc.structureInstance.x + TILE_SIZE / 2;
+      const rcy = rwc.structureInstance.y + TILE_SIZE / 2;
+      const rwcRSq = rwc.aoeRadius * rwc.aoeRadius;
+      let rwcAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - rcx;
+        const dy = zombie.y - rcy;
+        if (dx * dx + dy * dy <= rwcRSq) { zombie.takeDamage(rwc.damagePerSecond * delta / 1000); rwcAny = true; }
+      }
+      if (rwcAny && rwc.overheatMax > 0) {
+        rwc.overheatCurrent += delta;
+        if (rwc.overheatCurrent >= rwc.overheatMax) { rwc.overheated = true; rwc.overheatCurrent = rwc.overheatMax; }
+      }
+    }
+
+    // --- Lawnmower Lane: continuous corridor damage, always-on (overheat) ---
+    for (const ll of this._lawnmowerLanes) {
+      ll.update(delta);
+      if (!ll.active || ll.malfunctioned || ll.overheated) continue;
+      let llAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (ll.containsPoint(zombie.x, zombie.y)) { zombie.takeDamage(ll.damagePerSecond * delta / 1000); llAny = true; }
+      }
+      if (llAny && ll.overheatMax > 0) {
+        ll.overheatCurrent += delta;
+        if (ll.overheatCurrent >= ll.overheatMax) { ll.overheated = true; ll.overheatCurrent = ll.overheatMax; }
+      }
+    }
+
+    // --- Treadmill of Doom: pushback + chip damage, always-on (overheat) ---
+    for (const tod of this._treadmillsOfDoom) {
+      tod.update(delta);
+      if (!tod.active || tod.malfunctioned || tod.overheated) continue;
+      const todX0 = tod.structureInstance.x;
+      const todY0 = tod.structureInstance.y;
+      let todAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= todX0 && zombie.x <= todX0 + TILE_SIZE && zombie.y >= todY0 && zombie.y <= todY0 + TILE_SIZE) {
+          zombie.takeDamage(tod.damagePerSecond * delta / 1000);
+          const tcx = todX0 + TILE_SIZE / 2;
+          const tcy = todY0 + TILE_SIZE / 2;
+          const dx = zombie.x - tcx;
+          const dy = zombie.y - tcy;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          if (len > 0 && zombie.body) {
+            zombie.setVelocity((dx / len) * tod.pushbackVelocity * 5, (dy / len) * tod.pushbackVelocity * 5);
+          }
+          todAny = true;
+        }
+      }
+      if (todAny && tod.overheatMax > 0) {
+        tod.overheatCurrent += delta;
+        if (tod.overheatCurrent >= tod.overheatMax) { tod.overheated = true; tod.overheatCurrent = tod.overheatMax; }
+      }
+    }
+
+    // --- Pendulum Axe: swing AOE on zombie proximity, cd 5s ---
+    for (const t of this._pendulumAxes) t.update(delta);
+    for (const pa of this._pendulumAxes) {
+      if (!pa.active || !pa.isReady()) continue;
+      const pax = pa.structureInstance.x + TILE_SIZE / 2;
+      const pay = pa.structureInstance.y + TILE_SIZE / 2;
+      const paSq = pa.swingRadius * pa.swingRadius;
+      let paTriggered = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - pax;
+        const dy = zombie.y - pay;
+        if (dx * dx + dy * dy <= paSq) {
+          if (!paTriggered) {
+            if (!pa.tryActivate()) break;
+            paTriggered = true;
+            pa.triggerActivationEffect();
+            this.trapEmitter.emitParticleAt(pax, pay, 8);
+          }
+          zombie.takeDamage(pa.trapDamage);
+        }
+      }
+    }
+
+    // --- Garage Door Smasher: crush on tile contact, cd 8s ---
+    for (const t of this._garageDoorSmashers) t.update(delta);
+    for (const gds of this._garageDoorSmashers) {
+      if (!gds.active || !gds.isReady()) continue;
+      const gdx0 = gds.structureInstance.x;
+      const gdy0 = gds.structureInstance.y;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= gdx0 && zombie.x <= gdx0 + TILE_SIZE && zombie.y >= gdy0 && zombie.y <= gdy0 + TILE_SIZE) {
+          if (!gds.tryActivate()) break;
+          gds.onZombieContact(zombie);
+          gds.triggerActivationEffect();
+          this.trapEmitter.emitParticleAt(gdx0 + TILE_SIZE / 2, gdy0 + TILE_SIZE / 2, 10);
+          break;
+        }
+      }
+    }
+
+    // --- Bug Zapper XL: attract + continuous AOE damage (overheat) ---
+    for (const bz of this._bugZapperXLs) {
+      bz.update(delta);
+      if (!bz.active || bz.malfunctioned || bz.overheated) continue;
+      const bzx = bz.structureInstance.x + TILE_SIZE / 2;
+      const bzy = bz.structureInstance.y + TILE_SIZE / 2;
+      const bzRSq = bz.aoeRadius * bz.aoeRadius;
+      let bzAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        const dx = zombie.x - bzx;
+        const dy = zombie.y - bzy;
+        const distSq = dx * dx + dy * dy;
+        if (distSq <= bzRSq) {
+          zombie.takeDamage(bz.damagePerSecond * delta / 1000);
+          const dist = Math.sqrt(distSq);
+          if (dist > 4 && zombie.body && !zombie.isStunned()) {
+            const nx = -dx / dist;
+            const ny = -dy / dist;
+            const zBody = zombie.body as Phaser.Physics.Arcade.Body;
+            zBody.velocity.x = zBody.velocity.x * 0.8 + nx * 80 * 0.2;
+            zBody.velocity.y = zBody.velocity.y * 0.8 + ny * 80 * 0.2;
+          }
+          bzAny = true;
+        }
+      }
+      if (bzAny) {
+        bz.triggerZapEffect();
+        if (bz.overheatMax > 0) {
+          bz.overheatCurrent += delta;
+          if (bz.overheatCurrent >= bz.overheatMax) { bz.overheated = true; bz.overheatCurrent = bz.overheatMax; }
+        }
+      }
+    }
+
+    // --- Car Battery Grid: stun all zombies in 3x3 zone, cd 10s ---
+    for (const t of this._carBatteryGrids) t.update(delta);
+    for (const cbg of this._carBatteryGrids) {
+      if (!cbg.active || !cbg.isReady()) continue;
+      let cbgAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (cbg.containsPoint(zombie.x, zombie.y)) { cbgAny = true; break; }
+      }
+      if (!cbgAny || !cbg.tryActivate()) continue;
+      cbg.triggerDischargeEffect();
+      this.shockEmitter.emitParticleAt(cbg.structureInstance.x + cbg.zoneSize / 2, cbg.structureInstance.y + TILE_SIZE / 2, 15);
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (cbg.containsPoint(zombie.x, zombie.y)) zombie.applyStun(cbg.stunDuration);
+      }
+    }
+
+    // --- Electric Fence: continuous damage + physics block via wallBodies ---
+    for (const ef of this._electricFences) {
+      ef.update(delta);
+      if (!ef.active || ef.malfunctioned || ef.overheated) continue;
+      const efx0 = ef.structureInstance.x;
+      const efy0 = ef.structureInstance.y;
+      let efAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (zombie.x >= efx0 - 4 && zombie.x <= efx0 + TILE_SIZE + 4 && zombie.y >= efy0 - 4 && zombie.y <= efy0 + TILE_SIZE + 4) {
+          zombie.takeDamage(ef.damagePerSecond * delta / 1000);
+          efAny = true;
+        }
+      }
+      if (efAny) {
+        ef.triggerContactEffect();
+        if (ef.overheatMax > 0) {
+          ef.overheatCurrent += delta;
+          if (ef.overheatCurrent >= ef.overheatMax) { ef.overheated = true; ef.overheatCurrent = ef.overheatMax; }
+        }
+      }
+    }
+
+    // --- Net Launcher: immobilize all zombies in 3x3 AOE, cd 12s ---
+    for (const t of this._netLaunchers) t.update(delta);
+    for (const nl of this._netLaunchers) {
+      if (!nl.active || !nl.isReady()) continue;
+      let nlAny = false;
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (nl.containsPoint(zombie.x, zombie.y)) { nlAny = true; break; }
+      }
+      if (!nlAny || !nl.tryActivate()) continue;
+      nl.triggerNetDeployEffect();
+      this.trapEmitter.emitParticleAt(nl.structureInstance.x + TILE_SIZE / 2, nl.structureInstance.y + TILE_SIZE / 2, 12);
+      for (const child of this.zombieGroup.getChildren()) {
+        const zombie = child as Zombie;
+        if (!zombie.active) continue;
+        if (nl.containsPoint(zombie.x, zombie.y)) zombie.applyStun(nl.immobilizeDuration);
+      }
+    }
+
     // --- Repair mechanic: player holds E near a malfunctioned TrapBase trap ---
     this.updateRepairMechanic(delta);
   }
@@ -2566,6 +3776,34 @@ export class NightScene extends Phaser.Scene {
       ...this._shockWires,
       ...this._springLaunchers,
       ...this._chainWalls,
+      ...this._tractorWheelRollers,
+      ...this._wreckingBalls,
+      ...this._logAvalanches,
+      ...this._fallingCars,
+      ...this._treadmillBlades,
+      ...this._fanGlasses,
+      ...this._elevatorShafts,
+      ...this._rubeGoldbergs,
+      ...this._circleSawTraps,
+      ...this._razorWireCarousels,
+      ...this._lawnmowerLanes,
+      ...this._treadmillsOfDoom,
+      ...this._pendulumAxes,
+      ...this._garageDoorSmashers,
+      ...this._bugZapperXLs,
+      ...this._carBatteryGrids,
+      ...this._electricFences,
+      ...this._netLaunchers,
+      // Tier 3
+      ...this._meatGrinders,
+      ...this._beltSanderGauntlets,
+      ...this._powerDrillPresses,
+      ...this._pianoWireWebs,
+      ...this._combineHarvesters,
+      ...this._carBombs,
+      ...this._napalmSprinklers,
+      ...this._gasMainIgniters,
+      ...this._flamethrowerPosts,
     ];
 
     const REPAIR_RANGE = 40;

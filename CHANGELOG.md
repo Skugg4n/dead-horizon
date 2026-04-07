@@ -1,5 +1,115 @@
 # Dead Horizon -- Changelog
 
+## [Unreleased] - 2026-04-04 -- Tier 2 Trap Batch: 10 Nya Falllor
+
+### 10 nya Tier 2 fallor implementerade (blad, kraft, elektricitet, fangst)
+
+**Blad och skar:**
+- `src/structures/CircleSawTrap.ts` -- 35 dmg, cd 3s, poppar upp fran golvet, fuel 1
+- `src/structures/RazorWireCarousel.ts` -- 15 dmg/s AOE ring, overheat 25s, fuel 1
+- `src/structures/LawnmowerLane.ts` -- 20 dmg/s korridor 4 tiles, overheat 30s, fuel 2
+
+**Kraft och rorelse:**
+- `src/structures/TreadmillOfDoom.ts` -- pushback + 10 dmg/s, alltid aktiv, overheat 40s, fuel 2
+- `src/structures/PendulumAxe.ts` -- 45 dmg swing AOE 48px, cd 5s
+- `src/structures/GarageDoorSmasher.ts` -- 60 dmg crush, cd 8s, fuel 1
+
+**Elektricitet:**
+- `src/structures/BugZapperXL.ts` -- 20 dmg/s AOE + attraherar zombies, overheat 20s, fuel 1
+- `src/structures/CarBatteryGrid.ts` -- stun 2s i 3x3 zon, cd 10s
+- `src/structures/ElectricFence.ts` -- 10 dmg/s + blockerar, 200 HP, overheat 60s, fuel 2
+
+**Fangst:**
+- `src/structures/NetLauncher.ts` -- immobilize 4s i 3x3 AOE, cd 12s
+
+**src/data/structures.json:** 10 nya entries laggda till
+**src/data/base-levels.json:** Camp/Outpost/Settlement: alla 10 laggda till unlockedStructures
+**src/data/blueprints.json:** 5 nya blueprints: auto_shop_manual, farm_equipment_guide,
+  electricians_handbook, trappers_handbook_advanced
+**src/scenes/NightScene.ts:** Imports, arrays, createStructures switch-cases, update-loopar,
+  allMechanical-lista
+
+## [Unreleased] - 2026-04-04 -- Tier 3 Trap Batch: Slaktmaskiner + Explosivt
+
+### 9 nya Tier 3 fallor implementerade (slaktmaskiner + explosivt)
+
+**Slaktmaskiner (extends TrapBase):**
+- `src/structures/MeatGrinder.ts` -- 50 dmg/s AOE 2 tiles, cd 6s, overheat 20s, fuel 2, malfunction 25%
+- `src/structures/BeltSanderGauntlet.ts` -- 30 dmg/s korridor, cd 4s, overheat 25s
+- `src/structures/PowerDrillPress.ts` -- 80 dmg single target + stun 0.5s, cd 4s
+- `src/structures/PianoWireWeb.ts` -- 40 dmg pa passage, 20 uses (skars ner)
+- `src/structures/CombineHarvester.ts` -- 60 dmg/s 4 tiles bred, cd 8s, fuel 3, LEGENDARY
+
+**Explosivt (extends TrapBase):**
+- `src/structures/CarBomb.ts` -- 200 dmg AOE 120px, engangstrap (uses=1)
+- `src/structures/NapalmSprinkler.ts` -- 40 dmg/s kon 100px, cd 8s, fuel 4
+- `src/structures/GasMainIgniter.ts` -- 150 dmg hel kartbredd linje, engangstrap (uses=1)
+- `src/structures/FlamethrowerPost.ts` -- 30 dmg/s kon 80px, cd 5s, fuel 3
+
+**src/data/structures.json:**
+- 9 nya entries: meat_grinder, belt_sander_gauntlet, power_drill_press, piano_wire_web,
+  combine_harvester, car_bomb, napalm_sprinkler, gas_main_igniter, flamethrower_post
+
+**src/data/base-levels.json:**
+- Outpost (level 2): 8 nya fallor laggda till unlockedStructures
+- Settlement (level 3): 9 nya fallor laggda till (inkl. combine_harvester)
+
+**src/data/blueprints.json:**
+- 4 nya blueprints: industrial_slaughter, legendary_harvester, explosive_ordinance, napalm_tactics
+
+**src/scenes/NightScene.ts:**
+- Importerar alla 9 nya klasser
+- 9 nya privata arrays for Tier 3 fallor
+- createStructures(): 9 nya switch-case med fuel-logik for MeatGrinder, CombineHarvester,
+  NapalmSprinkler, FlamethrowerPost
+- updateMechanicalTraps(): update + zombie-interaktionslogik for alla 9 fallor
+- updateRepairMechanic(): allMechanical utokad med Tier 3-array
+
+**Bugfix:**
+- GarageDoorSmasher.ts: tog bort oanvand `smashState`-property (TS6133)
+
+## [Unreleased] - 2026-04-04 -- Tier 3 Trap Batch: Heavy + Combo
+
+### 9 nya Tier 2-3 fallor implementerade
+
+**Passiva blockerare (extends Graphics + physics body):**
+- `src/structures/GlueFloor.ts` -- 90% slow zon, 3 tiles, passiv (extends Graphics)
+- `src/structures/ShoppingCartWall.ts` -- 80 HP blockerare, billig (4 scrap)
+- `src/structures/CarWreckBarrier.ts` -- 300 HP blockerare, tuffaste passiva barrikaden
+- `src/structures/DumpsterFortress.ts` -- 150 HP, shooting holes for refugees
+
+**Tyngd och kraft (extends TrapBase, uses=1):**
+- `src/structures/TractorWheelRoller.ts` -- 100 dmg linje 4 tiles, engangstrap
+- `src/structures/LogAvalanche.ts` -- 50 dmg linje + pushback, engangstrap
+- `src/structures/FallingCar.ts` -- 150 dmg spot, engangstrap
+
+**TrapBase med cooldown:**
+- `src/structures/WreckingBall.ts` -- 70 dmg AOE 64px, cd 10s
+- `src/structures/TreadmillBlades.ts` -- 25 dmg/s + pushback, fuel 1 food/natt
+- `src/structures/FanGlass.ts` -- 15 dmg/s kon, cd 2s
+- `src/structures/ElevatorShaft.ts` -- instant kill 1 zombie, cd 15s
+- `src/structures/RubeGoldberg.ts` -- kedjereaktionen: alarm->eld->boom->blad, cd 20s
+
+**src/data/structures.json:**
+- 13 nya entries: glue_floor, shopping_cart_wall, car_wreck_barrier, dumpster_fortress,
+  tractor_wheel_roller, wrecking_ball, log_avalanche, falling_car, treadmill_blades,
+  fan_glass, elevator_shaft, rube_goldberg (kategori heavy/combo)
+
+**src/data/blueprints.json:**
+- 5 nya blueprints: redneck_engineering, gravity_traps, junkyard_genius, combo_machines, mad_scientists_notes
+
+**src/data/base-levels.json:**
+- Level 2 (Outpost): lagt till wall/barrier + heavy traps
+- Level 3 (Settlement): lagt till alla 13 nya strukturer inkl combo-traps
+
+**src/scenes/NightScene.ts:**
+- 13 nya imports, 16 nya privata arrays
+- createStructures(): 13 nya switch-cases med physics bodies for blockerare
+- checkZombieStructureInteractions(): filter + glue floor slow loop
+- updateMechanicalTraps(): 8 nya trap-update sektioner med AOE/linje/instant-kill logik
+- RubeGoldberg chain callback: varje steg gor AOE-skada och emittar particles
+- updateRepairMechanic(): alla nya TrapBase-traps tillagda i allMechanical
+
 ## [Unreleased] - 2026-04-04 -- Fall-leveling Lv1-3
 
 ### Fall-leveling: Nail Board, Blade Spinner, Fire Pit kan uppgraderas till Lv3

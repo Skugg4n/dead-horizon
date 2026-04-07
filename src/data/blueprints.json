@@ -55,6 +55,110 @@
       "unlocks": ["spring_launcher"],
       "destinations": ["nearby_houses"],
       "dropChance": 0.10
+    },
+    {
+      "id": "auto_shop_manual",
+      "name": "Auto Shop Manual",
+      "description": "Unlocks spinning blade and saw traps",
+      "unlocks": ["circle_saw_trap", "razor_wire_carousel", "lawnmower_lane"],
+      "destinations": ["abandoned_store"],
+      "dropChance": 0.10
+    },
+    {
+      "id": "farm_equipment_guide",
+      "name": "Farm Equipment Guide",
+      "description": "Unlocks treadmill and pendulum traps",
+      "unlocks": ["treadmill_of_doom", "pendulum_axe", "garage_door_smasher"],
+      "destinations": ["ranger_station"],
+      "dropChance": 0.10
+    },
+    {
+      "id": "electricians_handbook",
+      "name": "Electrician's Handbook",
+      "description": "Unlocks advanced electrical traps",
+      "unlocks": ["bug_zapper_xl", "car_battery_grid", "electric_fence"],
+      "destinations": ["hospital"],
+      "dropChance": 0.12
+    },
+    {
+      "id": "trappers_handbook_advanced",
+      "name": "Trapper's Handbook (Advanced)",
+      "description": "Unlocks net and capture traps",
+      "unlocks": ["net_launcher"],
+      "destinations": ["ranger_station"],
+      "dropChance": 0.10
+    },
+    {
+      "id": "industrial_slaughter",
+      "name": "Industrial Slaughter Manual",
+      "description": "Unlocks heavy grinding and cutting machines",
+      "unlocks": ["meat_grinder", "belt_sander_gauntlet", "power_drill_press", "piano_wire_web"],
+      "destinations": ["abandoned_store", "city_ruins"],
+      "dropChance": 0.06
+    },
+    {
+      "id": "legendary_harvester",
+      "name": "Combine Harvester Schematics",
+      "description": "Unlocks the legendary Combine Harvester",
+      "unlocks": ["combine_harvester"],
+      "destinations": ["ranger_station"],
+      "dropChance": 0.03
+    },
+    {
+      "id": "explosive_ordinance",
+      "name": "Explosive Ordinance Manual",
+      "description": "Unlocks car bombs and gas line charges",
+      "unlocks": ["car_bomb", "gas_main_igniter"],
+      "destinations": ["city_ruins"],
+      "dropChance": 0.05
+    },
+    {
+      "id": "napalm_tactics",
+      "name": "Napalm Tactics Field Guide",
+      "description": "Unlocks napalm and flamethrower installations",
+      "unlocks": ["napalm_sprinkler", "flamethrower_post"],
+      "destinations": ["ranger_station", "abandoned_store"],
+      "dropChance": 0.07
+    },
+    {
+      "id": "redneck_engineering",
+      "name": "Redneck Engineering",
+      "description": "Unlocks improvised barrier and adhesive traps",
+      "unlocks": ["shopping_cart_wall", "car_wreck_barrier", "dumpster_fortress", "glue_floor"],
+      "destinations": ["nearby_houses"],
+      "dropChance": 0.10
+    },
+    {
+      "id": "gravity_traps",
+      "name": "Gravity Trap Schematics",
+      "description": "Unlocks heavy rolling and avalanche traps",
+      "unlocks": ["tractor_wheel_roller", "log_avalanche", "falling_car"],
+      "destinations": ["ranger_station"],
+      "dropChance": 0.07
+    },
+    {
+      "id": "junkyard_genius",
+      "name": "Junkyard Genius",
+      "description": "Unlocks wrecking ball and treadmill blade combo",
+      "unlocks": ["wrecking_ball", "treadmill_blades"],
+      "destinations": ["abandoned_store"],
+      "dropChance": 0.07
+    },
+    {
+      "id": "combo_machines",
+      "name": "Combo Machine Manual",
+      "description": "Unlocks fan glass and elevator shaft traps",
+      "unlocks": ["fan_glass", "elevator_shaft"],
+      "destinations": ["city_ruins"],
+      "dropChance": 0.06
+    },
+    {
+      "id": "mad_scientists_notes",
+      "name": "Mad Scientist's Notes",
+      "description": "Unlocks the legendary Rube Goldberg machine",
+      "unlocks": ["rube_goldberg"],
+      "destinations": ["city_ruins"],
+      "dropChance": 0.04
     }
   ],
   "alwaysAvailable": [
