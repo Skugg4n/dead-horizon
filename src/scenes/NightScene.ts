@@ -383,10 +383,14 @@ export class NightScene extends Phaser.Scene {
     // Pillbox refugee shooting
     this.updatePillboxShooting(delta);
 
-    // Shoot: triggered by player input (space / mouse click)
+    // Shooting: melee = auto-shoot always, ranged = manual (space/click)
     this.shootCooldown = Math.max(0, this.shootCooldown - delta);
-    if (this.isShooting && this.shootCooldown <= 0) {
-      this.tryAutoShoot();
+    if (this.shootCooldown <= 0) {
+      const weapon = this.weaponManager.getEquipped();
+      const isMelee = weapon ? this.weaponManager.getWeaponStats(weapon).weaponClass === 'melee' : false;
+      if (isMelee || this.isShooting) {
+        this.tryAutoShoot();
+      }
     }
 
     // Update FPS counter
@@ -3219,7 +3223,7 @@ export class NightScene extends Phaser.Scene {
   private showTutorialOverlay(): void {
     const steps = [
       { title: 'MOVE', text: 'Use WASD or arrow keys\nto move your character.' },
-      { title: 'SHOOT', text: 'Click or hold SPACE to\nshoot closest enemy in range.' },
+      { title: 'SHOOT', text: 'Melee: auto-attacks nearby.\nRanged: click/SPACE to fire.' },
       { title: 'SPRINT', text: 'Hold SHIFT to sprint.\nWatch your stamina bar.' },
       { title: 'SWITCH', text: 'Press 1-5 to switch\nweapons during combat.' },
       { title: 'SURVIVE', text: `Survive ${this.waveManager.getMaxWaves()} wave(s).\nYou keep everything\nwhen you die.` },
