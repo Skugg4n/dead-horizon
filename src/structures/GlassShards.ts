@@ -103,8 +103,8 @@ export class GlassShards extends Phaser.GameObjects.Graphics {
       if (brightness > 0.4) {
         const pos = this.sparklePositions[i];
         if (!pos) continue; // guard against noUncheckedIndexedAccess
-        // Cross/star shaped sparkle
-        this.lineStyle(1, 0xFFFFFF, brightness * 0.9);
+        // Cross/star shaped sparkle: dimmer blue instead of bright white
+        this.lineStyle(1, 0x4488AA, brightness * 0.5);
         this.lineBetween(pos.x - 2, pos.y, pos.x + 2, pos.y);
         this.lineBetween(pos.x, pos.y - 2, pos.x, pos.y + 2);
       }

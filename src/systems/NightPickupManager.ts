@@ -405,6 +405,9 @@ export class NightPickupManager {
     pickup.pulseTween = pulseTween;
 
     this.active.push(pickup);
+
+    // Notify the scene that a pickup has spawned (for GameLog, camera flash, sound)
+    this.scene.events.emit('pickup-spawned', def.label, x, y);
   }
 
   // --------------------------------------------------------------------------

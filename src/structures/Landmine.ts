@@ -29,6 +29,16 @@ export class Landmine extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    // Idle pulse: the detonator light blinks ominously
+    scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.8, to: 1.0 },
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private draw(): void {

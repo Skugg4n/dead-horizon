@@ -77,10 +77,16 @@ const STRUCTURE_ICONS: Record<string, string> = {
   chain_wall:     '⛓️',
 };
 
-// Which primitives belong to TRAPS vs WALLS
-const PRIMITIVE_TRAP_IDS = new Set([
-  'trap', 'spike_strip', 'sandbags', 'pit_trap', 'bear_trap', 'landmine', 'oil_slick',
-  'nail_board', 'trip_wire', 'glass_shards', 'tar_pit',
+// BASIC tab: primitive traps (no mechanical systems)
+const BASIC_TRAP_IDS = new Set([
+  'nail_board', 'trip_wire', 'glass_shards', 'tar_pit', 'spike_strip',
+  'trap', 'bear_trap', 'landmine', 'oil_slick', 'sandbags', 'pit_trap',
+]);
+
+// WALLS tab: blocking structures (primitive category, id-matched)
+const WALL_IDS = new Set([
+  'barricade', 'wall', 'cart_wall', 'chain_wall', 'electric_fence',
+  'shopping_cart_wall', 'car_wreck_barrier', 'dumpster_fortress', 'glue_floor',
 ]);
 
 // Blueprint definitions and always-available trap IDs (from blueprints.json)
@@ -96,7 +102,7 @@ for (const bp of ALL_BLUEPRINTS) {
 }
 
 
-type TabName = 'TRAPS' | 'WALLS' | 'SPECIAL';
+type TabName = 'BASIC' | 'MACHINES' | 'WALLS' | 'SPECIAL';
 
 interface DisabledReason {
   text: string;
@@ -117,7 +123,7 @@ export class BuildMenu {
   private backdrop: Phaser.GameObjects.Graphics;
 
   private visible: boolean = false;
-  private activeTab: TabName = 'TRAPS';
+  private activeTab: TabName = 'BASIC';
 
   // Keyboard navigation state
   private cursorIndex: number = -1; // -1 = no keyboard selection
@@ -277,7 +283,7 @@ export class BuildMenu {
     }
 
     if (key === 'Tab') { consume();
-      const tabs: TabName[] = ['TRAPS', 'WALLS', 'SPECIAL'];
+      const tabs: TabName[] = ['BASIC', 'MACHINES', 'WALLS', 'SPECIAL'];
       const idx = tabs.indexOf(this.activeTab);
       const next = tabs[(idx + 1) % tabs.length];
       if (next) this.activeTab = next;
@@ -310,9 +316,15 @@ export class BuildMenu {
   }
 
   private getFilteredItems(): StructureData[] {
-    // Only show structures that are blueprint-accessible (alwaysAvailable or unlocked)
+    // Only show structures that are blueprint-accessible (alwaysAvailable or unlocked).
+    // Sort by total resource cost (cheapest first) so new players see affordable options first.
     return this.buildingManager.getAllStructureData()
-      .filter(s => this.getTabForStructure(s) === this.activeTab && this.isBlueprintAccessible(s.id));
+      .filter(s => this.getTabForStructure(s) === this.activeTab && this.isBlueprintAccessible(s.id))
+      .sort((a, b) => {
+        const totalCostA = Object.values(a.cost).reduce((sum, v) => sum + (v as number), 0);
+        const totalCostB = Object.values(b.cost).reduce((sum, v) => sum + (v as number), 0);
+        return totalCostA - totalCostB;
+      });
   }
 
   private trySelectCurrent(filtered: StructureData[]): void {
@@ -456,9 +468,9 @@ export class BuildMenu {
     this.container.add(resText);
   }
 
-  /** Three-tab strip: TRAPS | WALLS | SPECIAL */
+  /** Four-tab strip: BASIC | MACHINES | WALLS | SPECIAL */
   private buildTabStrip(): void {
-    const tabs: TabName[] = ['TRAPS', 'WALLS', 'SPECIAL'];
+    const tabs: TabName[] = ['BASIC', 'MACHINES', 'WALLS', 'SPECIAL'];
     const tabW = Math.floor(PANEL_W / tabs.length);
 
     tabs.forEach((tab, i) => {
@@ -499,10 +511,10 @@ export class BuildMenu {
       });
       this.container.add(tabBg);
 
-      // Tab labels: 7px (was larger)
+      // Tab labels: 7px (smaller to fit 4 tabs)
       const tabLabel = this.scene.add.text(x + tabW / 2, HEADER_H + TAB_H / 2, tab, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
+        fontSize: '7px',
         color: isActive ? FONT_YELLOW : FONT_MUTED,
       }).setOrigin(0.5, 0.5);
       this.container.add(tabLabel);
@@ -670,12 +682,16 @@ export class BuildMenu {
   // Helpers
   // ------------------------------------------------------------------
 
-  /** Determine which tab a structure belongs to based on its category. */
+  /** Determine which tab a structure belongs to based on its category and id. */
   private getTabForStructure(s: StructureData): TabName {
-    if (s.category === 'machine') return 'TRAPS';
     if (s.category === 'special') return 'SPECIAL';
-    // primitive: split into WALLS (barricade, wall, cart_wall) vs TRAPS
-    if (PRIMITIVE_TRAP_IDS.has(s.id)) return 'TRAPS';
+    // Specific wall/blocker ids go to WALLS regardless of category
+    if (WALL_IDS.has(s.id)) return 'WALLS';
+    // Mechanical traps (not walls) go to MACHINES tab
+    if (s.category === 'machine') return 'MACHINES';
+    // Primitive trap ids go to BASIC tab
+    if (BASIC_TRAP_IDS.has(s.id)) return 'BASIC';
+    // Remaining primitives (barricade, wall, etc.) default to WALLS
     return 'WALLS';
   }
 

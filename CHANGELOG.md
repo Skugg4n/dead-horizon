@@ -1,5 +1,46 @@
 # Dead Horizon -- Changelog
 
+## [v4.9.0] - 2026-04-04 -- 8-fix audit: UI, visuals, balans och UX
+
+### Varfor
+Audit identifierade 8 konkreta problem: overbelagd TRAPS-flik, CraftingPanel utan scroll, avsaknad av post-apokalyptisk fargstil, inkonsekvent trap-grafik, saknad pickup-notifiering, otydlig refugee-panel, for dyr Combine Harvester och for ljust Glass Shards.
+
+### Andrat
+- **Fix 1 (BuildMenu)**: TRAPS-fliken delad i 4 flikar: BASIC, MACHINES, WALLS, SPECIAL. TabName-typ och getTabForStructure() uppdaterade.
+- **Fix 2 (CraftingPanel)**: Pagination med MAX_VISIBLE_RECIPES=5 och scroll-knappar, scrollOffset per toggle.
+- **Fix 3 (Fargstil)**: NightScene: blagron overlay (alpha 0.04). DayScene: sepia overlay (alpha 0.03).
+- **Fix 4 (Trap-grafik)**: Barricade, Wall, SpikeStrip, Sandbags, Landmine, BearTrap, OilSlick far idle alpha-pulse tweens.
+- **Fix 5 (Pickup-ping)**: pickup-spawned event i NightPickupManager. NightScene: GameLog, kamera-flash, ui_click-ljud.
+- **Fix 6 (Refugee-panel)**: Dagliga bonusar visas, hjalp-rad lagd langst ned.
+- **Fix 7 (Combine Harvester)**: Kostnad 15S 6P (fran 20S 8P) i structures.json.
+- **Fix 8 (Glass Shards)**: Sparkle dimmare: alpha 0.5, farg 0x4488AA.
+- GAME_VERSION: 4.9.0
+
+## [Unreleased] - 2026-04-04 -- Trap combo-system + balansering av fallor
+
+### Varfor
+Fallor med olika effekter (stun+damage, slow+zone) bor belona strategisk placering. Combo-systemet uppmuntrar spelaren att kombinera falltyper. Balansandringar gor overstarkt laga-kostnadsfallor rimligare och minskar underhallskostnaden for Meat Grinder.
+
+### Tillagt
+- **Trap Combo System**: Nar en zombie traffas av en falla och sedan av en ANNAN falltyp inom 2 sekunder utloses COMBO -- 1.5x damage + "COMBO!" floater-text vid zombiepositionen (gul, fader pa 500ms)
+- `lastTrapHitTime`, `lastTrapType`, `comboActive` lagda till Zombie.ts for O(1) combo-detektering
+- `applyTrapDamage(zombie, trapType, damage)` -- central hjalp-metod i NightScene hanterar combo-logik och kill-source-taggning for alla falltyper (18+ anropsplatser)
+- `showComboFloater(x, y)` -- tweened text vid zombiepositionen
+- `comboCount` i NightStats och ResultScene: "Combos triggered: N"
+- BuildMenu sortering: `getFilteredItems()` sorterar nu billigast forst (totalvarde av resurskostnad)
+
+### Balanserat
+- **Combine Harvester**: kostnad 20S 8P -> 15S 5P (legendary ska kanna vard det)
+- **Propane Geyser**: damage 40 -> 30 (for starkt for 4S kostnad)
+- **Spring Launcher**: damage 40 -> 30 (for starkt for 4S kostnad)
+- **Car Bomb**: kostnad 15S 5P -> 12S 4P (engangsfalla, bor vara billigare)
+- **Meat Grinder**: fuel 2 -> 1 food/natt (for dyrt att underhalla)
+
+### Tekniskt
+- Alla inline `_currentKillSource = 'trap'` / `zombie.takeDamage()` / `_currentKillSource = null` monstren ersatta med `applyTrapDamage()` -- cleaner och korrekt kill-tracking
+- TypeScript strict: inga `any`-typer
+- 1127 tester: alla grona
+
 ## [v4.8.0] - 2026-04-04 -- 14 nya melee-vapen i weapons.json och loot-tables.json
 
 ### Varfor

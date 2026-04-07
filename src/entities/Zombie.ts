@@ -154,6 +154,14 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   // Death state flag to prevent double kills
   private deathStarted = false;
 
+  // Trap combo tracking -- used by NightScene to detect cross-trap combos
+  // lastTrapHitTime: game time (ms) when this zombie was last hit by a trap
+  // lastTrapType: structureId of the last trap that dealt damage
+  // comboActive: true for the 2-second window after a trap hit (for UI feedback)
+  lastTrapHitTime: number = 0;
+  lastTrapType: string = '';
+  comboActive: boolean = false;
+
   // Speed debuff timers (ms remaining). Multiple debuffs stack to worst.
   private crippleTimer: number = 0;   // -50% speed
   private stunTimer: number = 0;      // 0% speed (full stop)

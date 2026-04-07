@@ -66,6 +66,8 @@ export interface NightStats {
   // Endless mode: which endless night number this was
   endlessNight?: number;
   bossKills: number;
+  // Number of trap combos triggered this night (different trap types hitting the same zombie within 2s)
+  comboCount: number;
 }
 
 // Legacy Perk definition loaded from perks.json

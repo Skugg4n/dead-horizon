@@ -34,6 +34,16 @@ export class SpikeStrip extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    // Idle color shift: metallic sheen pulse
+    scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.85, to: 1.0 },
+      duration: 1800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private draw(): void {
@@ -54,6 +64,10 @@ export class SpikeStrip extends Phaser.GameObjects.Graphics {
     // Thin border
     this.lineStyle(1, 0xE8DCC8, 0.25);
     this.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+
+    // Metallic sheen: horizontal highlight bar across upper third
+    this.fillStyle(0xFFCCCC, 0.12);
+    this.fillRect(2, 4, TILE_SIZE - 4, 4);
   }
 
   getDamage(): number {

@@ -22,6 +22,16 @@ export class Sandbags extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    // Idle alpha pulse: subtle settling effect
+    scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.9, to: 1.0 },
+      duration: 2600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private draw(): void {
@@ -45,6 +55,13 @@ export class Sandbags extends Phaser.GameObjects.Graphics {
     // Outline
     this.lineStyle(1, 0xE8DCC8, 0.35);
     this.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+
+    // Shadow detail: dark line at bottom of each bag row to show depth
+    this.lineStyle(1, 0x6B5020, 0.4);
+    for (let row = 0; row < 3; row++) {
+      const y = 4 + row * 11 + 7;
+      this.lineBetween(2, y, TILE_SIZE - 2, y);
+    }
   }
 
   /** Slow factor applied to enemies passing through (lower = slower) */

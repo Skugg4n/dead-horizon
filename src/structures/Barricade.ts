@@ -19,6 +19,16 @@ export class Barricade extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    // Idle alpha pulse: subtle breathing effect for visual consistency
+    scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.9, to: 1.0 },
+      duration: 2200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private draw(): void {
@@ -42,6 +52,12 @@ export class Barricade extends Phaser.GameObjects.Graphics {
 
     this.lineStyle(1, 0xE8DCC8, 0.4);
     this.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+
+    // Subtle wood grain detail lines
+    this.lineStyle(1, 0x6B4E0E, 0.3);
+    this.lineBetween(6, 4, 6, TILE_SIZE - 4);
+    this.lineBetween(14, 4, 14, TILE_SIZE - 4);
+    this.lineBetween(22, 4, 22, TILE_SIZE - 4);
   }
 
   /** Slow factor applied to enemies passing through (0.5 = half speed) */

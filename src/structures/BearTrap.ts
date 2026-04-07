@@ -28,6 +28,16 @@ export class BearTrap extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    // Idle alpha pulse: slight tension shimmer
+    scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.85, to: 1.0 },
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private draw(): void {

@@ -8,11 +8,16 @@ import { renderResourceCosts } from './resourceIcons';
 
 const PANEL_WIDTH = 360;
 
+// Max number of recipes visible without scrolling
+const MAX_VISIBLE_RECIPES = 5;
+
 export class CraftingPanel {
   private scene: Phaser.Scene;
   private panel: UIPanel;
   private craftingManager: CraftingManager;
   private updateResources: () => void;
+  // Scroll state: index of first visible recipe
+  private scrollOffset: number = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -32,6 +37,7 @@ export class CraftingPanel {
   toggle(): void {
     this.panel.toggle();
     if (this.panel.isVisible()) {
+      this.scrollOffset = 0;
       this.refresh();
     }
   }
@@ -42,9 +48,19 @@ export class CraftingPanel {
 
     const contentWidth = PANEL_WIDTH - 24;
     const recipes = this.craftingManager.getAllRecipes();
+    const total = recipes.length;
+
+    // Clamp scroll offset
+    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, Math.max(0, total - MAX_VISIBLE_RECIPES)));
+
+    const visibleRecipes = recipes.slice(this.scrollOffset, this.scrollOffset + MAX_VISIBLE_RECIPES);
+    const hasPrev = this.scrollOffset > 0;
+    const hasMore = this.scrollOffset + MAX_VISIBLE_RECIPES < total;
+    const moreCount = total - (this.scrollOffset + MAX_VISIBLE_RECIPES);
+
     let yPos = 0;
 
-    for (const recipe of recipes) {
+    for (const recipe of visibleRecipes) {
       const canCraft = this.craftingManager.canCraft(recipe.id);
       const color = canCraft ? '#E8DCC8' : '#6B6B6B';
 
@@ -122,6 +138,36 @@ export class CraftingPanel {
 
       yPos += 56;
     }
+
+    // Scroll navigation buttons
+    if (hasPrev) {
+      const upBtn = this.scene.add.text(0, yPos + 4, '[ ^ UP ]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#FFD700',
+      }).setInteractive({ useHandCursor: true });
+      upBtn.on('pointerover', () => upBtn.setColor('#FFFFFF'));
+      upBtn.on('pointerout', () => upBtn.setColor('#FFD700'));
+      upBtn.on('pointerdown', () => {
+        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+        this.refresh();
+      });
+      content.add(upBtn);
+    }
+    if (hasMore) {
+      const downBtn = this.scene.add.text(contentWidth, yPos + 4, `[ v ${moreCount} MORE ]`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#FFD700',
+      }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+      downBtn.on('pointerover', () => downBtn.setColor('#FFFFFF'));
+      downBtn.on('pointerout', () => downBtn.setColor('#FFD700'));
+      downBtn.on('pointerdown', () => {
+        this.scrollOffset = Math.min(total - MAX_VISIBLE_RECIPES, this.scrollOffset + 1);
+        this.refresh();
+      });
+      content.add(downBtn);
+    }
   }
 
   private getResultDescription(result: { type: string; amount: number }): string {
@@ -144,11 +190,12 @@ export class CraftingPanel {
       return true;
     }
 
-    // Number keys craft recipes
+    // Number keys craft visible recipes (1 = first visible, etc.)
     const num = parseInt(key, 10);
     if (num >= 1 && num <= 9) {
       const recipes = this.craftingManager.getAllRecipes();
-      const recipe = recipes[num - 1];
+      const absoluteIndex = this.scrollOffset + (num - 1);
+      const recipe = recipes[absoluteIndex];
       if (recipe && this.craftingManager.canCraft(recipe.id)) {
         this.craftingManager.craft(recipe.id);
         this.updateResources();

@@ -109,13 +109,41 @@ export class RefugeePanel {
       return;
     }
 
+    // Total daily bonuses from all healthy refugees
+    const totalFood = refugees.filter(r => r.status === 'healthy' && r.bonusType === 'food').length;
+    const totalScrap = refugees.filter(r => r.status === 'healthy' && r.bonusType === 'scrap').length;
+    const totalRepair = refugees.filter(r => r.status === 'healthy' && r.bonusType === 'repair').length;
+    const bonusParts: string[] = [];
+    if (totalFood > 0) bonusParts.push(`+${totalFood} food`);
+    if (totalScrap > 0) bonusParts.push(`+${totalScrap} scrap`);
+    if (totalRepair > 0) bonusParts.push(`+${totalRepair} repair`);
+    const bonusStr = bonusParts.length > 0 ? `Daily: ${bonusParts.join(', ')}` : 'No bonuses yet';
+    content.add(
+      this.scene.add.text(0, 12, bonusStr, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#88FF88',
+      }),
+    );
+
     // Track injured index separately so heal buttons can show [1] [2] etc per-injured
     let injuredIndex = 0;
     refugees.forEach((refugee, i) => {
-      const rowY = 18 + i * ROW_HEIGHT;
+      const rowY = 30 + i * ROW_HEIGHT;
       const keyIndex = refugee.status === 'injured' ? injuredIndex++ : -1;
       this.buildCrewRow(content, refugee, rowY, i < refugees.length - 1, keyIndex);
     });
+
+    // Help line at the bottom explaining refugee mechanics
+    const helpY = 30 + refugees.length * ROW_HEIGHT + 6;
+    content.add(
+      this.scene.add.text(0, helpY, 'Rescue survivors on loot runs. Max 5. Each gives +1 bonus/day.', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#555555',
+        wordWrap: { width: CONTENT_W },
+      }),
+    );
   }
 
   // Build one crew member row: portrait circle | name + bonus label | status / heal button

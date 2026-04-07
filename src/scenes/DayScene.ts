@@ -303,6 +303,15 @@ export class DayScene extends Phaser.Scene {
     this.dayLightOverlay.setDepth(90).setScrollFactor(0);
     this.updateDayLighting();
 
+    // Post-apocalyptic color grade: permanent warm sepia tint overlay (alpha 0.03)
+    // Gives the day phase a muted, desaturated post-apocalyptic feel
+    const dayColorGrade = this.add.graphics();
+    dayColorGrade.setDepth(89); // just below dayLightOverlay
+    dayColorGrade.setScrollFactor(0);
+    dayColorGrade.fillStyle(0x3A2800, 1); // dark amber/sepia tint
+    dayColorGrade.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    dayColorGrade.setAlpha(0.03);
+
     // Dawn fade-in animation -- skip if tutorial is showing (first game)
     if (!this.tutorialShowing) {
       this.showDawnAnimation();

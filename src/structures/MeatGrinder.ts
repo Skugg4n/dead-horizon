@@ -44,7 +44,7 @@ export class MeatGrinder extends TrapBase {
       15000,  // recoveryMs (15s recovery when overheated)
       0.25,   // malfunctionChance (25%)
       -1,     // uses (-1 = unlimited)
-      2,      // fuelPerNight (2 food)
+      1,      // fuelPerNight (1 food -- balance v2.5.0: reduced from 2)
     );
   }
 

@@ -156,6 +156,14 @@ export class ResultScene extends Phaser.Scene {
     addLine(`  ${data.baseHpEnd} / ${data.baseHpMax}`, hpColor);
     addSpacer();
 
+    // Trap combos triggered this night
+    if (data.comboCount > 0) {
+      addLine('TRAP COMBOS', '#9A7A5A', '8px');
+      addSpacer(4);
+      addLine(`  Combos triggered: ${data.comboCount}`, '#FFD700');
+      addSpacer();
+    }
+
     // Legacy Points earned this night
     const lpEarned = this.calcLpEarned(data, state.zone);
     if (lpEarned > 0) {

@@ -19,6 +19,16 @@ export class Wall extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    // Subtle idle alpha pulse for visual consistency
+    scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.88, to: 1.0 },
+      duration: 3000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private draw(): void {

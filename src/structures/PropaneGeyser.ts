@@ -16,7 +16,8 @@ const BURST_RADIUS = 60; // cone approximated as circle for simplicity
  */
 export class PropaneGeyser extends TrapBase {
   public readonly burstRadius: number = BURST_RADIUS;
-  public readonly burstDamage: number = 40;
+  // Balance v2.5.0: reduced from 40 to 30 (too OP for 4S cost)
+  public readonly burstDamage: number = 30;
 
   /** Remaining duration (ms) of the burst visual. */
   private burstVisualTimer: number = 0;

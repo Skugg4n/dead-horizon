@@ -49,7 +49,8 @@ export class SpringLauncher extends TrapBase {
       -1,     // uses (-1 = unlimited)
       0,      // fuelPerNight
     );
-    this.trapDamage = 40;
+    // Balance v2.5.0: reduced from 40 to 30 (too OP for 4S cost)
+    this.trapDamage = 30;
   }
 
   protected draw(): void {

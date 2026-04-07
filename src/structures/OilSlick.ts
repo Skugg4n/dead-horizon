@@ -30,6 +30,16 @@ export class OilSlick extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    // Idle iridescent shimmer: subtle alpha variation simulates liquid surface
+    scene.tweens.add({
+      targets: this,
+      alpha: { from: 0.82, to: 0.98 },
+      duration: 2400,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 
   private draw(): void {
