@@ -1,5 +1,38 @@
 # Dead Horizon -- Changelog
 
+## [v4.0.1] - 2026-04-04 -- UX-fixes: PackYourBag layout, shortcut hints i paneler, HUD-cleanup
+
+### PackYourBagScene.ts -- komplett omskrivning av layout och UX
+- Tydliga vertikala sektioner med separatorer: Weapons -> divider -> Resources -> divider -> Refugees/Skills
+- Weapons visas max 6 st (med hint om overflow); allt i scrollContainer
+- Resources: hold-click pa [-]/[+] med auto-repeat (3/s, accelererar till 10/s efter 1s)
+- Nytt [MAX]-knapp per resurs-rad: fyller till min(available, remaining_budget)
+- Skills visar nu korrekt niva (e.g. "Melee Lv3") istallet for ratt XP-varde ("Lv3650")
+  -- xpToLevel() konverterar ackumulerad XP till niva via skills.json-trosklarna
+- Scroll-stod med mushjul (innehall klipps med geometry mask)
+- Font: 10px headers, 9px items, 8px knappar, 7px hints (enligt spec)
+
+### LootRunPanel.ts -- tangentbordsgenvagar synliga i UI
+- Destinations-lista: "[1] Nearby Houses", "[2] Ranger Station" etc (8px hint till vanster om namn)
+- Companion-lista: "[1] Wren  (Tough)..." etc
+
+### EncounterDialog.ts -- shortcut-hints pa Fight/Flee-knappar
+- FIGHT-knappen visar nu "[1] FIGHT", FLEE-knappen visar "[2] FLEE"
+
+### RefugeePanel.ts -- shortcut-hints pa Heal-knappar + forbattrad handleKey
+- Heal-knappar visar "[1] Heal (1 med)", "[2] Heal (1 med)" etc per skadad refugee
+- handleKey() stodjer nu 1-9 for att hela skadade refugees direkt via tangentbord
+
+### EventDialog.ts -- shortcut-prefix pa alla valknapparna
+- Valknappar visar "[1] Accept", "[2] Decline" etc
+- Hojdberakning uppdaterad for att inkludera prefixet i matningstexten
+
+### HUD.ts -- rensar oanvanda privata falt
+- Tog bort `_currentNight` och `_maxNights` (sattes i setNight() men lasters aldrig)
+
+### constants.ts
+- GAME_VERSION: '4.0.0' -> '4.0.1'
+
 ## [v3.3.1] - 2026-04-04 -- Zon-specifik terranggenering: City och Military
 
 ### TerrainGenerator.ts -- fullstandig zon-specifik terrang

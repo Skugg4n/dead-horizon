@@ -33,8 +33,6 @@ export class HUD {
   private wavePanel!: Phaser.GameObjects.Graphics;
   private waveText!: Phaser.GameObjects.Text;
   private waveSubText!: Phaser.GameObjects.Text;
-  private _currentNight: number = 1;
-  private _maxNights: number = 5;
 
   private baseHpBar!: Phaser.GameObjects.Graphics;
   private baseHpBarBg!: Phaser.GameObjects.Graphics;
@@ -411,8 +409,6 @@ export class HUD {
 
   /** Set the night number displayed in the main header. */
   setNight(night: number, maxNights: number = 5): void {
-    this._currentNight = night;
-    this._maxNights = maxNights;
     this.waveText.setText(`Night ${night} / ${maxNights}`);
   }
 

@@ -125,7 +125,6 @@ export class PackYourBagScene extends Phaser.Scene {
   private contentHeight: number = 0;
   // Visible area for content (below header, above button)
   private readonly SCROLL_TOP = 52;
-  private readonly SCROLL_BOTTOM = GAME_HEIGHT - 60;
   private readonly SCROLL_VIEW_H = (GAME_HEIGHT - 60) - 52;
 
   constructor() {
@@ -427,12 +426,7 @@ export class PackYourBagScene extends Phaser.Scene {
       }).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       this.scrollContainer.add(minusBtn);
 
-      // Bar background
-      this.add.rectangle(BAR_X + BAR_WIDTH / 2, rowY + 11, BAR_WIDTH, 10, 0x1a2a1a, 1)
-        .setOrigin(0.5, 0.5);
-      // (not adding bar bg to scrollContainer -- it'll be added below in the same call)
-
-      // Actually we must add bar bg to scrollContainer too
+      // Bar background (dark track behind the fill)
       const barBg = this.add.rectangle(BAR_X + BAR_WIDTH / 2, rowY + 11, BAR_WIDTH, 10, 0x1a2a1a, 1)
         .setOrigin(0.5, 0.5);
       this.scrollContainer.add(barBg);
