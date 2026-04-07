@@ -9,7 +9,7 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { renderResourceCosts } from './resourceIcons';
 import type { GameState, WeaponInstance, WeaponUpgradeType, UpgradeDefinition, WeaponUltimate } from '../config/types';
 
-const PANEL_WIDTH = 380;
+const PANEL_WIDTH = 360; // must match UIPanel max width
 
 // Rarity color mapping
 const RARITY_COLORS: Record<string, string> = {

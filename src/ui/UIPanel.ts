@@ -13,7 +13,7 @@ const BORDER_COLOR = 0x333333;
 const BG_COLOR = 0x1A1A1A;
 const BG_ALPHA = 0.95;
 const TITLE_COLOR = '#E8DCC8';
-const MAX_PANEL_HEIGHT = GAME_HEIGHT - 120;
+const MAX_PANEL_HEIGHT = GAME_HEIGHT - 160; // Leave room for toolbar + resource bar
 const SCROLL_STEP = 30; // pixels per scroll tick
 
 export class UIPanel {
@@ -44,7 +44,7 @@ export class UIPanel {
     this.backdrop = scene.add.graphics();
     this.backdrop.fillStyle(0x000000, 0.01);
     this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    this.backdrop.setDepth(99);
+    this.backdrop.setDepth(249);
     this.backdrop.setVisible(false);
     this.backdrop.setInteractive(
       new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
@@ -53,7 +53,7 @@ export class UIPanel {
     this.backdrop.on('pointerdown', () => this.hide());
 
     this.container = scene.add.container(panelX, PANEL_Y);
-    this.container.setDepth(100);
+    this.container.setDepth(250);
     this.container.setVisible(false);
 
     // Background with border -- blocks clicks from reaching the backdrop
