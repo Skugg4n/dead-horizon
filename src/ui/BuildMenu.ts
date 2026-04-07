@@ -391,18 +391,37 @@ export class BuildMenu {
       offsetY += ITEM_H + ITEM_GAP;
     });
 
-    // --- "More" indicator ---
-    if (hasMore || hasPrev) {
-      const moreY = listY + listH;
-      const lines: string[] = [];
-      if (hasPrev) lines.push('^ more above');
-      if (hasMore) lines.push(`v ${moreCount} more (arrows to scroll)`);
-      const moreText = this.scene.add.text(PANEL_W / 2, moreY + MORE_INDICATOR_H / 2, lines.join('   '), {
+    // --- Scroll arrow buttons ---
+    const arrowY = listY + listH;
+    if (hasPrev) {
+      const upBtn = this.scene.add.text(PADDING, arrowY + 2, '[ ^ UP ]', {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: FONT_MUTED,
-      }).setOrigin(0.5, 0.5);
-      this.container.add(moreText);
+        fontSize: '8px',
+        color: FONT_YELLOW,
+      });
+      upBtn.setInteractive({ useHandCursor: true });
+      upBtn.on('pointerdown', () => {
+        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+        this.rebuild();
+      });
+      upBtn.on('pointerover', () => upBtn.setColor('#FFFFFF'));
+      upBtn.on('pointerout', () => upBtn.setColor(FONT_YELLOW));
+      this.container.add(upBtn);
+    }
+    if (hasMore) {
+      const downBtn = this.scene.add.text(PANEL_W - PADDING, arrowY + 2, `[ v ${moreCount} MORE ]`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: FONT_YELLOW,
+      }).setOrigin(1, 0);
+      downBtn.setInteractive({ useHandCursor: true });
+      downBtn.on('pointerdown', () => {
+        this.scrollOffset = Math.min(total - MAX_VISIBLE_ITEMS, this.scrollOffset + 1);
+        this.rebuild();
+      });
+      downBtn.on('pointerover', () => downBtn.setColor('#FFFFFF'));
+      downBtn.on('pointerout', () => downBtn.setColor(FONT_YELLOW));
+      this.container.add(downBtn);
     }
 
     // --- Close button [X] in top-right ---
