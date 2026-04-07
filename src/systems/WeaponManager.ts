@@ -223,11 +223,12 @@ export class WeaponManager {
   // XP and leveling
   addXP(weaponInstanceId: string, amount: number): void {
     const weapon = this.gameState.inventory.weapons.find(w => w.id === weaponInstanceId);
-    if (!weapon || weapon.level >= 5) return;
+    // Cap combat leveling at 4 -- level 5 requires manual ultimate unlock (parts + scrap)
+    if (!weapon || weapon.level >= 4) return;
 
     weapon.xp += amount;
     const needed = xpPerLevel[weapon.level] ?? 999;
-    if (weapon.xp >= needed && weapon.level < 5) {
+    if (weapon.xp >= needed && weapon.level < 4) {
       weapon.xp -= needed;
       weapon.level++;
       this.scene.events.emit('weapon-leveled', weapon);
@@ -235,7 +236,7 @@ export class WeaponManager {
   }
 
   getXPForNextLevel(weapon: WeaponInstance): number {
-    if (weapon.level >= 5) return 0;
+    if (weapon.level >= 4) return 0; // Lv4->5 requires manual ultimate unlock, not XP
     return xpPerLevel[weapon.level] ?? 999;
   }
 

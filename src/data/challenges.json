@@ -1,0 +1,28 @@
+{
+  "challenges": [
+    {
+      "id": "no_build",
+      "name": "No Build",
+      "description": "Survive 5 nights without building any structures. Only weapons and melee allowed.",
+      "icon": "HAMMER",
+      "lpReward": 200,
+      "unlockCondition": "forest_cleared"
+    },
+    {
+      "id": "pacifist",
+      "name": "Pacifist",
+      "description": "You cannot shoot or melee. Only traps kill zombies. Design perfect kill corridors.",
+      "icon": "PEACE",
+      "lpReward": 300,
+      "unlockCondition": "forest_cleared"
+    },
+    {
+      "id": "speed_run",
+      "name": "Speed Run",
+      "description": "Clear the zone as fast as possible. Only 8 AP per day. Bonus LP based on total time.",
+      "icon": "CLOCK",
+      "lpReward": 500,
+      "unlockCondition": "forest_cleared"
+    }
+  ]
+}

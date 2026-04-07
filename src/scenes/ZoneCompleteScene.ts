@@ -8,6 +8,9 @@ import { AudioManager } from '../systems/AudioManager';
 interface ZoneCompleteData {
   zone: ZoneId;
   kills: number;
+  // Challenge completion data -- null/undefined when no challenge was active
+  challengeId?: string | null;
+  challengeBonus?: number;
 }
 
 // Zone names for display, loaded from zones.json
@@ -169,8 +172,54 @@ export class ZoneCompleteScene extends Phaser.Scene {
       ease: 'Power2',
     });
 
+    // === Challenge completion banner (shown when a challenge was completed) ===
+    if (data.challengeId && (data.challengeBonus ?? 0) > 0) {
+      const challengeNames: Record<string, string> = {
+        no_build: 'No Build',
+        pacifist: 'Pacifist',
+        speed_run: 'Speed Run',
+      };
+      const challengeName = challengeNames[data.challengeId] ?? data.challengeId.toUpperCase();
+
+      const challengeBanner = this.add.container(0, 0).setAlpha(0);
+
+      const bannerBg = this.add.graphics();
+      bannerBg.fillStyle(0x1A1000, 0.9);
+      bannerBg.fillRect(cx - 180, cy + 32, 360, 36);
+      bannerBg.lineStyle(1, 0xC5A030, 0.8);
+      bannerBg.strokeRect(cx - 180, cy + 32, 360, 36);
+      challengeBanner.add(bannerBg);
+
+      const completedText = this.add.text(cx, cy + 42, `CHALLENGE COMPLETE: ${challengeName}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#FFD700',
+        align: 'center',
+      }).setOrigin(0.5, 0);
+      challengeBanner.add(completedText);
+
+      const bonusText = this.add.text(cx, cy + 58, `+${data.challengeBonus} LP BONUS`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#C5A030',
+        align: 'center',
+      }).setOrigin(0.5, 0);
+      challengeBanner.add(bonusText);
+
+      this.add.existing(challengeBanner);
+
+      this.tweens.add({
+        targets: challengeBanner,
+        alpha: 1,
+        duration: 500,
+        delay: 900,
+        ease: 'Power2',
+      });
+    }
+
     // === Next zone unlock section ===
-    const unlockY = cy + 58;
+    // Shift unlock section down a bit when a challenge banner is shown
+    const unlockY = cy + (data.challengeId && (data.challengeBonus ?? 0) > 0 ? 82 : 58);
 
     if (nextZoneName) {
       // "NEXT ZONE UNLOCKED" with animated lock-open feel

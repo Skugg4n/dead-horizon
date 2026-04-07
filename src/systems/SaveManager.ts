@@ -117,6 +117,10 @@ function createDefaultState(): GameState {
       legacyPoints: 0,
       unlockedPerks: [],
     },
+    // Challenge mode defaults: no active challenge, no completions, timer at 0
+    activeChallenge: null,
+    challengeCompletions: [],
+    speedRunTimer: 0,
   };
 }
 
@@ -193,6 +197,10 @@ function load(): GameState {
           legacyPoints: (saved as Partial<GameState>).meta?.legacyPoints ?? 0,
           unlockedPerks: (saved as Partial<GameState>).meta?.unlockedPerks ?? [],
         },
+        // Migration: challenge mode fields added later; default to no active challenge
+        activeChallenge: (saved as Partial<GameState>).activeChallenge ?? null,
+        challengeCompletions: (saved as Partial<GameState>).challengeCompletions ?? [],
+        speedRunTimer: (saved as Partial<GameState>).speedRunTimer ?? 0,
       };
       // Ensure all skill keys exist
       for (const key of Object.keys(defaults.player.skills)) {

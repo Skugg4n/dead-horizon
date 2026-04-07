@@ -1,5 +1,89 @@
 # Dead Horizon -- Changelog
 
+## [perf] - 2026-04-04 22:09 -- SpatialBucketGrid: zombie-trap collision optimization
+
+### Varfor
+NightScene.checkZombieStructureInteractions() itererade ALLA zombies mot ALLA 12 passiva struktur-arrayer varje frame. Med 100+ zombies och 50+ strukturer = 5000+ checks per frame. Nu checkar varje zombie bara ~3-5 narliggande strukturer via ett spatial hash grid.
+
+### Tillagda filer
+- `src/systems/SpatialGrid.ts` -- generisk SpatialBucketGrid<T> med clear(), insert(x,y,item), query(x,y,radius)
+
+### Andrade filer
+
+#### src/config/types.ts
+- Nytt interface `InteractableStructure` -- dokumenterar kontraktet for strukturer som interagerar med zombies (exporteras men anvands inte direkt av gridden, som istallet anvander union-typen PassiveStructure i NightScene)
+
+#### src/scenes/NightScene.ts
+- Ny typ `PassiveStructure` (union av Barricade | Sandbags | Trap | SpikeStrip | BearTrap | Landmine | NailBoard | TripWire | GlassShards | TarPit | OilSlick | GlueFloor) -- lagras direkt i gridden for att undvika sekundara uppslagningar
+- Nytt falt `structureGrid: SpatialBucketGrid<PassiveStructure>` (128px cell = 2 tiles)
+- Ny metod `_rebuildStructureGrid()` -- populerar gridden fran aktiva struktur-arrayer. Kallad en gang fran `createStructures()` och igen nar en passiv struktur forstors under natten
+- `checkZombieStructureInteractions()`: per-zombie forEach-loop ersatt med `structureGrid.query(zombie.x, zombie.y, 96)` foljt av instanceof-grenar per strukturtyp. Grid byggs om om `_gridDirty` satts under loopen
+
+### Performance-forandring
+- Fore: O(zombies * structures) = ~5000+ checks/frame vid 100 zombies + 50 strukturer
+- Efter: O(zombies * ~4) = ~400 checks/frame (grid query tackerkring aktuell cell + grannceller)
+- Mekaniska fallor (TrapBase-subklasser) ror sig inte pa samma satt och hanteras fortfarande i updateMechanicalTraps() som itererar zombies per falltyp
+
+## [challenges] - 2026-04-04 22:05 -- Challenge Modes
+
+### Tillagda filer
+- `src/data/challenges.json` -- definitioner for No Build, Pacifist, Speed Run (id, name, desc, lpReward)
+
+### Andrade filer
+
+#### src/config/types.ts
+- Ny typ `ChallengeId = 'no_build' | 'pacifist' | 'speed_run'`
+- Nytt interface `ChallengeData` (id, name, description, icon, lpReward, unlockCondition)
+- Tre nya falt pa `GameState`: `activeChallenge: ChallengeId | null`, `challengeCompletions: string[]`, `speedRunTimer: number`
+
+#### src/systems/SaveManager.ts
+- `createDefaultState()`: defaults for activeChallenge (null), challengeCompletions ([]), speedRunTimer (0)
+- `load()`: migration -- saknade falt faller tillbaka pa defaults
+
+#### src/scenes/MenuScene.ts
+- Import av ChallengeData, ChallengeId, challengesJson
+- Ny privat property `challengeContainer`
+- Ny knapp "CHALLENGES" i buildMenuButtons (under LEGACY)
+- Ny metod `toggleChallengePanel()`: panel med lista av alla challenges (locked/available/completed), START-knapp per tillganglig challenge
+- Ny metod `startChallenge(id)`: rensar save, skriver challenge-id och startar DayScene
+
+#### src/scenes/DayScene.ts
+- `create()`: Speed Run challenge ger 8 AP istallet for 12
+- `createTopBar()`: challenge-badge visas under dag-raknaren nar challenge ar aktiv
+- `toggleBuildMenu()`: No Build challenge blockerar byggmenyn med info-meddelande
+- `update()`: Speed Run ackumulerar tid i `gameState.speedRunTimer`
+
+#### src/scenes/NightScene.ts
+- `update()`: Pacifist challenge blockerar skjutning (auto-shoot + melee deaktiverat)
+- `update()`: Speed Run ackumulerar tid i `gameState.speedRunTimer`
+- `create()`: challenge-badge och (for speed_run) en lopande MM:SS-timer visas i HUD
+- `setupEvents()` all-waves-complete: ger bonus LP vid zone clear med aktiv challenge, markerar challenge som completed, nollstaller activeChallenge/speedRunTimer
+
+#### src/scenes/ZoneCompleteScene.ts
+- Interface `ZoneCompleteData` utokad med `challengeId?` och `challengeBonus?`
+- Visar "CHALLENGE COMPLETE: [Namn]! +NNN LP" banner nar challenge klarades
+
+## [minimap] - 2026-04-04 -- Minimap for nattfasen
+
+### Tillagda filer
+- `src/ui/Minimap.ts` -- ny UI-komponent, klass `Minimap`
+
+### Minimap.ts
+- 120x90px minimap i ovre hogra hornet (GAME_WIDTH-130, y=40)
+- Halv-transparent mork bakgrund (0x111111, alpha 0.7) med gra border
+- Renderar: rod prick = zombie (1x1px), gron rect = struktur (2x2px), vit cirkel = bas (r=3), ljusblA cirkel = spelare (r=2)
+- Uppdaterar var 500ms via intern tidsr aknare -- INTE varje frame
+- `show()`, `hide()`, `toggle()` metoder
+- `getContainer()` returnerar Phaser.GameObjects.Container
+
+### NightScene.ts
+- Import av `Minimap` och `MinimapStructurePoint`
+- `private minimap!: Minimap` falt
+- Skapar `Minimap` i `create()` efter HUD -- storlek MAP_WIDTH*TILE_SIZE x MAP_HEIGHT*TILE_SIZE
+- Ny privat metod `updateMinimap(delta)` -- samlar strukturpositioner fran game state, anropar minimap.update()
+- Anrop till `updateMinimap(delta)` i slutet av `update()`
+- M-tangent i `setupWeaponKeys()` togglar minimap
+
 ## [v4.2.0] - 2026-04-04 22:00 -- Weapon Ultimates: unika abilities vid Lv5
 
 ### Nya typer i types.ts

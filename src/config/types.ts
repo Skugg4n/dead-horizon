@@ -16,6 +16,18 @@ export type SkillType = 'combat_melee' | 'combat_pistol' | 'combat_rifle' | 'com
 
 export type ZoneId = 'forest' | 'city' | 'military' | 'endless';
 
+export type ChallengeId = 'no_build' | 'pacifist' | 'speed_run';
+
+// Challenge definition loaded from challenges.json
+export interface ChallengeData {
+  id: ChallengeId;
+  name: string;
+  description: string;
+  icon: string;
+  lpReward: number;
+  unlockCondition: string; // e.g. 'forest_cleared'
+}
+
 export interface ZoneData {
   id: ZoneId;
   name: string;
@@ -222,6 +234,26 @@ export interface StructureInstance {
   y: number;
 }
 
+/**
+ * Common interface for all structures that interact with zombies on contact.
+ * Used by SpatialBucketGrid so NightScene can query nearby structures per-zombie
+ * instead of checking all 49+ structure arrays.
+ *
+ * x/y are the world-space top-left pixel coordinates of the structure tile.
+ * active must be true for the structure to be considered; destroyed structures
+ * set active=false and are removed from the grid on the next rebuild.
+ */
+export interface InteractableStructure {
+  /** structureId string matching structures.json, e.g. 'barricade', 'nail_board'. */
+  structureType: string;
+  /** Top-left world-pixel X of the structure tile. */
+  x: number;
+  /** Top-left world-pixel Y of the structure tile. */
+  y: number;
+  /** False once the structure has been destroyed or consumed. */
+  active: boolean;
+}
+
 // Axis-aligned bounding rect for a natural terrain blocker (building ruin, bunker).
 // Used by PathGrid to mark tiles as impassable without adding to GameState.base.structures.
 export interface NaturalBlockerRect {
@@ -311,4 +343,10 @@ export interface GameState {
     legacyPoints: number;
     unlockedPerks: string[];
   };
+  // Challenge mode: active challenge for the current run (null = normal run)
+  activeChallenge: ChallengeId | null;
+  // Which challenges have been completed at least once (array of challenge IDs)
+  challengeCompletions: string[];
+  // Speed Run accumulated time in milliseconds (only used when activeChallenge === 'speed_run')
+  speedRunTimer: number;
 }

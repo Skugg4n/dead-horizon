@@ -60,6 +60,8 @@ import { ElevatorShaft } from '../structures/ElevatorShaft';
 import { RubeGoldberg } from '../structures/RubeGoldberg';
 import type { TrapBase } from '../structures/TrapBase';
 import { HUD } from '../ui/HUD';
+import { Minimap } from '../ui/Minimap';
+import type { MinimapStructurePoint } from '../ui/Minimap';
 import { GameLog } from '../ui/GameLog';
 import { WeaponManager } from '../systems/WeaponManager';
 import { EquipmentPanel } from '../ui/EquipmentPanel';
@@ -73,6 +75,7 @@ import { FogOfWar } from '../systems/FogOfWar';
 import { NightEventManager, BLOOD_MOON_SPEED_MULTIPLIER, BLOOD_MOON_HP_MULTIPLIER, RAIN_MALFUNCTION_BONUS, RAIN_FIRE_DAMAGE_MULTIPLIER } from '../systems/NightEventManager';
 import { distanceBetween, angleBetween } from '../utils/math';
 import { AudioManager } from '../systems/AudioManager';
+import { SpatialBucketGrid } from '../systems/SpatialGrid';
 import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect, WeaponUltimateType } from '../config/types';
 import type { ZombieConfig } from '../entities/Zombie';
 // zombie-loot.json replaced by per-enemy dropTable in enemies.json (v1.9.1)
@@ -97,6 +100,18 @@ interface DropTableEntry {
   weight: number;
 }
 
+/**
+ * Lightweight data entry stored in the SpatialBucketGrid.
+ * The grid stores these instead of Phaser object references to stay type-safe
+ * and avoid retaining destroyed game objects.
+ */
+interface StructureGridEntry {
+  structureType: string;
+  x: number;
+  y: number;
+  active: boolean;
+}
+
 export class NightScene extends Phaser.Scene {
   private player!: Player;
   private zombieGroup!: Phaser.Physics.Arcade.Group;
@@ -110,6 +125,7 @@ export class NightScene extends Phaser.Scene {
   private achievementManager!: AchievementManager;
   private refugeeManager!: RefugeeManager;
   private hud!: HUD;
+  private minimap!: Minimap;
   private gameLog!: GameLog;
   private shootCooldown: number = 0;
   private isShooting: boolean = false;
@@ -199,6 +215,22 @@ export class NightScene extends Phaser.Scene {
   private _fanGlasses: FanGlass[] = [];
   private _elevatorShafts: ElevatorShaft[] = [];
   private _rubeGoldbergs: RubeGoldberg[] = [];
+  /**
+   * Spatial hash grid for zombie-structure proximity checks.
+   * Stores direct references to the passive-structure objects so we can call
+   * their methods directly after a query without a secondary lookup.
+   *
+   * Only covers the passive structures handled in the per-zombie loop.
+   * Mechanical traps (TrapBase subclasses) remain in their own loops since
+   * they already iterate zombies once per trap, not once per zombie.
+   *
+   * Cell size = 128px (2 tiles). A query radius of 96px covers the current
+   * tile plus all immediate neighbours including zone-based traps.
+   * Grid is rebuilt once at night start and again whenever a passive structure
+   * is destroyed mid-night.
+   */
+  private structureGrid: SpatialBucketGrid<StructureGridEntry> = new SpatialBucketGrid<StructureGridEntry>(128);
+
   // Repair interaction state
   private _repairTarget: TrapBase | null = null;
   private _repairProgressBar: Phaser.GameObjects.Graphics | null = null;
@@ -354,6 +386,55 @@ export class NightScene extends Phaser.Scene {
     // F3: Initialize base HP bar
     this.hud.updateBaseHpBar(this.baseHp, this.baseMaxHp);
 
+    // Minimap -- created after HUD so it sits on top of the HUD container
+    this.minimap = new Minimap(this, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
+
+    // Challenge HUD: show active challenge label and (for speed_run) a running timer
+    if (this.gameState.activeChallenge) {
+      const challengeLabels: Record<string, string> = {
+        no_build: 'NO BUILD',
+        pacifist: 'PACIFIST',
+        speed_run: 'SPEED RUN',
+      };
+      const challengeLabel = challengeLabels[this.gameState.activeChallenge] ?? 'CHALLENGE';
+      const challengeBadge = this.add.text(GAME_WIDTH / 2, 6, challengeLabel, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#C5A030',
+        backgroundColor: '#1A0800',
+        padding: { left: 4, right: 4, top: 2, bottom: 2 },
+      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(200);
+
+      // Speed Run timer display -- updates every second
+      if (this.gameState.activeChallenge === 'speed_run') {
+        const timerText = this.add.text(GAME_WIDTH / 2, 24, '00:00', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '9px',
+          color: '#E8DCC8',
+          backgroundColor: '#0A0A0A',
+          padding: { left: 4, right: 4, top: 2, bottom: 2 },
+        }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(200);
+
+        // Update timer display every 500ms using Phaser time events
+        this.time.addEvent({
+          delay: 500,
+          loop: true,
+          callback: () => {
+            // Format total milliseconds as MM:SS
+            const totalSec = Math.floor(this.gameState.speedRunTimer / 1000);
+            const mins = Math.floor(totalSec / 60).toString().padStart(2, '0');
+            const secs = (totalSec % 60).toString().padStart(2, '0');
+            if (timerText.active) {
+              timerText.setText(`${mins}:${secs}`);
+            }
+          },
+        });
+      }
+
+      // Suppress unused-variable warning for challengeBadge (it is added to scene directly)
+      void challengeBadge;
+    }
+
     this.setupWeaponKeys();
     this.setupParticles();
     this.setupLighting();
@@ -430,6 +511,11 @@ export class NightScene extends Phaser.Scene {
     this.nightEventManager.update(delta);
     this.player.update(delta);
     this.hud.updateStaminaBar(this.player.stamina, this.player.maxStamina);
+
+    // Safety: if player HP <= 0 but game over hasn't triggered, force it
+    if (this.player.hp <= 0 && !this.gameOverShown) {
+      this.events.emit('player-died', 'player_killed');
+    }
 
     // Track movement distance for speed_agility XP (1 XP per 100px)
     const dx = this.player.x - this.lastPlayerX;
@@ -517,13 +603,19 @@ export class NightScene extends Phaser.Scene {
     this.updatePillboxShooting(delta);
 
     // Shooting: melee = auto-shoot always, ranged = manual (space/click)
+    // Pacifist challenge: player cannot shoot or melee -- only traps kill zombies
     this.shootCooldown = Math.max(0, this.shootCooldown - delta);
-    if (this.shootCooldown <= 0) {
+    if (this.shootCooldown <= 0 && this.gameState.activeChallenge !== 'pacifist') {
       const weapon = this.weaponManager.getEquipped();
       const isMelee = weapon ? this.weaponManager.getWeaponStats(weapon).weaponClass === 'melee' : false;
       if (isMelee || this.isShooting) {
         this.tryAutoShoot();
       }
+    }
+
+    // Speed Run challenge: accumulate night-phase time into the persistent timer
+    if (this.gameState.activeChallenge === 'speed_run') {
+      this.gameState.speedRunTimer += delta;
     }
 
     // Update live enemy counter in HUD
@@ -536,6 +628,31 @@ export class NightScene extends Phaser.Scene {
     if (this.fpsText) {
       this.fpsText.setText(`FPS: ${Math.round(this.game.loop.actualFps)}`);
     }
+
+    // Update minimap -- internal throttle keeps it at 500ms intervals
+    this.updateMinimap(delta);
+  }
+
+  /**
+   * Collect structure positions from game state and pass them to the minimap.
+   * The minimap itself throttles to UPDATE_INTERVAL_MS so this is lightweight.
+   */
+  private updateMinimap(delta: number): void {
+    // Build structure point array from game state (world coords).
+    // All StructureInstances in game state are considered active (destroyed ones
+    // are removed from the array by BuildingManager when they are destroyed).
+    const structures: MinimapStructurePoint[] = this.gameState.base.structures
+      .map(s => ({ x: s.x, y: s.y, active: true }));
+
+    this.minimap.update(
+      this.player.x,
+      this.player.y,
+      this.zombieGroup as Phaser.GameObjects.Group,
+      structures,
+      this.baseCenterX,
+      this.baseCenterY,
+      delta,
+    );
   }
 
   private createMap(): void {
@@ -1326,6 +1443,76 @@ export class NightScene extends Phaser.Scene {
         if (this.gameLog) this.gameLog.addMessage(`No fuel: ${unique.join(', ')} offline!`, '#FF8C00');
       });
     }
+
+    // Build the spatial grid once all structures are placed.
+    this._rebuildStructureGrid();
+  }
+
+  /**
+   * Rebuild the spatial hash grid from all currently active structure arrays.
+   * Called once at the end of createStructures() and again when a structure is
+   * destroyed mid-night so the grid stays consistent.
+   * Stores lightweight StructureGridEntry data (type + position) -- NOT Phaser
+   * object references -- so the grid remains type-safe and avoids retaining
+   * destroyed objects.
+   */
+  private _rebuildStructureGrid(): void {
+    this.structureGrid.clear();
+
+    // Helper: insert tile-based structures as StructureGridEntry data objects.
+    const insertTile = <S extends { structureInstance: StructureInstance; active: boolean }>(
+      arr: S[],
+      structureType: string,
+    ): void => {
+      for (const s of arr) {
+        if (!s.active) continue;
+        const si = s.structureInstance;
+        this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2, {
+          structureType,
+          x: si.x,
+          y: si.y,
+          active: true,
+        });
+      }
+    };
+
+    // Tile-based passive structures (structureInstance.x/y = top-left of tile)
+    insertTile(this.barricades, 'barricade');
+    insertTile(this._sandbags, 'sandbags');
+    insertTile(this.traps, 'trap');
+    insertTile(this._spikeStrips, 'spike_strip');
+    insertTile(this._bearTraps, 'bear_trap');
+    insertTile(this._landmines, 'landmine');
+    insertTile(this._nailBoards, 'nail_board');
+    insertTile(this._tripWires, 'trip_wire');
+
+    // Zone-based structures (GlassShards, TarPit, OilSlick, GlueFloor): their
+    // interaction zone extends beyond one tile. We insert at the tile centre;
+    // the 96px query radius in checkZombieStructureInteractions() covers the zone.
+    for (const s of this._glassShards) {
+      if (!s.isAlive()) continue;
+      const si = s.structureInstance;
+      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
+        { structureType: 'glass_shards', x: si.x, y: si.y, active: true });
+    }
+    for (const s of this._tarPits) {
+      if (!s.isAlive()) continue;
+      const si = s.structureInstance;
+      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
+        { structureType: 'tar_pit', x: si.x, y: si.y, active: true });
+    }
+    for (const s of this._oilSlicks) {
+      if (!s.active) continue;
+      const si = s.structureInstance;
+      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
+        { structureType: 'oil_slick', x: si.x, y: si.y, active: true });
+    }
+    for (const s of this._glueFloors) {
+      if (!s.isAlive()) continue;
+      const si = s.structureInstance;
+      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
+        { structureType: 'glue_floor', x: si.x, y: si.y, active: true });
+    }
   }
 
   private createFogOfWar(): void {
@@ -1862,6 +2049,43 @@ export class NightScene extends Phaser.Scene {
         }
         // Award extra 50 LP for clearing a full zone
         this.gameState.meta.legacyPoints += 50;
+
+        // --- Challenge completion: award bonus LP and record the completion ---
+        let challengeBonus = 0;
+        let challengeId: string | null = null;
+        const activeChallenge = this.gameState.activeChallenge;
+        if (activeChallenge) {
+          // Speed Run bonus is tier-based on total time
+          if (activeChallenge === 'speed_run') {
+            const totalMin = this.gameState.speedRunTimer / 60000;
+            if (totalMin < 10) {
+              challengeBonus = 500;
+            } else if (totalMin < 15) {
+              challengeBonus = 300;
+            } else if (totalMin < 20) {
+              challengeBonus = 100;
+            }
+          } else if (activeChallenge === 'no_build') {
+            challengeBonus = 200;
+          } else if (activeChallenge === 'pacifist') {
+            challengeBonus = 300;
+          }
+
+          if (challengeBonus > 0) {
+            this.gameState.meta.legacyPoints += challengeBonus;
+          }
+
+          // Record challenge as completed (once per challenge id, no duplicates)
+          if (!this.gameState.challengeCompletions.includes(activeChallenge)) {
+            this.gameState.challengeCompletions.push(activeChallenge);
+          }
+          challengeId = activeChallenge;
+
+          // Clear the active challenge so the next run starts normally
+          this.gameState.activeChallenge = null;
+          this.gameState.speedRunTimer = 0;
+        }
+
         // Unlock next zone if applicable and advance the active zone
         this.unlockNextZone(currentZone);
         // Advance the active zone so CONTINUE in the menu starts the next zone
@@ -1883,6 +2107,8 @@ export class NightScene extends Phaser.Scene {
         this.scene.start('ZoneCompleteScene', {
           zone: currentZone,
           kills: this.kills,
+          challengeId,
+          challengeBonus,
         });
       } else {
         SaveManager.save(this.gameState);
@@ -2286,6 +2512,12 @@ export class NightScene extends Phaser.Scene {
 
     this.input.on('pointerdown', () => { this.isShooting = true; });
     this.input.on('pointerup', () => { this.isShooting = false; });
+
+    // M key: toggle minimap visibility
+    const mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    mKey.on('down', () => {
+      this.minimap.toggle();
+    });
   }
 
   /**
@@ -2530,13 +2762,13 @@ export class NightScene extends Phaser.Scene {
         // Visual: full circle arc showing spin radius
         const arc = this.add.graphics();
         arc.setDepth(9);
+        arc.setPosition(this.player.x, this.player.y);
         arc.lineStyle(3, 0xFFD700, 0.8);
-        arc.strokeCircle(this.player.x, this.player.y, SPIN_RADIUS);
+        arc.strokeCircle(0, 0, SPIN_RADIUS);
         this.tweens.add({
           targets: arc,
           alpha: 0,
-          scaleX: 1.3,
-          scaleY: 1.3,
+          scale: 1.3,
           duration: 250,
           onComplete: () => arc.destroy(),
         });
@@ -3002,285 +3234,276 @@ export class NightScene extends Phaser.Scene {
     this._elevatorShafts = this._elevatorShafts.filter(t => t && t.active);
     this._rubeGoldbergs  = this._rubeGoldbergs.filter(t => t && t.active);
 
+    // Query the spatial grid per zombie rather than checking all structure arrays.
+    // Each zombie gets ~3-5 candidates instead of iterating all 12 passive arrays.
+    // Query radius 96px: covers the zombie's tile plus immediate neighbours;
+    // zone-based traps (oil slick, glass shards, tar pit, glue floor) have radii
+    // up to 96px, so this radius guarantees we never miss a live zone.
+    let _gridDirty = false;
+
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;
       if (!zombie.active) return;
 
-      // Barricade interaction: slow zombies, brutes damage barricades
-      for (let i = this.barricades.length - 1; i >= 0; i--) {
-        const barricade = this.barricades[i];
-        if (!barricade) continue;
+      // Get candidate structures within 96px of the zombie
+      const nearby = this.structureGrid.query(zombie.x, zombie.y, 96);
 
-        const bx = barricade.structureInstance.x;
-        const by = barricade.structureInstance.y;
-
-        if (
-          zombie.x >= bx && zombie.x <= bx + TILE_SIZE &&
-          zombie.y >= by && zombie.y <= by + TILE_SIZE
-        ) {
-          // Slow zombie passing through barricade
-          const factor = barricade.getSlowFactor();
-          const body = zombie.body;
-          if (body) {
-            body.velocity.x *= factor;
-            body.velocity.y *= factor;
-          }
-
-          // Brutes damage barricades on contact
-          if (zombie.canAttackStructure()) {
-            const destroyed = barricade.takeDamage(zombie.structureDamage);
-            zombie.resetStructureAttackCooldown();
-            if (destroyed) {
-              // Debrief: record structure destruction
-              this.destroyedStructures.push({
-                structureId: barricade.structureInstance.structureId,
-                x: barricade.structureInstance.x,
-                y: barricade.structureInstance.y,
-              });
-              this.barricades.splice(i, 1);
+      for (const candidate of nearby) {
+        // ----- Barricade -----
+        if (candidate instanceof Barricade) {
+          const barricade = candidate;
+          if (!barricade.active) continue;
+          const bx = barricade.structureInstance.x;
+          const by = barricade.structureInstance.y;
+          if (
+            zombie.x >= bx && zombie.x <= bx + TILE_SIZE &&
+            zombie.y >= by && zombie.y <= by + TILE_SIZE
+          ) {
+            // Slow zombie passing through barricade
+            const factor = barricade.getSlowFactor();
+            const body = zombie.body;
+            if (body) {
+              body.velocity.x *= factor;
+              body.velocity.y *= factor;
+            }
+            // Brutes damage barricades on contact
+            if (zombie.canAttackStructure()) {
+              const destroyed = barricade.takeDamage(zombie.structureDamage);
+              zombie.resetStructureAttackCooldown();
+              if (destroyed) {
+                this.destroyedStructures.push({
+                  structureId: barricade.structureInstance.structureId,
+                  x: barricade.structureInstance.x,
+                  y: barricade.structureInstance.y,
+                });
+                this.barricades = this.barricades.filter(b => b !== barricade);
+                _gridDirty = true;
+              }
             }
           }
+          continue;
         }
-      }
 
-      // Sandbags interaction: cheap slow zone, brutes can destroy
-      for (let i = this._sandbags.length - 1; i >= 0; i--) {
-        const bags = this._sandbags[i];
-        if (!bags) continue;
-
-        const sx = bags.structureInstance.x;
-        const sy = bags.structureInstance.y;
-
-        if (
-          zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
-          zombie.y >= sy && zombie.y <= sy + TILE_SIZE
-        ) {
-          const factor = bags.getSlowFactor();
-          const body = zombie.body;
-          if (body) {
-            body.velocity.x *= factor;
-            body.velocity.y *= factor;
-          }
-
-          if (zombie.canAttackStructure()) {
-            const destroyed = bags.takeDamage(zombie.structureDamage);
-            zombie.resetStructureAttackCooldown();
-            if (destroyed) {
-              this._sandbags.splice(i, 1);
+        // ----- Sandbags -----
+        if (candidate instanceof Sandbags) {
+          const bags = candidate;
+          if (!bags.active) continue;
+          const sx = bags.structureInstance.x;
+          const sy = bags.structureInstance.y;
+          if (
+            zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
+            zombie.y >= sy && zombie.y <= sy + TILE_SIZE
+          ) {
+            const factor = bags.getSlowFactor();
+            const body = zombie.body;
+            if (body) {
+              body.velocity.x *= factor;
+              body.velocity.y *= factor;
+            }
+            if (zombie.canAttackStructure()) {
+              const destroyed = bags.takeDamage(zombie.structureDamage);
+              zombie.resetStructureAttackCooldown();
+              if (destroyed) {
+                this._sandbags = this._sandbags.filter(s => s !== bags);
+                _gridDirty = true;
+              }
             }
           }
+          continue;
         }
-      }
 
-      // Oil Slick interaction: heavy slow in wide zone (zombies walk in unaware)
-      for (const slick of this._oilSlicks) {
-        if (!slick) continue;
-        if (slick.containsPoint(zombie.x, zombie.y)) {
-          const factor = slick.getSlowFactor();
-          const body = zombie.body;
-          if (body) {
-            body.velocity.x *= factor;
-            body.velocity.y *= factor;
+        // ----- OilSlick (zone-based slow) -----
+        if (candidate instanceof OilSlick) {
+          const slick = candidate;
+          if (!slick.active) continue;
+          if (slick.containsPoint(zombie.x, zombie.y)) {
+            const factor = slick.getSlowFactor();
+            const body = zombie.body;
+            if (body) {
+              body.velocity.x *= factor;
+              body.velocity.y *= factor;
+            }
           }
+          continue;
         }
-      }
 
-      // Trap interaction: damage zombies walking over traps
-      for (let i = this.traps.length - 1; i >= 0; i--) {
-        const trap = this.traps[i];
-        if (!trap) continue;
-
-        const tx = trap.structureInstance.x;
-        const ty = trap.structureInstance.y;
-
-        if (
-          zombie.x >= tx && zombie.x <= tx + TILE_SIZE &&
-          zombie.y >= ty && zombie.y <= ty + TILE_SIZE
-        ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapName = trap.structureInstance.structureId; zombie.takeDamage(trap.getDamage()); this._currentKillSource = null;
-          // Trap trigger particles
-          this.trapEmitter.emitParticleAt(
-            trap.structureInstance.x + TILE_SIZE / 2,
-            trap.structureInstance.y + TILE_SIZE / 2,
-            6,
-          );
-          // Trap is single-use (hp=1), destroy after triggering
-          const destroyed = trap.takeDamage(trap.structureInstance.hp);
-          if (destroyed) {
-            this.traps.splice(i, 1);
+        // ----- Trap (single-use damage tile) -----
+        if (candidate instanceof Trap) {
+          const trap = candidate;
+          if (!trap.active) continue;
+          const tx = trap.structureInstance.x;
+          const ty = trap.structureInstance.y;
+          if (
+            zombie.x >= tx && zombie.x <= tx + TILE_SIZE &&
+            zombie.y >= ty && zombie.y <= ty + TILE_SIZE
+          ) {
+            this._currentKillSource = 'trap'; this._currentKillTrapName = trap.structureInstance.structureId; zombie.takeDamage(trap.getDamage()); this._currentKillSource = null;
+            this.trapEmitter.emitParticleAt(tx + TILE_SIZE / 2, ty + TILE_SIZE / 2, 6);
+            // Trap is single-use; destroy after triggering
+            const destroyed = trap.takeDamage(trap.structureInstance.hp);
+            if (destroyed) {
+              this.traps = this.traps.filter(t => t !== trap);
+              _gridDirty = true;
+            }
           }
+          continue;
         }
-      }
 
-      // Spike Strip interaction: damage + cripple (-50% speed), multi-use durability
-      for (let i = this._spikeStrips.length - 1; i >= 0; i--) {
-        const strip = this._spikeStrips[i];
-        if (!strip) continue;
-
-        const sx = strip.structureInstance.x;
-        const sy = strip.structureInstance.y;
-
-        if (
-          zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
-          zombie.y >= sy && zombie.y <= sy + TILE_SIZE
-        ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Spike Strip'; zombie.takeDamage(strip.getDamage()); this._currentKillSource = null;
-          zombie.applyCripple(strip.crippleDuration);
-          this.trapEmitter.emitParticleAt(
-            strip.structureInstance.x + TILE_SIZE / 2,
-            strip.structureInstance.y + TILE_SIZE / 2,
-            4,
-          );
-          const destroyed = strip.consumeUse();
-          if (destroyed) {
-            this._spikeStrips.splice(i, 1);
+        // ----- SpikeStrip (damage + cripple, multi-use) -----
+        if (candidate instanceof SpikeStrip) {
+          const strip = candidate;
+          if (!strip.active) continue;
+          const sx = strip.structureInstance.x;
+          const sy = strip.structureInstance.y;
+          if (
+            zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
+            zombie.y >= sy && zombie.y <= sy + TILE_SIZE
+          ) {
+            this._currentKillSource = 'trap'; this._currentKillTrapName = 'Spike Strip'; zombie.takeDamage(strip.getDamage()); this._currentKillSource = null;
+            zombie.applyCripple(strip.crippleDuration);
+            this.trapEmitter.emitParticleAt(sx + TILE_SIZE / 2, sy + TILE_SIZE / 2, 4);
+            const destroyed = strip.consumeUse();
+            if (destroyed) {
+              this._spikeStrips = this._spikeStrips.filter(s => s !== strip);
+              _gridDirty = true;
+            }
           }
+          continue;
         }
-      }
 
-      // Bear Trap interaction: heavy damage + stun, single use
-      for (let i = this._bearTraps.length - 1; i >= 0; i--) {
-        const bt = this._bearTraps[i];
-        if (!bt) continue;
-
-        const bx = bt.structureInstance.x;
-        const by = bt.structureInstance.y;
-
-        if (
-          zombie.x >= bx && zombie.x <= bx + TILE_SIZE &&
-          zombie.y >= by && zombie.y <= by + TILE_SIZE
-        ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Bear Trap'; zombie.takeDamage(bt.getDamage()); this._currentKillSource = null;
-          zombie.applyStun(bt.stunDuration);
-          this.trapEmitter.emitParticleAt(
-            bt.structureInstance.x + TILE_SIZE / 2,
-            bt.structureInstance.y + TILE_SIZE / 2,
-            8,
-          );
-          bt.trigger();
-          this._bearTraps.splice(i, 1);
-        }
-      }
-
-      // Landmine interaction: AOE explosion, single use
-      // Only trigger once per zombie per frame; break after first mine detected
-      for (let i = this._landmines.length - 1; i >= 0; i--) {
-        const mine = this._landmines[i];
-        if (!mine) continue;
-
-        const mx = mine.structureInstance.x;
-        const my = mine.structureInstance.y;
-
-        if (
-          zombie.x >= mx && zombie.x <= mx + TILE_SIZE &&
-          zombie.y >= my && zombie.y <= my + TILE_SIZE
-        ) {
-          // trigger() emits 'landmine-exploded' event that NightScene listens to
-          mine.trigger();
-          this._landmines.splice(i, 1);
-          break; // one mine trigger per zombie per frame
-        }
-      }
-
-      // Nail Board: damage + cripple on contact, limited uses
-      for (let i = this._nailBoards.length - 1; i >= 0; i--) {
-        const nb = this._nailBoards[i];
-        if (!nb || !nb.isAlive()) continue;
-
-        const nx = nb.structureInstance.x;
-        const ny = nb.structureInstance.y;
-
-        if (
-          zombie.x >= nx && zombie.x <= nx + TILE_SIZE &&
-          zombie.y >= ny && zombie.y <= ny + TILE_SIZE
-        ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Nail Board'; zombie.takeDamage(nb.trapDamage); this._currentKillSource = null;
-          zombie.applyCripple(nb.crippleDuration);
-          // Red flash on the board + small blood burst particles
-          nb.triggerActivationEffect();
-          this.nailBloodEmitter.emitParticleAt(
-            nb.structureInstance.x + TILE_SIZE / 2,
-            nb.structureInstance.y + TILE_SIZE / 2,
-            5,
-          );
-          // Play crunch sound on each nail board hit
-          AudioManager.play('trap_nail_board');
-          const destroyed = nb.consumeUse();
-          if (destroyed) {
-            this._nailBoards.splice(i, 1);
+        // ----- BearTrap (damage + stun, single use) -----
+        if (candidate instanceof BearTrap) {
+          const bt = candidate;
+          if (!bt.active) continue;
+          const bx = bt.structureInstance.x;
+          const by = bt.structureInstance.y;
+          if (
+            zombie.x >= bx && zombie.x <= bx + TILE_SIZE &&
+            zombie.y >= by && zombie.y <= by + TILE_SIZE
+          ) {
+            this._currentKillSource = 'trap'; this._currentKillTrapName = 'Bear Trap'; zombie.takeDamage(bt.getDamage()); this._currentKillSource = null;
+            zombie.applyStun(bt.stunDuration);
+            this.trapEmitter.emitParticleAt(bx + TILE_SIZE / 2, by + TILE_SIZE / 2, 8);
+            bt.trigger();
+            this._bearTraps = this._bearTraps.filter(b => b !== bt);
+            _gridDirty = true;
           }
+          continue;
         }
-      }
 
-      // Trip Wire: stun on contact, no damage, limited uses
-      for (let i = this._tripWires.length - 1; i >= 0; i--) {
-        const tw = this._tripWires[i];
-        if (!tw || !tw.isAlive()) continue;
-
-        const tx = tw.structureInstance.x;
-        const ty = tw.structureInstance.y;
-
-        if (
-          zombie.x >= tx && zombie.x <= tx + TILE_SIZE &&
-          zombie.y >= ty && zombie.y <= ty + TILE_SIZE
-        ) {
-          zombie.applyStun(tw.stunDuration);
-          // Visible wire-snap flash effect
-          tw.triggerActivationEffect();
-          // White particle burst at snap point
-          this.trapEmitter.emitParticleAt(
-            tw.structureInstance.x + TILE_SIZE / 2,
-            tw.structureInstance.y + TILE_SIZE / 2,
-            4,
-          );
-          // Play snap/twang sound when wire is triggered
-          AudioManager.play('trap_trip_wire');
-          const destroyed = tw.consumeUse();
-          if (destroyed) {
-            this._tripWires.splice(i, 1);
+        // ----- Landmine (AOE explosion, single use) -----
+        if (candidate instanceof Landmine) {
+          const mine = candidate;
+          if (!mine.active) continue;
+          const mx = mine.structureInstance.x;
+          const my = mine.structureInstance.y;
+          if (
+            zombie.x >= mx && zombie.x <= mx + TILE_SIZE &&
+            zombie.y >= my && zombie.y <= my + TILE_SIZE
+          ) {
+            // trigger() emits 'landmine-exploded' event that NightScene listens to
+            mine.trigger();
+            this._landmines = this._landmines.filter(m => m !== mine);
+            _gridDirty = true;
+            break; // one mine trigger per zombie per frame
           }
+          continue;
         }
-      }
 
-      // Glass Shards: continuous damage per second to zombies in zone
-      for (const gs of this._glassShards) {
-        if (!gs.isAlive()) continue;
-        if (gs.containsPoint(zombie.x, zombie.y)) {
-          // Damage proportional to frame time (5 dmg/s)
-          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Glass Shards'; zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000); this._currentKillSource = null;
-          // Occasional glass tinkling (throttled by 600ms cooldown in AudioManager)
-          AudioManager.play('trap_glass_shards');
-        }
-      }
-
-      // Tar Pit: 80% slow to zombies inside zone
-      for (const tp of this._tarPits) {
-        if (!tp.isAlive()) continue;
-        if (tp.containsPoint(zombie.x, zombie.y)) {
-          const body = zombie.body;
-          if (body) {
-            body.velocity.x *= tp.slowFactor;
-            body.velocity.y *= tp.slowFactor;
+        // ----- NailBoard (damage + cripple, limited uses) -----
+        if (candidate instanceof NailBoard) {
+          const nb = candidate;
+          if (!nb.isAlive()) continue;
+          const nx = nb.structureInstance.x;
+          const ny = nb.structureInstance.y;
+          if (
+            zombie.x >= nx && zombie.x <= nx + TILE_SIZE &&
+            zombie.y >= ny && zombie.y <= ny + TILE_SIZE
+          ) {
+            this._currentKillSource = 'trap'; this._currentKillTrapName = 'Nail Board'; zombie.takeDamage(nb.trapDamage); this._currentKillSource = null;
+            zombie.applyCripple(nb.crippleDuration);
+            nb.triggerActivationEffect();
+            this.nailBloodEmitter.emitParticleAt(nx + TILE_SIZE / 2, ny + TILE_SIZE / 2, 5);
+            AudioManager.play('trap_nail_board');
+            const destroyed = nb.consumeUse();
+            if (destroyed) {
+              this._nailBoards = this._nailBoards.filter(n => n !== nb);
+              _gridDirty = true;
+            }
           }
-          // Signal animation system that a zombie is caught -- intensifies bubbles
-          tp.markZombieInZone();
-          // Occasional squelch sound (throttled by 800ms cooldown in AudioManager)
-          AudioManager.play('trap_tar_pit');
+          continue;
         }
-      }
 
-      // Glue Floor: 90% slow zone (wider than tar pit, 3 tiles)
-      for (const gf of this._glueFloors) {
-        if (!gf.isAlive()) continue;
-        if (gf.containsPoint(zombie.x, zombie.y)) {
-          const body = zombie.body;
-          if (body) {
-            body.velocity.x *= gf.slowFactor;
-            body.velocity.y *= gf.slowFactor;
+        // ----- TripWire (stun on contact, limited uses) -----
+        if (candidate instanceof TripWire) {
+          const tw = candidate;
+          if (!tw.isAlive()) continue;
+          const tx = tw.structureInstance.x;
+          const ty = tw.structureInstance.y;
+          if (
+            zombie.x >= tx && zombie.x <= tx + TILE_SIZE &&
+            zombie.y >= ty && zombie.y <= ty + TILE_SIZE
+          ) {
+            zombie.applyStun(tw.stunDuration);
+            tw.triggerActivationEffect();
+            this.trapEmitter.emitParticleAt(tx + TILE_SIZE / 2, ty + TILE_SIZE / 2, 4);
+            AudioManager.play('trap_trip_wire');
+            const destroyed = tw.consumeUse();
+            if (destroyed) {
+              this._tripWires = this._tripWires.filter(t => t !== tw);
+              _gridDirty = true;
+            }
           }
+          continue;
+        }
+
+        // ----- GlassShards (continuous damage per second in zone) -----
+        if (candidate instanceof GlassShards) {
+          const gs = candidate;
+          if (!gs.isAlive()) continue;
+          if (gs.containsPoint(zombie.x, zombie.y)) {
+            this._currentKillSource = 'trap'; this._currentKillTrapName = 'Glass Shards'; zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000); this._currentKillSource = null;
+            AudioManager.play('trap_glass_shards');
+          }
+          continue;
+        }
+
+        // ----- TarPit (80% slow in zone) -----
+        if (candidate instanceof TarPit) {
+          const tp = candidate;
+          if (!tp.isAlive()) continue;
+          if (tp.containsPoint(zombie.x, zombie.y)) {
+            const body = zombie.body;
+            if (body) {
+              body.velocity.x *= tp.slowFactor;
+              body.velocity.y *= tp.slowFactor;
+            }
+            tp.markZombieInZone();
+            AudioManager.play('trap_tar_pit');
+          }
+          continue;
+        }
+
+        // ----- GlueFloor (90% slow zone, 3 tiles wide) -----
+        if (candidate instanceof GlueFloor) {
+          const gf = candidate;
+          if (!gf.isAlive()) continue;
+          if (gf.containsPoint(zombie.x, zombie.y)) {
+            const body = zombie.body;
+            if (body) {
+              body.velocity.x *= gf.slowFactor;
+              body.velocity.y *= gf.slowFactor;
+            }
+          }
+          continue;
         }
       }
     });
+
+    // Rebuild the grid if any structure was destroyed during the zombie loop.
+    if (_gridDirty) {
+      this._rebuildStructureGrid();
+    }
 
     // Animate tar pits (bubbling effect) -- once per frame, not per zombie
     for (const tp of this._tarPits) {

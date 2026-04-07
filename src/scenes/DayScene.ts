@@ -93,7 +93,8 @@ export class DayScene extends Phaser.Scene {
   create(): void {
     try {
     this.gameState = SaveManager.load();
-    this.currentAP = AP_PER_DAY;
+    // Speed Run challenge: only 8 AP per day instead of the default 12
+    this.currentAP = this.gameState.activeChallenge === 'speed_run' ? 8 : AP_PER_DAY;
 
     // Apply legacy perks on the very first day of a fresh run (totalRuns == 0, wave == 1)
     if (this.gameState.progress.totalRuns === 0 && this.gameState.progress.currentWave === 1) {
@@ -302,7 +303,7 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
-  update(): void {
+  update(_time: number, delta: number): void {
     // Update ghost position during placement mode
     if (this.placementMode && this.ghostGraphics) {
       const pointer = this.input.activePointer;
@@ -311,6 +312,11 @@ export class DayScene extends Phaser.Scene {
       const snappedX = Math.floor(worldPoint.x / TILE_SIZE) * TILE_SIZE;
       const snappedY = Math.floor(worldPoint.y / TILE_SIZE) * TILE_SIZE;
       this.ghostGraphics.setPosition(snappedX, snappedY);
+    }
+
+    // Speed Run: accumulate day-phase time into the persistent timer
+    if (this.gameState.activeChallenge === 'speed_run') {
+      this.gameState.speedRunTimer += delta;
     }
   }
 
@@ -496,6 +502,24 @@ export class DayScene extends Phaser.Scene {
       }
     });
     this.addToUI(dayText);
+
+    // Challenge badge: shown when a challenge run is active
+    if (this.gameState.activeChallenge) {
+      const challengeLabels: Record<string, string> = {
+        no_build: 'NO BUILD',
+        pacifist: 'PACIFIST',
+        speed_run: 'SPEED RUN',
+      };
+      const label = challengeLabels[this.gameState.activeChallenge] ?? 'CHALLENGE';
+      const challengeBadge = this.add.text(GAME_WIDTH / 2, 30, label, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#C5A030',
+        backgroundColor: '#1A0800',
+        padding: { left: 4, right: 4, top: 2, bottom: 2 },
+      }).setOrigin(0.5, 0).setDepth(101);
+      this.addToUI(challengeBadge);
+    }
 
     // Base info + upgrade button (right side)
     this.createBaseUpgradeUI();
@@ -852,6 +876,11 @@ export class DayScene extends Phaser.Scene {
   }
 
   private toggleBuildMenu(): void {
+    // No Build challenge: building is completely disabled
+    if (this.gameState.activeChallenge === 'no_build') {
+      this.showInfo('Building disabled! (No Build challenge)');
+      return;
+    }
     this.buildMenuVisible = !this.buildMenuVisible;
     if (this.buildMenuVisible) {
       // Close other panels before opening build menu (guard against re-entry)

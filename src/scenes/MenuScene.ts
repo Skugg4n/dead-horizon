@@ -3,7 +3,8 @@ import { SaveManager } from '../systems/SaveManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { GAME_VERSION, GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 import { AudioManager } from '../systems/AudioManager';
-import type { CharacterType, CharacterData, SkillType, ZoneId, ZoneData, PerkData } from '../config/types';
+import type { CharacterType, CharacterData, SkillType, ZoneId, ZoneData, PerkData, ChallengeData, ChallengeId } from '../config/types';
+import challengesJson from '../data/challenges.json';
 import perksJson from '../data/perks.json';
 
 const perksData = (perksJson as unknown as { perks: PerkData[] }).perks;
@@ -28,6 +29,7 @@ export class MenuScene extends Phaser.Scene {
   private achievementContainer: Phaser.GameObjects.Container | null = null;
   private settingsContainer: Phaser.GameObjects.Container | null = null;
   private legacyContainer: Phaser.GameObjects.Container | null = null;
+  private challengeContainer: Phaser.GameObjects.Container | null = null;
   private charSelectLeftHandler: (() => void) | null = null;
   private charSelectRightHandler: (() => void) | null = null;
   private charSelectEnterHandler: (() => void) | null = null;
@@ -666,6 +668,13 @@ export class MenuScene extends Phaser.Scene {
     this.createMenuButton(BUTTON_X, btnY, 'LEGACY', false, '', () => {
       AudioManager.play('ui_click');
       this.toggleLegacyPanel();
+    });
+    btnY += BTN_SPACING;
+
+    // Challenge modes
+    this.createMenuButton(BUTTON_X, btnY, 'CHALLENGES', false, '', () => {
+      AudioManager.play('ui_click');
+      this.toggleChallengePanel();
     });
 
     // Zone progress panel (right side, visible when save exists)
@@ -1598,6 +1607,165 @@ export class MenuScene extends Phaser.Scene {
 
       yPos += 52;
     }
+  }
+
+  /**
+   * Toggle the challenges panel. Lists all challenges with lock/available/completed status.
+   * Clicking an available challenge starts a new run with that challenge active.
+   */
+  private toggleChallengePanel(): void {
+    if (this.challengeContainer) {
+      this.challengeContainer.destroy();
+      this.challengeContainer = null;
+      return;
+    }
+
+    const challenges = (challengesJson as unknown as { challenges: ChallengeData[] }).challenges;
+    const state = SaveManager.load();
+    const completions: string[] = state.challengeCompletions ?? [];
+    // Forest cleared = zoneProgress has forest with highestWaveCleared >= 5
+    const forestCleared = (state.zoneProgress?.forest?.highestWaveCleared ?? 0) >= 5;
+
+    const panelWidth = 460;
+    const panelHeight = Math.min(80 + challenges.length * 88, GAME_HEIGHT - 60);
+    const centerX = GAME_WIDTH / 2;
+    const centerY = GAME_HEIGHT / 2;
+
+    this.challengeContainer = this.add.container(centerX - panelWidth / 2, centerY - panelHeight / 2);
+    this.challengeContainer.setDepth(150);
+
+    // Panel background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x080810, 0.96);
+    bg.fillRect(0, 0, panelWidth, panelHeight);
+    bg.lineStyle(1, 0x3A2A40, 0.9);
+    bg.strokeRect(0, 0, panelWidth, panelHeight);
+    this.challengeContainer.add(bg);
+
+    // Header
+    const title = this.add.text(panelWidth / 2, 14, 'CHALLENGE MODES', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '11px',
+      color: '#C08030',
+    }).setOrigin(0.5, 0);
+    this.challengeContainer.add(title);
+
+    // Close button
+    const closeBtn = this.add.text(panelWidth - 10, 8, '[X]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#884422',
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this.toggleChallengePanel());
+    this.challengeContainer.add(closeBtn);
+
+    // Unlock hint if forest not cleared
+    if (!forestCleared) {
+      const lockHint = this.add.text(panelWidth / 2, 38, 'Clear the Forest zone to unlock challenges', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#5A4A3A',
+        wordWrap: { width: panelWidth - 30 },
+        align: 'center',
+      }).setOrigin(0.5, 0);
+      this.challengeContainer.add(lockHint);
+    }
+
+    // Challenge rows -- keep a local ref to avoid non-null assertions inside forEach
+    const panel = this.challengeContainer;
+    challenges.forEach((ch, i) => {
+      const rowY = 50 + i * 88;
+      const isUnlocked = forestCleared; // all challenges unlock when forest is cleared
+      const isCompleted = completions.includes(ch.id);
+
+      // Row background
+      const rowBg = this.add.graphics();
+      if (isCompleted) {
+        rowBg.fillStyle(0x082008, 0.7);
+        rowBg.fillRect(10, rowY, panelWidth - 20, 78);
+        rowBg.lineStyle(1, 0x2A6A2A, 0.8);
+        rowBg.strokeRect(10, rowY, panelWidth - 20, 78);
+      } else if (isUnlocked) {
+        rowBg.fillStyle(0x0A0810, 0.6);
+        rowBg.fillRect(10, rowY, panelWidth - 20, 78);
+        rowBg.lineStyle(1, 0x5A4A2A, 0.6);
+        rowBg.strokeRect(10, rowY, panelWidth - 20, 78);
+      } else {
+        rowBg.fillStyle(0x080808, 0.4);
+        rowBg.fillRect(10, rowY, panelWidth - 20, 78);
+        rowBg.lineStyle(1, 0x1E1818, 0.3);
+        rowBg.strokeRect(10, rowY, panelWidth - 20, 78);
+      }
+      panel.add(rowBg);
+
+      // Status badge
+      const badgeText = isCompleted ? 'DONE' : (isUnlocked ? 'AVAILABLE' : 'LOCKED');
+      const badgeColor = isCompleted ? '#2ECC71' : (isUnlocked ? '#C5A030' : '#444444');
+      const badge = this.add.text(panelWidth - 18, rowY + 10, badgeText, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: badgeColor,
+      }).setOrigin(1, 0);
+      panel.add(badge);
+
+      // Challenge name
+      const nameColor = isUnlocked ? '#D4A050' : '#4A3A2A';
+      const nameText = this.add.text(22, rowY + 10, ch.name.toUpperCase(), {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: nameColor,
+      }).setOrigin(0, 0);
+      panel.add(nameText);
+
+      // LP reward
+      const lpText = this.add.text(22, rowY + 27, `+${ch.lpReward} LP`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: isCompleted ? '#2ECC71' : '#887744',
+      }).setOrigin(0, 0);
+      panel.add(lpText);
+
+      // Description
+      const descText = this.add.text(22, rowY + 43, ch.description, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: isUnlocked ? '#7A6A5A' : '#3A3030',
+        wordWrap: { width: panelWidth - 120 },
+      }).setOrigin(0, 0);
+      panel.add(descText);
+
+      // "START" button -- only shown for unlocked, non-completed challenges
+      if (isUnlocked && !isCompleted) {
+        const startBtn = this.add.text(panelWidth - 18, rowY + 50, '[ START ]', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#C5620B',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+
+        startBtn.on('pointerover', () => startBtn.setColor('#FFD700'));
+        startBtn.on('pointerout', () => startBtn.setColor('#C5620B'));
+        startBtn.on('pointerdown', () => {
+          AudioManager.play('ui_click');
+          this.startChallenge(ch.id as ChallengeId);
+        });
+        panel.add(startBtn);
+      }
+    });
+  }
+
+  /**
+   * Start a new run with the given challenge active.
+   * Clears the current save and writes the challenge id before launching DayScene.
+   */
+  private startChallenge(challengeId: ChallengeId): void {
+    SaveManager.clearSave();
+    // Create a fresh state and set the active challenge
+    const freshState = SaveManager.createDefaultState();
+    freshState.activeChallenge = challengeId;
+    // Speed run: begin timer from 0
+    freshState.speedRunTimer = 0;
+    SaveManager.save(freshState);
+    this.scene.start('DayScene');
   }
 
   /**
