@@ -188,7 +188,18 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ### Deploy failure: tester maste uppdateras vid typandringar
 **Problem:** CI/CD deploy failade tyst nar WeaponInstance.upgrades andrades fran string[] till WeaponUpgrade[]. Lokalt passerade testerna (genom att kora npm run test), men pa GitHub Actions anvandes en renare environment dar type-mismatch fangades.
-**Losning:** Nar du andrar dataformat (t.ex. string[] -> object[]), sok ALLTID igenom tests/-mappen efter alla tester som anvander gamla formatet. Kor `npm run test` lokalt och verifiera 283/283 INNAN push. Kontrollera GitHub Actions-status efter push.
+**Losning:** Nar du andrar dataformat (t.ex. string[] -> object[]), sok ALLTID igenom tests/-mappen efter alla tester som anvander gamla formatet. Kor `npm run test` lokalt och verifiera INNAN push. Kontrollera GitHub Actions-status efter push.
+
+### Deploy failure: ALLA tre checks maste passera INNAN push
+**Problem:** CI kor tre steg: `npm run typecheck` (tsc --noEmit), `npm run lint` (eslint), `npm run test` (vitest). Om NAGOT av dem failar deployas INTE koden. Vanliga orsaker:
+- Unused variables (TS6133) -- `tsc --noEmit` fangar dessa
+- ESLint-regler (no-constant-condition, no-unused-vars) -- `npm run lint` fangar dessa
+- Tester som refererar borttagna funktioner/typer -- `npm run test` fangar dessa
+**Losning:** Kor ALLTID alla tre lokalt innan push:
+```
+npx tsc --noEmit && npm run lint && npx vitest run
+```
+Om nagon failar, fixa INNAN push. GitHub Pages visar senaste LYCKADE deploy, sa en fail = gammal version live.
 
 ---
 

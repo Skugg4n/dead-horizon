@@ -1,7 +1,10 @@
 # Dead Horizon -- Projektregler
 
-## VIKTIGT -- Bumpa version
-Uppdatera ALLTID versionsnummer i src/config/constants.ts (GAME_VERSION) vid varje commit.
+## VIKTIGT -- Innan VARJE push
+1. Bumpa GAME_VERSION i src/config/constants.ts
+2. Kor ALLA tre checks: `npx tsc --noEmit && npm run lint && npx vitest run`
+3. Om nagon failar: FIXA INNAN PUSH. Annars deployas INTE koden.
+4. Vid problem: Las LESSONS.md -- kanda CI/deploy-problem och losningar finns dar.
 
 ## Projekt
 Dead Horizon ar ett webbbaserat top-down wave defense / base builder med roguelite-progression.
