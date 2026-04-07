@@ -383,7 +383,6 @@ export class EquipmentPanel {
     y: number,
   ): number {
     const contentWidth = PANEL_WIDTH - 24;
-    const rowH = 32;
 
     const data = WeaponManager.getWeaponData(w.weaponId);
     const name = data?.name ?? w.weaponId;
@@ -391,86 +390,67 @@ export class EquipmentPanel {
     const stats = this.weaponManager.getWeaponStats(w);
     const isBroken = this.weaponManager.isBroken(w);
 
-    // Row background
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x222222, 0);
-    bg.fillRect(0, y, contentWidth, rowH);
-    content.add(bg);
+    // Separator line
+    const sep = this.scene.add.graphics();
+    sep.lineStyle(1, 0x333333, 0.5);
+    sep.lineBetween(0, y, contentWidth, y);
+    content.add(sep);
+    y += 3;
 
-    // Name + stats
-    const nameText = this.scene.add.text(0, y + 2, `${name} [${w.rarity}]`, {
+    // Name
+    const nameText = this.scene.add.text(0, y, `${name} [${w.rarity}]`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '8px',
       color: isBroken ? '#F44336' : color,
     });
     content.add(nameText);
+    y += 14;
 
-    const statsText = this.scene.add.text(0, y + 16, `DMG:${stats.damage} DUR:${w.durability}/${w.maxDurability}`, {
+    // Stats on own line
+    const statsText = this.scene.add.text(0, y, `DMG:${stats.damage} DUR:${w.durability}/${w.maxDurability}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '7px',
       color: '#6B6B6B',
     });
     content.add(statsText);
 
-    // EQUIP button (right area)
-    const equipBtn = this.scene.add.text(contentWidth - 60, y + 4, '[EQUIP]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: '#E07030',
-    }).setInteractive({ useHandCursor: true });
-    equipBtn.on('pointerover', () => equipBtn.setColor('#FFD700'));
-    equipBtn.on('pointerout', () => equipBtn.setColor('#E07030'));
-    equipBtn.on('pointerdown', () => {
-      // Equip to first available slot
+    y += 12;
+
+    // Action buttons on their own line, spaced horizontally
+    let btnX = 0;
+    const btnGap = 8;
+
+    const makeBtn = (label: string, col: string, cb: () => void) => {
+      const btn = this.scene.add.text(btnX, y, label, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: col,
+      }).setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setColor('#FFD700'));
+      btn.on('pointerout', () => btn.setColor(col));
+      btn.on('pointerdown', cb);
+      content.add(btn);
+      btnX += btn.width + btnGap;
+    };
+
+    // EQUIP
+    makeBtn('[EQUIP]', '#E07030', () => {
       const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
       if (!primaryWeaponId) {
         this.gameState.equipped.primaryWeaponId = w.id;
       } else if (!secondaryWeaponId) {
         this.gameState.equipped.secondaryWeaponId = w.id;
       } else {
-        // Replace primary
         this.gameState.equipped.primaryWeaponId = w.id;
       }
       this.rebuild();
     });
-    content.add(equipBtn);
 
-    // UPGRADE button
-    const availUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(w);
-    if (availUpgrades.length > 0) {
-      const upgBtn = this.scene.add.text(contentWidth - 60, y + 18, '[UPGRADE]', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#4A90D9',
-      }).setInteractive({ useHandCursor: true });
-      upgBtn.on('pointerover', () => upgBtn.setColor('#FFD700'));
-      upgBtn.on('pointerout', () => upgBtn.setColor('#4A90D9'));
-      upgBtn.on('pointerdown', () => {
-        this.viewState = { mode: 'upgrade', weaponId: w.id };
-        this.rebuild();
-      });
-      content.add(upgBtn);
-    }
-
-    // REPAIR button (if damaged)
+    // REPAIR (if damaged)
     if (w.durability < w.maxDurability) {
       const canRepair = this.currentAP() >= 1 && this.gameState.inventory.resources.parts >= 1;
-      const repairBtn = this.scene.add.text(
-        availUpgrades.length > 0 ? contentWidth - 120 : contentWidth - 60,
-        y + 18,
-        '[REPAIR]',
-        {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '7px',
-          color: canRepair ? '#4CAF50' : '#555555',
-        }
-      );
-      content.add(repairBtn);
       if (canRepair) {
-        repairBtn.setInteractive({ useHandCursor: true });
-        repairBtn.on('pointerover', () => repairBtn.setColor('#FFD700'));
-        repairBtn.on('pointerout', () => repairBtn.setColor('#4CAF50'));
-        repairBtn.on('pointerdown', () => {
+        makeBtn('[REPAIR]', '#4CAF50', () => {
           if (this.weaponManager.repair(w.id)) {
             this.spendAP(1);
             this.onResourceChange();
@@ -480,7 +460,16 @@ export class EquipmentPanel {
       }
     }
 
-    // SCRAP button -- dismantle weapon for parts + scrap
+    // UPGRADE
+    const availUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(w);
+    if (availUpgrades.length > 0) {
+      makeBtn('[UPGRADE]', '#4A90D9', () => {
+        this.viewState = { mode: 'upgrade', weaponId: w.id };
+        this.rebuild();
+      });
+    }
+
+    // SCRAP button on the same line
     const scrapValues: Record<string, { scrap: number; parts: number }> = {
       common:    { scrap: 2, parts: 1 },
       uncommon:  { scrap: 3, parts: 2 },
@@ -488,15 +477,7 @@ export class EquipmentPanel {
       legendary: { scrap: 8, parts: 5 },
     };
     const sv = scrapValues[w.rarity] ?? { scrap: 2, parts: 1 };
-    const scrapBtn = this.scene.add.text(0, y + 28, `[SCRAP +${sv.scrap}S +${sv.parts}P]`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
-      color: '#AA6633',
-    }).setInteractive({ useHandCursor: true });
-    scrapBtn.on('pointerover', () => scrapBtn.setColor('#FFD700'));
-    scrapBtn.on('pointerout', () => scrapBtn.setColor('#AA6633'));
-    scrapBtn.on('pointerdown', () => {
-      // Remove weapon from inventory
+    makeBtn(`[SCRAP +${sv.scrap}S +${sv.parts}P]`, '#AA6633', () => {
       const idx = this.gameState.inventory.weapons.indexOf(w);
       if (idx >= 0) {
         this.gameState.inventory.weapons.splice(idx, 1);
@@ -514,9 +495,9 @@ export class EquipmentPanel {
         this.rebuild();
       }
     });
-    content.add(scrapBtn);
 
-    return y + rowH + 14;
+    y += 12; // button row height
+    return y + 4;
   }
 
   // ---------------------------------------------------------------------------
