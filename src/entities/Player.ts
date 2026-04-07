@@ -39,7 +39,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private shiftKey: Phaser.Input.Keyboard.Key | undefined;
   // Animation state
   private hasWalkAnim: boolean = false;
-  private hasAttackAnim: boolean = false;
+  // hasAttackAnim removed -- using tint flash instead
   private hasDeathAnim: boolean = false;
   private bobTimer: number = 0;
 
@@ -59,7 +59,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Check which animations are available
     this.hasWalkAnim = scene.anims.exists('player-walk');
-    this.hasAttackAnim = scene.anims.exists('player-attack');
+    // hasAttackAnim check removed -- using tint flash for attacks
     this.hasDeathAnim = scene.anims.exists('player-death');
 
     // Input setup
@@ -161,16 +161,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   /** Play attack animation if available. Called by shooting logic. */
   playAttackAnim(): void {
-    if (!this.hasAttackAnim) return;
-    this.play('player-attack');
-    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-      if (!this.active) return;
-      // Resume walk or idle
-      if (this.body && (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)) {
-        if (this.hasWalkAnim) this.play('player-walk');
-      } else {
-        this.setTexture('player_walk', 0);
-      }
+    // Quick white flash instead of animation swap (prevents glitchy texture switch)
+    this.setTint(0xffffff);
+    this.scene.time.delayedCall(80, () => {
+      if (this.active) this.clearTint();
     });
   }
 
