@@ -625,6 +625,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     // Fire projectile
     if (dist <= this.spitterRange && this.spitterTimer <= 0) {
       this.spitterTimer = this.spitterCooldown;
+      AudioManager.play('zombie_spit');
       this.scene.events.emit('spitter-shoot', this, this.target);
     }
   }
@@ -691,6 +692,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
           Math.cos(angle) * this.forestBossChargeSpeed,
           Math.sin(angle) * this.forestBossChargeSpeed
         );
+        AudioManager.play('boss_charge');
         this.scene.events.emit('forest-boss-charge-start', this);
       } else {
         // Normal movement between charges (slow walk toward base)
@@ -766,6 +768,8 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
 
     if (dist <= this.spitterRange && this.spitterTimer <= 0) {
       this.spitterTimer = this.spitterCooldown;
+      AudioManager.play('zombie_spit');
+      AudioManager.play('boss_acid');
       // Fire ranged projectile
       this.scene.events.emit('spitter-shoot', this, this.target);
       // Leave acid pool at current position
@@ -790,7 +794,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.stompTimer -= delta;
     if (this.stompTimer <= 0) {
       const vel = this.body ? Math.abs(this.body.velocity.x) + Math.abs(this.body.velocity.y) : 0;
-      if (vel > 5) AudioManager.play('boss_stomp');
+      if (vel > 5) AudioManager.play('boss_tank_stomp');
       this.stompTimer = 500; // More frequent stomps (slow but heavy)
     }
 
@@ -851,6 +855,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     // Screamer: scream on damage to attract nearby zombies
     if (this.behavior === 'screamer' && this.screamTimer <= 0) {
       this.screamTimer = this.screamCooldown;
+      AudioManager.play('zombie_scream');
       this.scene.events.emit('screamer-scream', this, this.screamRadius);
     }
 

@@ -427,9 +427,36 @@ export class NightPickupManager {
   // Collection & expiry
   // --------------------------------------------------------------------------
 
+  /** Play the appropriate pickup sound for the given pickup type. */
+  private playPickupSound(type: PickupType): void {
+    switch (type) {
+      case 'supply_crate':
+        AudioManager.play('pickup_supply');
+        break;
+      case 'medkit':
+        AudioManager.play('pickup_medkit');
+        break;
+      case 'ammo_cache':
+        AudioManager.play('pickup_ammo');
+        break;
+      case 'adrenaline_shot':
+        AudioManager.play('pickup_adrenaline');
+        break;
+      case 'wounded_survivor':
+        AudioManager.play('pickup_survivor');
+        break;
+      case 'hidden_stash':
+        AudioManager.play('blueprint_found');
+        break;
+      default:
+        AudioManager.play('ui_click');
+        break;
+    }
+  }
+
   private collectPickup(pickup: ActivePickup): void {
-    // Sound feedback
-    AudioManager.play('ui_click');
+    // Sound feedback: pick the correct sound for each pickup type
+    this.playPickupSound(pickup.type);
 
     // Apply gameplay effect via events (NightScene handles the actual state changes)
     this.applyPickupEffect(pickup);

@@ -4,6 +4,7 @@ import type { ZombieConfig, ZoneId } from '../entities/Zombie';
 import type { PathGrid } from './PathGrid';
 import enemiesData from '../data/enemies.json';
 import defaultWavesData from '../data/waves.json';
+import { AudioManager } from './AudioManager';
 
 interface WaveEnemyDef {
   type: string;
@@ -216,6 +217,11 @@ export class WaveManager {
       config.behavior === 'tunnel_zombie';
     const aggroType: 'base_seeker' | 'wanderer' =
       isBruteOrBoss ? 'base_seeker' : (Math.random() < 0.3 ? 'wanderer' : 'base_seeker');
+
+    // Play tunnel zombie emergence sound before the zombie surfaces
+    if (isTunnelZombie) {
+      AudioManager.play('zombie_tunnel');
+    }
 
     // Notify the scene when a boss is about to spawn so it can play boss-spawn sounds
     const isBossType =

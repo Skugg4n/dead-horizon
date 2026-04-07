@@ -128,6 +128,10 @@ export class DayScene extends Phaser.Scene {
     // Start day ambient sound -- use zone-specific variant when available
     if (this.gameState.zone === 'forest') {
       AudioManager.startAmbient('forest_day');
+    } else if (this.gameState.zone === 'city') {
+      AudioManager.startAmbient('city_day');
+    } else if (this.gameState.zone === 'military') {
+      AudioManager.startAmbient('military_day');
     } else {
       AudioManager.startAmbient('day');
     }

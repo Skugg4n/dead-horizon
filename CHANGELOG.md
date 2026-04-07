@@ -1,5 +1,94 @@
 # Dead Horizon -- Changelog
 
+## [v4.6.0] - 2026-04-04 23:36 -- Utokat ljudsystem: zon-ambient, footsteps, pickups, zombie-variation
+
+### Varfor
+AudioManager hade en god grund med ~30 procedurella ljud men saknade variation, zon-specifika ljud och pickup-feedback. Den har uppdateringen laggar till 30+ nya ljud och kopplar in dem i ratt kontext.
+
+### Nya ljud i AudioManager.ts (alla procedurellt genererade med Web Audio API)
+
+#### Zon-ambient (8s-10s loopar)
+- `city_ambient_day` -- stadshum, avlagsna sirener, vind, glaskross
+- `city_ambient_night` -- morkt sus, metallknirk, avlagsen skrik
+- `military_ambient_day` -- oppet vindfall, flagga, radio-statik
+- `military_ambient_night` -- djupt sus, motordrum, metallklank
+
+#### Footstep-varianter
+- `footstep_grass` -- mjukt dampat (forest/default)
+- `footstep_concrete` -- hart med ekosvans (city)
+- `footstep_metal` -- ringande klang (military)
+
+#### Vader-ljud
+- `rain_loop` -- regn (LP-filtrat vitt brus, loopbar)
+- `thunder` -- askknall (brusbrott + laglager + langa svans)
+- `wind_gust` -- vindpust (brusljud med sweep-filter)
+
+#### Pickup-ljud
+- `pickup_supply` -- metallisk oppning + myntjingel
+- `pickup_medkit` -- uppgaende healing-chime (3 toner: C5 E5 G5)
+- `pickup_ammo` -- militart klick-klack (magasininsattning)
+- `pickup_adrenaline` -- tre accelererande basslag
+- `pickup_survivor` -- varm vokalliknande ton (220 Hz + overtoner)
+
+#### Zombie-varianter
+- `zombie_scream` -- genomtrankande skrik (screamer-typ)
+- `zombie_spit` -- vatt spottljud (spitter)
+- `zombie_charge` -- stigande rusning (brute)
+- `zombie_tunnel` -- jordigt gravande + framtradandeknall (tunnel zombie)
+
+#### UI / Feedback
+- `weapon_break` -- metalliskt knak + ringsvans
+- `weapon_upgrade` -- shimmer + ding
+- `blueprint_found` -- pappersrassel + fanfar
+- `achievement_unlock` -- triumferande 5-notersfanfar (C4 D4 E4 G4 C5)
+- `night_warning` -- djup gonggong (inharmoniska deltoner)
+
+#### Boss-specifika
+- `boss_charge` -- stigande rusning med brus
+- `boss_acid` -- bubblande syra med amplitudmodulering
+- `boss_tank_stomp` -- jordskakning (tyngre an boss_stomp)
+
+### Andrade filer
+
+#### src/systems/AudioManager.ts
+- 30+ nya SoundId-entries
+- 30+ nya gen*()-funktioner
+- SOUND_DEFS utokad med alla nya ljud
+- PITCH_VARIED_SOUNDS utokad: footstep-varianter, zombie-varianter, pickup-ljud, weather, boss
+- startAmbient() accepterar nu 8 typer: 'city_day', 'city_night', 'military_day', 'military_night' utover befintliga
+
+#### src/scenes/DayScene.ts
+- Ambient-val utokat: city -> city_day, military -> military_day
+
+#### src/scenes/NightScene.ts
+- Ambient-val utokat: city -> city_night, military/endless -> military_night
+- player.zone satt fran gameState.zone efter spelarskap
+- Brute/military_heavy attack mot spelare spelar 'zombie_charge'
+
+#### src/entities/Player.ts
+- Import AudioManager och ZoneId
+- Ny publik field `zone: ZoneId` (satt av NightScene)
+- Ny privat field `footstepTimer: number`
+- update(): spelar zon-specifik footstep-ljud var 350ms (walking) / 220ms (sprinting)
+
+#### src/entities/Zombie.ts
+- Screamer: spelar 'zombie_scream' vid skrik-event
+- Spitter: spelar 'zombie_spit' vid skott
+- City boss: spelar 'zombie_spit' + 'boss_acid' vid skott
+- Forest boss charge: spelar 'boss_charge' vid charge-start
+- Military tank: anvander 'boss_tank_stomp' istallet for 'boss_stomp'
+
+#### src/systems/WaveManager.ts
+- Import AudioManager
+- Spelar 'zombie_tunnel' nar tunnel_zombie spawnar
+
+#### src/systems/NightPickupManager.ts
+- collectPickup() anropar ny playPickupSound() istallet for generisk 'ui_click'
+- playPickupSound() mappar varje pickup-typ till ratt ljud
+
+#### src/config/constants.ts
+- GAME_VERSION bumpad till 4.6.0
+
 ## [v4.5.0] - 2026-04-04 23:00 -- Night map pickups (risk/reward system)
 
 ### Varfor

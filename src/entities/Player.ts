@@ -9,6 +9,8 @@ import {
 } from '../config/constants';
 import { clamp } from '../utils/math';
 import visualConfig from '../data/visual-config.json';
+import { AudioManager } from '../systems/AudioManager';
+import type { ZoneId } from '../config/types';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   hp: number;
@@ -20,6 +22,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   // Adrenaline buff multipliers (1 = no buff, reset after buff duration expires)
   speedBuff: number = 1;
   damageBuff: number = 1;
+
+  // Current zone -- set by NightScene after player creation, used for zone-specific footsteps
+  zone: ZoneId = 'forest';
+
+  // Footstep timer: accumulates movement time to trigger footstep sounds at correct cadence
+  private footstepTimer: number = 0;
 
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private wasd: {
@@ -127,6 +135,27 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.stamina = clamp(this.stamina - STAMINA_DRAIN_RATE * dt, 0, this.maxStamina);
     } else {
       this.stamina = clamp(this.stamina + STAMINA_REGEN_RATE * dt, 0, this.maxStamina);
+    }
+
+    // Zone-aware footstep sounds.
+    // Interval: ~350ms walking, ~220ms sprinting (matches visual bob cadence).
+    if (isMoving) {
+      const footstepInterval = isSprinting ? 220 : 350;
+      this.footstepTimer += delta;
+      if (this.footstepTimer >= footstepInterval) {
+        this.footstepTimer = 0;
+        // Pick footstep variant based on current zone surface
+        if (this.zone === 'city') {
+          AudioManager.play('footstep_concrete');
+        } else if (this.zone === 'military') {
+          AudioManager.play('footstep_metal');
+        } else {
+          // forest, endless, and default: grass
+          AudioManager.play('footstep_grass');
+        }
+      }
+    } else {
+      this.footstepTimer = 0;
     }
   }
 

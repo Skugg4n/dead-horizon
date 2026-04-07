@@ -29,7 +29,41 @@ type SoundId =
   | 'boss_roar'
   | 'boss_stomp'
   | 'zone_complete'
-  | 'final_night_start';
+  | 'final_night_start'
+  // F6: Zone-specific ambient
+  | 'city_ambient_day'
+  | 'city_ambient_night'
+  | 'military_ambient_day'
+  | 'military_ambient_night'
+  // F6: Footstep variants
+  | 'footstep_grass'
+  | 'footstep_concrete'
+  | 'footstep_metal'
+  // F6: Weather
+  | 'rain_loop'
+  | 'thunder'
+  | 'wind_gust'
+  // F6: Pickup sounds
+  | 'pickup_supply'
+  | 'pickup_medkit'
+  | 'pickup_ammo'
+  | 'pickup_adrenaline'
+  | 'pickup_survivor'
+  // F6: Zombie variation
+  | 'zombie_scream'
+  | 'zombie_spit'
+  | 'zombie_charge'
+  | 'zombie_tunnel'
+  // F6: UI / feedback
+  | 'weapon_break'
+  | 'weapon_upgrade'
+  | 'blueprint_found'
+  | 'achievement_unlock'
+  | 'night_warning'
+  // F6: Boss-specific
+  | 'boss_charge'
+  | 'boss_acid'
+  | 'boss_tank_stomp';
 
 interface SoundDef {
   generate: (ctx: AudioContext) => AudioBuffer;
@@ -854,6 +888,813 @@ function genDayToNight(ctx: AudioContext): AudioBuffer {
   return buf;
 }
 
+// ============================================================
+// F6: Zone-specific ambient generators
+// ============================================================
+
+/**
+ * City ambient day: distant sirens, wind between buildings, occasional breaking glass.
+ * 10-second buffer loops seamlessly.
+ */
+function genCityAmbientDay(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const duration = 10;
+  const len = Math.floor(duration * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+
+  // Low-frequency urban hum (power lines / HVAC) -- band-limited brown noise
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const white = Math.random() * 2 - 1;
+    prev = (prev + 0.012 * white) / 1.012;
+    d[i] = prev * 2.2 * 0.12;
+  }
+
+  // Wind between buildings: medium-speed sweep noise band
+  let prevW = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const white = Math.random() * 2 - 1;
+    prevW = (prevW + 0.03 * white) / 1.03;
+    const gustMod = 0.4 + 0.3 * Math.sin(t * 0.7) + 0.15 * Math.sin(t * 1.8);
+    d[i] = (d[i] ?? 0) + prevW * 3 * gustMod * 0.09;
+  }
+
+  // Distant sirens: two-tone wail, ~220/180 Hz, period 3s, offset 1.5s, very quiet
+  const sirenPeriod = 3.0;
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const phase = (t % sirenPeriod) / sirenPeriod;
+    // Wail only during the first 0.6 of each period
+    if (phase < 0.6) {
+      const env = Math.sin((phase / 0.6) * Math.PI) * 0.04;
+      // Alternate between two tones each half-cycle
+      const freq = phase < 0.3 ? 220 : 180;
+      d[i] = (d[i] ?? 0) + env * Math.sin(t * freq * 2 * Math.PI);
+    }
+  }
+
+  // Glass break transient at t=5.5s -- very subtle
+  {
+    const glassStart = Math.floor(5.5 * rate);
+    const glassLen = Math.floor(0.12 * rate);
+    for (let j = 0; j < glassLen && glassStart + j < len; j++) {
+      const env = Math.exp(-j / glassLen * 20);
+      const idx = glassStart + j;
+      d[idx] = (d[idx] ?? 0) + env * (Math.random() * 2 - 1) * 0.09
+        + env * Math.sin(j / glassLen * 5500) * 0.04;
+    }
+  }
+
+  // Crossfade loop
+  const fadeLen = Math.floor(0.5 * rate);
+  for (let i = 0; i < fadeLen; i++) {
+    const fade = i / fadeLen;
+    const endIdx = len - fadeLen + i;
+    d[endIdx] = (d[endIdx] ?? 0) * (1 - fade) + (d[i] ?? 0) * fade;
+  }
+  return buf;
+}
+
+/**
+ * City ambient night: dark hiss, metal creak, distant scream.
+ * 10-second buffer.
+ */
+function genCityAmbientNight(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const duration = 10;
+  const len = Math.floor(duration * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+
+  // Dark hiss base: very quiet white-noise pass
+  for (let i = 0; i < len; i++) {
+    d[i] = (Math.random() * 2 - 1) * 0.015;
+  }
+
+  // Low sub-rumble (filtered brown noise)
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const white = Math.random() * 2 - 1;
+    prev = (prev + 0.006 * white) / 1.006;
+    d[i] = (d[i] ?? 0) + prev * 1.8 * 0.14;
+  }
+
+  // Metal creak: descending metallic tone at t=3s and t=8s
+  const creakTimes = [3.0, 8.0];
+  for (const ct of creakTimes) {
+    const start = Math.floor(ct * rate);
+    const cLen = Math.floor(0.35 * rate);
+    for (let j = 0; j < cLen && start + j < len; j++) {
+      const t = j / rate;
+      const env = Math.exp(-t * 7);
+      const freq = 900 * Math.exp(-t * 4);
+      const idx = start + j;
+      d[idx] = (d[idx] ?? 0) + env * Math.sin(t * freq * 2 * Math.PI) * 0.06
+        + env * (Math.random() * 2 - 1) * 0.02;
+    }
+  }
+
+  // Distant scream at t=6.5s -- human-vocal-like descending tone
+  {
+    const scStart = Math.floor(6.5 * rate);
+    const scLen = Math.floor(0.5 * rate);
+    for (let j = 0; j < scLen && scStart + j < len; j++) {
+      const t = j / rate;
+      const env = Math.sin(t / 0.5 * Math.PI) * 0.035;
+      const freq = 800 - t * 600;
+      const idx = scStart + j;
+      d[idx] = (d[idx] ?? 0) + env * (
+        Math.sin(t * Math.max(freq, 200) * 2 * Math.PI) * 0.6
+        + Math.sin(t * Math.max(freq, 200) * 3 * Math.PI) * 0.2
+        + (Math.random() * 2 - 1) * 0.1
+      );
+    }
+  }
+
+  // Crossfade loop
+  const fadeLen = Math.floor(0.5 * rate);
+  for (let i = 0; i < fadeLen; i++) {
+    const fade = i / fadeLen;
+    const endIdx = len - fadeLen + i;
+    d[endIdx] = (d[endIdx] ?? 0) * (1 - fade) + (d[i] ?? 0) * fade;
+  }
+  return buf;
+}
+
+/**
+ * Military ambient day: open wind, flag flapping, distant radio static.
+ * 10-second buffer.
+ */
+function genMilitaryAmbientDay(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const duration = 10;
+  const len = Math.floor(duration * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+
+  // Open-field wind: slightly faster sweep than city
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const white = Math.random() * 2 - 1;
+    prev = (prev + 0.025 * white) / 1.025;
+    const mod = 0.5 + 0.25 * Math.sin(t * 0.4) + 0.1 * Math.sin(t * 1.1);
+    d[i] = prev * 3 * mod * 0.13;
+  }
+
+  // Flag flapping: rhythmic noise burst at ~5 Hz
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const phase = (t * 5) % 1;
+    if (phase < 0.12) {
+      const env = Math.sin(phase / 0.12 * Math.PI) * 0.05;
+      d[i] = (d[i] ?? 0) + env * (Math.random() * 2 - 1);
+    }
+  }
+
+  // Radio static bursts at t=2s and t=7s
+  const radioTimes = [2.0, 7.0];
+  for (const rt of radioTimes) {
+    const start = Math.floor(rt * rate);
+    const rLen = Math.floor(0.4 * rate);
+    for (let j = 0; j < rLen && start + j < len; j++) {
+      const t = j / rate;
+      const env = Math.sin(t / 0.4 * Math.PI) * 0.04;
+      const idx = start + j;
+      // Bandpass-like static: white noise * sine carrier at 2400 Hz
+      d[idx] = (d[idx] ?? 0) + env * (Math.random() * 2 - 1) * Math.abs(Math.sin(t * 2400));
+    }
+  }
+
+  // Crossfade loop
+  const fadeLen = Math.floor(0.5 * rate);
+  for (let i = 0; i < fadeLen; i++) {
+    const fade = i / fadeLen;
+    const endIdx = len - fadeLen + i;
+    d[endIdx] = (d[endIdx] ?? 0) * (1 - fade) + (d[i] ?? 0) * fade;
+  }
+  return buf;
+}
+
+/**
+ * Military ambient night: deep hiss, motor drone, metal clank.
+ * 10-second buffer.
+ */
+function genMilitaryAmbientNight(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const duration = 10;
+  const len = Math.floor(duration * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+
+  // Deep hiss with low sub-tone
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const white = Math.random() * 2 - 1;
+    prev = (prev + 0.007 * white) / 1.007;
+    d[i] = prev * 2.0 * 0.13;
+  }
+
+  // Distant motor drone at ~45 Hz (generator hum)
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    d[i] = (d[i] ?? 0) + Math.sin(t * 45 * 2 * Math.PI) * 0.022
+      + Math.sin(t * 90 * 2 * Math.PI) * 0.01;
+  }
+
+  // Metal clanks at t=1.8s, t=6.2s
+  const clankTimes = [1.8, 6.2];
+  for (const ct of clankTimes) {
+    const start = Math.floor(ct * rate);
+    const cLen = Math.floor(0.18 * rate);
+    for (let j = 0; j < cLen && start + j < len; j++) {
+      const t = j / rate;
+      const env = Math.exp(-t * 22);
+      const idx = start + j;
+      d[idx] = (d[idx] ?? 0) + env * (
+        Math.sin(t * 1300 * 2 * Math.PI) * 0.07
+        + Math.sin(t * 1800 * 2 * Math.PI) * 0.04
+        + (Math.random() * 2 - 1) * 0.03
+      );
+    }
+  }
+
+  // Crossfade loop
+  const fadeLen = Math.floor(0.5 * rate);
+  for (let i = 0; i < fadeLen; i++) {
+    const fade = i / fadeLen;
+    const endIdx = len - fadeLen + i;
+    d[endIdx] = (d[endIdx] ?? 0) * (1 - fade) + (d[i] ?? 0) * fade;
+  }
+  return buf;
+}
+
+// ============================================================
+// F6: Footstep variants
+// ============================================================
+
+/** Footstep on grass: soft, muffled low thump + subtle leaf rustle */
+function genFootstepGrass(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.07 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = Math.exp(-t * 70);
+    // Very low thump + soft rustle noise
+    d[i] = env * (Math.sin(t * 90 * 2 * Math.PI) * 0.35
+      + (Math.random() * 2 - 1) * 0.12);
+  }
+  return buf;
+}
+
+/** Footstep on concrete: harder impact with slight echo tail */
+function genFootstepConcrete(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.09 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Sharp transient + mid-freq echo
+    const env = Math.exp(-t * 55);
+    const echoEnv = Math.exp(-t * 18);
+    d[i] = env * (Math.random() * 2 - 1) * 0.4
+      + echoEnv * Math.sin(t * 350 * 2 * Math.PI) * 0.18;
+  }
+  return buf;
+}
+
+/** Footstep on metal: ringing clang with sustain */
+function genFootstepMetal(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.1 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = Math.exp(-t * 40);
+    const ringEnv = Math.exp(-t * 12);
+    // Sharp noise transient + metallic ring partials
+    d[i] = env * (Math.random() * 2 - 1) * 0.3
+      + ringEnv * (
+        Math.sin(t * 1100 * 2 * Math.PI) * 0.2
+        + Math.sin(t * 1650 * 2 * Math.PI) * 0.1
+        + Math.sin(t * 2200 * 2 * Math.PI) * 0.06
+      );
+  }
+  return buf;
+}
+
+// ============================================================
+// F6: Weather sounds
+// ============================================================
+
+/**
+ * Rain loop: white noise low-pass filtered (rainfall texture).
+ * 8-second buffer, seamless loop.
+ */
+function genRainLoop(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const duration = 8;
+  const len = Math.floor(duration * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+
+  // Simple one-pole LP filter applied to white noise to simulate rain
+  // cutoff ~800 Hz approximated by coefficient alpha = 0.08
+  let lp = 0;
+  for (let i = 0; i < len; i++) {
+    const white = Math.random() * 2 - 1;
+    lp = lp + 0.08 * (white - lp);
+    const t = i / rate;
+    // Slow intensity variation for realism
+    const mod = 0.7 + 0.15 * Math.sin(t * 0.3) + 0.1 * Math.sin(t * 0.7);
+    d[i] = lp * mod * 1.1;
+  }
+
+  // Crossfade loop
+  const fadeLen = Math.floor(0.4 * rate);
+  for (let i = 0; i < fadeLen; i++) {
+    const fade = i / fadeLen;
+    const endIdx = len - fadeLen + i;
+    d[endIdx] = (d[endIdx] ?? 0) * (1 - fade) + (d[i] ?? 0) * fade;
+  }
+  return buf;
+}
+
+/**
+ * Thunder: noise burst with low-frequency boom and long decay tail.
+ * Non-looping, ~2.5s.
+ */
+function genThunder(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const duration = 2.5;
+  const len = Math.floor(duration * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+
+  // Initial crack: short white noise burst
+  const crackLen = Math.floor(0.06 * rate);
+  for (let i = 0; i < crackLen; i++) {
+    const env = Math.exp(-i / crackLen * 8);
+    d[i] = env * (Math.random() * 2 - 1) * 0.9;
+  }
+
+  // Rolling boom: very low freq oscillation with slow decay
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = Math.exp(-t * 2.5);
+    d[i] = (d[i] ?? 0) + env * (
+      Math.sin(t * 38 * 2 * Math.PI) * 0.35
+      + Math.sin(t * 55 * 2 * Math.PI) * 0.2
+      + (Math.random() * 2 - 1) * 0.08
+    );
+  }
+
+  return buf;
+}
+
+/**
+ * Wind gust: noise with sweeping band-pass character (pitch rises then falls).
+ * ~1.2s, non-looping.
+ */
+function genWindGust(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const duration = 1.2;
+  const len = Math.floor(duration * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+
+  // Brown noise modulated by an envelope + band sweep simulated via sine carrier
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const white = Math.random() * 2 - 1;
+    prev = (prev + 0.05 * white) / 1.05;
+    // Envelope: rise then fall
+    const env = Math.sin(t / duration * Math.PI);
+    // Frequency sweep: 200 Hz to 600 Hz and back
+    const sweepFreq = 200 + 400 * Math.sin(t / duration * Math.PI);
+    d[i] = env * (
+      prev * 3 * 0.5
+      + Math.sin(t * sweepFreq * 2 * Math.PI) * 0.06
+    );
+  }
+  return buf;
+}
+
+// ============================================================
+// F6: Pickup sounds
+// ============================================================
+
+/** Supply crate pickup: metallic open + coin jingle */
+function genPickupSupply(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.35 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Metallic lid open: mid-freq impact then ring
+    const impEnv = Math.exp(-t * 30);
+    const ringEnv = Math.exp(-t * 8);
+    // Coin jingle: multiple high-frequency tones
+    const coinEnv = t > 0.05 ? Math.exp(-(t - 0.05) * 12) : 0;
+    d[i] = impEnv * ((Math.random() * 2 - 1) * 0.4 + Math.sin(t * 900 * 2 * Math.PI) * 0.2)
+      + ringEnv * Math.sin(t * 1400 * 2 * Math.PI) * 0.1
+      + coinEnv * (
+        Math.sin(t * 2100 * 2 * Math.PI) * 0.15
+        + Math.sin(t * 2800 * 2 * Math.PI) * 0.10
+        + Math.sin(t * 3400 * 2 * Math.PI) * 0.07
+      );
+  }
+  return buf;
+}
+
+/** Medkit pickup: soft ascending healing chime (3 rising tones) */
+function genPickupMedkit(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.5 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  // Three ascending tones: C5, E5, G5, each 0.13s apart
+  const notes = [
+    { freq: 523, start: 0.0 },
+    { freq: 659, start: 0.13 },
+    { freq: 784, start: 0.26 },
+  ];
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    let sample = 0;
+    for (const note of notes) {
+      const nt = t - note.start;
+      if (nt >= 0 && nt < 0.18) {
+        const env = Math.sin(nt / 0.18 * Math.PI);
+        sample += env * Math.sin(nt * note.freq * 2 * Math.PI) * 0.18;
+      }
+    }
+    d[i] = sample;
+  }
+  return buf;
+}
+
+/** Ammo pickup: military click-clack (magazine insertion sound) */
+function genPickupAmmo(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.22 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // First click at t=0, second click at t=0.1
+    const click1 = Math.exp(-t * 90) * (Math.random() * 2 - 1) * 0.6;
+    const t2 = t - 0.1;
+    const click2 = t2 > 0 ? Math.exp(-t2 * 70) * (Math.random() * 2 - 1) * 0.45 : 0;
+    d[i] = click1 + click2;
+  }
+  return buf;
+}
+
+/** Adrenaline pickup: heartbeat-accelerating bass pump (3 beats, tempo rising) */
+function genPickupAdrenaline(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.7 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  // Beat times: accelerating rhythm
+  const beatTimes = [0.0, 0.28, 0.50];
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    let sample = 0;
+    for (const bt of beatTimes) {
+      const nt = t - bt;
+      if (nt >= 0 && nt < 0.18) {
+        const env = Math.exp(-nt * 18);
+        // Low bass thump
+        sample += env * (
+          Math.sin(nt * 50 * 2 * Math.PI) * 0.55
+          + Math.sin(nt * 80 * 2 * Math.PI) * 0.25
+          + (Math.random() * 2 - 1) * 0.05
+        );
+      }
+    }
+    d[i] = sample;
+  }
+  return buf;
+}
+
+/**
+ * Survivor pickup: short upward vocal-like tone (not a real voice, but warm
+ * resonant sine + harmonics to suggest a human "hey!").
+ */
+function genPickupSurvivor(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.3 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = t < 0.05 ? t / 0.05 : Math.exp(-(t - 0.05) * 10);
+    // Vocal formant approximation: fundamental ~220 Hz + harmonics
+    d[i] = env * (
+      Math.sin(t * 220 * 2 * Math.PI) * 0.35
+      + Math.sin(t * 440 * 2 * Math.PI) * 0.15
+      + Math.sin(t * 880 * 2 * Math.PI) * 0.07
+      + Math.sin(t * 1100 * 2 * Math.PI) * 0.04
+    );
+  }
+  return buf;
+}
+
+// ============================================================
+// F6: Zombie variation
+// ============================================================
+
+/** Zombie scream: high-pitched shriek (screamer type) */
+function genZombieScream(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.6 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  const baseFreq = 700 + Math.random() * 200;
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const env = t < 0.05 ? t / 0.05 : Math.exp(-(t - 0.05) * 5);
+    // Rising shriek with heavy noise mix
+    const freq = baseFreq + Math.sin(t * 8) * 80 + t * 400;
+    d[i] = env * (
+      Math.sin(t * freq * 2 * Math.PI) * 0.35
+      + Math.sin(t * freq * 2.1 * 2 * Math.PI) * 0.15
+      + (Math.random() * 2 - 1) * 0.25
+    );
+  }
+  return buf;
+}
+
+/** Zombie spit: wet gurgling spit-launch (spitter type) */
+function genZombieSpit(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.25 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Wet low-freq bubble burst + mid noise
+    const bubbleEnv = Math.exp(-t * 25);
+    const wetEnv = i < Math.floor(0.02 * rate) ? Math.exp(-t * 80) : 0;
+    d[i] = bubbleEnv * (
+      Math.sin(t * 120 * 2 * Math.PI) * 0.3
+      + Math.sin(t * 200 * 2 * Math.PI) * 0.15
+      + (Math.random() * 2 - 1) * 0.18
+    ) + wetEnv * (Math.random() * 2 - 1) * 0.5;
+  }
+  return buf;
+}
+
+/** Zombie charge: heavy thudding rush sound (brute charge) */
+function genZombieCharge(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.45 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Rising rumble as charge builds + noise
+    const env = t < 0.15 ? t / 0.15 : Math.exp(-(t - 0.15) * 6);
+    const freq = 60 + t * 30;
+    d[i] = env * (
+      Math.sin(t * freq * 2 * Math.PI) * 0.5
+      + Math.sin(t * freq * 2 * 2 * Math.PI) * 0.2
+      + (Math.random() * 2 - 1) * 0.15
+    );
+  }
+  return buf;
+}
+
+/** Zombie tunnel: earthy gravel digging then emergence thud (tunnel zombie) */
+function genZombieTunnel(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.55 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Scraping/digging: low-frequency noise burst
+    const scrapeEnv = Math.exp(-t * 4) * (1 - Math.exp(-t * 20));
+    // Emergence thud at t=0.4s
+    const thudT = t - 0.4;
+    const thudEnv = thudT > 0 ? Math.exp(-thudT * 25) : 0;
+    d[i] = scrapeEnv * (
+      (Math.random() * 2 - 1) * 0.35
+      + Math.sin(t * 80 * 2 * Math.PI) * 0.15
+    ) + thudEnv * (
+      Math.sin(thudT * 55 * 2 * Math.PI) * 0.55
+      + (Math.random() * 2 - 1) * 0.2
+    );
+  }
+  return buf;
+}
+
+// ============================================================
+// F6: UI / Feedback sounds
+// ============================================================
+
+/** Weapon break: metallic snap/crack (durability hits zero) */
+function genWeaponBreak(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.4 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Sharp initial crack
+    const crackEnv = Math.exp(-t * 50);
+    // Metallic ringing decay
+    const ringEnv = Math.exp(-t * 10);
+    d[i] = crackEnv * (Math.random() * 2 - 1) * 0.7
+      + ringEnv * (
+        Math.sin(t * 1600 * 2 * Math.PI) * 0.2
+        + Math.sin(t * 2300 * 2 * Math.PI) * 0.12
+        + Math.sin(t * 3100 * 2 * Math.PI) * 0.07
+      );
+  }
+  return buf;
+}
+
+/** Weapon upgrade: magical shimmer + ding (weapon leveled up) */
+function genWeaponUpgrade(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.6 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Shimmer: rapid ascending frequency sweep
+    const shimmerEnv = Math.exp(-t * 6);
+    const shimmerFreq = 800 + t * 2000;
+    // Final ding at t=0.25
+    const dingT = t - 0.25;
+    const dingEnv = dingT > 0 ? Math.exp(-dingT * 8) : 0;
+    d[i] = shimmerEnv * Math.sin(t * shimmerFreq * 2 * Math.PI) * 0.15
+      + dingEnv * (
+        Math.sin(dingT * 1047 * 2 * Math.PI) * 0.25  // C6
+        + Math.sin(dingT * 1319 * 2 * Math.PI) * 0.15  // E6
+      );
+  }
+  return buf;
+}
+
+/** Blueprint found: paper rustle + short 2-note fanfare */
+function genBlueprintFound(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.6 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Paper rustle: brief noise burst with high-frequency emphasis
+    const rustleEnv = t < 0.1 ? Math.exp(-t * 25) : 0;
+    // Fanfare: two ascending notes
+    const n1T = t - 0.1;
+    const n1Env = n1T > 0 && n1T < 0.15 ? Math.sin(n1T / 0.15 * Math.PI) : 0;
+    const n2T = t - 0.28;
+    const n2Env = n2T > 0 && n2T < 0.22 ? Math.sin(n2T / 0.22 * Math.PI) : 0;
+    d[i] = rustleEnv * (Math.random() * 2 - 1) * 0.35
+      + n1Env * Math.sin(t * 523 * 2 * Math.PI) * 0.25
+      + n2Env * Math.sin(t * 659 * 2 * Math.PI) * 0.28;
+  }
+  return buf;
+}
+
+/**
+ * Achievement unlock: triumphant 5-note ascending fanfare.
+ * C4 D4 E4 G4 C5, each ~0.12s with small gaps.
+ */
+function genAchievementUnlock(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(1.0 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  const notes = [
+    { freq: 261.6, start: 0.00, dur: 0.10 }, // C4
+    { freq: 293.7, start: 0.12, dur: 0.10 }, // D4
+    { freq: 329.6, start: 0.24, dur: 0.10 }, // E4
+    { freq: 392.0, start: 0.36, dur: 0.10 }, // G4
+    { freq: 523.2, start: 0.48, dur: 0.38 }, // C5 -- held
+  ];
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    let sample = 0;
+    for (const note of notes) {
+      const nt = t - note.start;
+      if (nt >= 0 && nt < note.dur) {
+        const env = Math.sin(nt / note.dur * Math.PI);
+        sample += env * (
+          Math.sin(nt * note.freq * 2 * Math.PI) * 0.28
+          + Math.sin(nt * note.freq * 2 * 2 * Math.PI) * 0.10
+        );
+      }
+    }
+    d[i] = sample;
+  }
+  return buf;
+}
+
+/** Night warning: deep gong -- low resonant bell strike at dusk */
+function genNightWarning(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(1.5 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Gong: sharp onset, very slow decay
+    const env = Math.exp(-t * 1.8);
+    // Inharmonic partials typical of a gong/bell
+    d[i] = env * (
+      Math.sin(t * 65 * 2 * Math.PI) * 0.4    // fundamental
+      + Math.sin(t * 158 * 2 * Math.PI) * 0.2  // 2nd partial (inharmonic)
+      + Math.sin(t * 240 * 2 * Math.PI) * 0.12 // 3rd partial
+      + Math.sin(t * 340 * 2 * Math.PI) * 0.06 // 4th partial
+      + (Math.random() * 2 - 1) * 0.02         // subtle noise shimmer
+    );
+  }
+  return buf;
+}
+
+// ============================================================
+// F6: Boss-specific sounds
+// ============================================================
+
+/** Boss charge: heavy rushing whoosh building in intensity */
+function genBossCharge(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.8 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  let prev = 0;
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    const white = Math.random() * 2 - 1;
+    prev = (prev + 0.04 * white) / 1.04;
+    // Build-up envelope: starts quiet, peaks at end
+    const env = t / 0.8;
+    // Pitch rising: combine low rumble with sweep
+    const freq = 40 + t * 80;
+    d[i] = env * (
+      prev * 3 * 0.4
+      + Math.sin(t * freq * 2 * Math.PI) * 0.35
+      + Math.sin(t * freq * 2 * 2 * Math.PI) * 0.12
+    );
+  }
+  return buf;
+}
+
+/** Boss acid: bubbling corrosive pool sound */
+function genBossAcid(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.5 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Low gurgling bubbles
+    const env = Math.exp(-t * 4);
+    // Bubble modulation: fast wobble
+    const bubbleMod = 0.5 + 0.5 * Math.sin(t * 18 * 2 * Math.PI);
+    d[i] = env * bubbleMod * (
+      Math.sin(t * 70 * 2 * Math.PI) * 0.3
+      + Math.sin(t * 110 * 2 * Math.PI) * 0.15
+      + (Math.random() * 2 - 1) * 0.2
+    );
+  }
+  return buf;
+}
+
+/** Boss tank stomp: massive ground-shaking impact (heavier than boss_stomp) */
+function genBossTankStomp(ctx: AudioContext): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(0.4 * rate);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const t = i / rate;
+    // Earthquake impact: very low sub-bass + broad noise layer
+    const subEnv = Math.exp(-t * 6);
+    const noiseEnv = Math.exp(-t * 18);
+    d[i] = subEnv * (
+      Math.sin(t * 28 * 2 * Math.PI) * 0.55
+      + Math.sin(t * 42 * 2 * Math.PI) * 0.30
+      + Math.sin(t * 60 * 2 * Math.PI) * 0.15
+    ) + noiseEnv * (Math.random() * 2 - 1) * 0.35;
+  }
+  return buf;
+}
+
 const SOUND_DEFS: Record<SoundId, SoundDef> = {
   shoot_pistol: { generate: genPistol, volume: 0.5, cooldown: 80 },
   shoot_rifle: { generate: genRifle, volume: 0.55, cooldown: 80 },
@@ -894,6 +1735,40 @@ const SOUND_DEFS: Record<SoundId, SoundDef> = {
   boss_stomp:          { generate: genBossStomp,         volume: 0.50, cooldown: 700 },
   zone_complete:       { generate: genZoneComplete,      volume: 0.55, cooldown: 0   },
   final_night_start:   { generate: genFinalNightStart,   volume: 0.60, cooldown: 0   },
+  // F6: Zone-specific ambient
+  city_ambient_day:      { generate: genCityAmbientDay,      volume: 0.10, cooldown: 0 },
+  city_ambient_night:    { generate: genCityAmbientNight,    volume: 0.10, cooldown: 0 },
+  military_ambient_day:  { generate: genMilitaryAmbientDay,  volume: 0.10, cooldown: 0 },
+  military_ambient_night:{ generate: genMilitaryAmbientNight,volume: 0.10, cooldown: 0 },
+  // F6: Footstep variants
+  footstep_grass:    { generate: genFootstepGrass,    volume: 0.16, cooldown: 240 },
+  footstep_concrete: { generate: genFootstepConcrete, volume: 0.22, cooldown: 240 },
+  footstep_metal:    { generate: genFootstepMetal,    volume: 0.20, cooldown: 240 },
+  // F6: Weather
+  rain_loop:  { generate: genRainLoop,  volume: 0.18, cooldown: 0   },
+  thunder:    { generate: genThunder,   volume: 0.55, cooldown: 3000 },
+  wind_gust:  { generate: genWindGust,  volume: 0.22, cooldown: 800  },
+  // F6: Pickup sounds
+  pickup_supply:     { generate: genPickupSupply,     volume: 0.35, cooldown: 100 },
+  pickup_medkit:     { generate: genPickupMedkit,     volume: 0.30, cooldown: 100 },
+  pickup_ammo:       { generate: genPickupAmmo,       volume: 0.32, cooldown: 100 },
+  pickup_adrenaline: { generate: genPickupAdrenaline, volume: 0.38, cooldown: 100 },
+  pickup_survivor:   { generate: genPickupSurvivor,   volume: 0.28, cooldown: 100 },
+  // F6: Zombie variation
+  zombie_scream:  { generate: genZombieScream,  volume: 0.30, cooldown: 2000 },
+  zombie_spit:    { generate: genZombieSpit,    volume: 0.28, cooldown: 600  },
+  zombie_charge:  { generate: genZombieCharge,  volume: 0.35, cooldown: 1500 },
+  zombie_tunnel:  { generate: genZombieTunnel,  volume: 0.40, cooldown: 0    },
+  // F6: UI / Feedback
+  weapon_break:       { generate: genWeaponBreak,       volume: 0.45, cooldown: 0   },
+  weapon_upgrade:     { generate: genWeaponUpgrade,     volume: 0.40, cooldown: 0   },
+  blueprint_found:    { generate: genBlueprintFound,    volume: 0.38, cooldown: 0   },
+  achievement_unlock: { generate: genAchievementUnlock, volume: 0.50, cooldown: 0   },
+  night_warning:      { generate: genNightWarning,      volume: 0.45, cooldown: 0   },
+  // F6: Boss-specific
+  boss_charge:     { generate: genBossCharge,     volume: 0.55, cooldown: 1500 },
+  boss_acid:       { generate: genBossAcid,       volume: 0.30, cooldown: 400  },
+  boss_tank_stomp: { generate: genBossTankStomp,  volume: 0.60, cooldown: 900  },
 };
 
 // Map weapon classes to sound IDs
@@ -918,7 +1793,7 @@ function getBuffer(id: SoundId): AudioBuffer {
 
 // --- Public API ---
 
-// F4/F5: Sounds that receive +/- 10% pitch randomization on every play
+// F4/F5/F6: Sounds that receive +/- 10% pitch randomization on every play
 const PITCH_VARIED_SOUNDS = new Set<SoundId>([
   'shoot_pistol', 'shoot_rifle', 'shoot_shotgun', 'shoot_melee', 'shoot_explosives',
   'zombie_groan', 'zombie_attack', 'zombie_death',
@@ -927,6 +1802,12 @@ const PITCH_VARIED_SOUNDS = new Set<SoundId>([
   'trap_nail_board', 'trap_trip_wire', 'trap_glass_shards',
   'trap_tar_pit', 'trap_shock_wire', 'trap_spring_launcher', 'trap_chain_wall',
   'boss_stomp',
+  // F6: New footstep variants and zombie sounds
+  'footstep_grass', 'footstep_concrete', 'footstep_metal',
+  'zombie_scream', 'zombie_spit', 'zombie_charge', 'zombie_tunnel',
+  // F6: Pickup sounds and wind
+  'pickup_supply', 'pickup_medkit', 'pickup_ammo', 'pickup_adrenaline', 'pickup_survivor',
+  'wind_gust', 'boss_charge', 'boss_acid', 'boss_tank_stomp',
 ]);
 
 function play(id: SoundId): void {
@@ -965,10 +1846,20 @@ function playWeaponSound(weaponClass: string): void {
 
 /**
  * Start a looping ambient sound.
- * type: general 'night'/'day', or zone-specific variants like 'forest_day'/'forest_night'.
+ * type: general 'night'/'day', or zone-specific variants.
  * Zone-specific types resolve to richer procedural sounds for that zone.
  */
-function startAmbient(type: 'night' | 'day' | 'forest_day' | 'forest_night'): void {
+function startAmbient(
+  type:
+    | 'night'
+    | 'day'
+    | 'forest_day'
+    | 'forest_night'
+    | 'city_day'
+    | 'city_night'
+    | 'military_day'
+    | 'military_night',
+): void {
   stopAmbient();
   if (muted || ambientMuted) return;
 
@@ -981,6 +1872,14 @@ function startAmbient(type: 'night' | 'day' | 'forest_day' | 'forest_night'): vo
     id = 'forest_ambient_day';
   } else if (type === 'forest_night') {
     id = 'forest_ambient_night';
+  } else if (type === 'city_day') {
+    id = 'city_ambient_day';
+  } else if (type === 'city_night') {
+    id = 'city_ambient_night';
+  } else if (type === 'military_day') {
+    id = 'military_ambient_day';
+  } else if (type === 'military_night') {
+    id = 'military_ambient_night';
   } else if (type === 'night') {
     id = 'ambient_wind';
   } else {

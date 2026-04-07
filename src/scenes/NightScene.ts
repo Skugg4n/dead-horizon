@@ -481,9 +481,13 @@ export class NightScene extends Phaser.Scene {
 
     // Start night ambient sound + F4 day-to-night whoosh
     AudioManager.play('day_to_night');
-    // Use zone-specific ambient when available (forest has richer night sounds)
+    // Use zone-specific ambient when available
     if (this.gameState.zone === 'forest') {
       AudioManager.startAmbient('forest_night');
+    } else if (this.gameState.zone === 'city') {
+      AudioManager.startAmbient('city_night');
+    } else if (this.gameState.zone === 'military' || this.gameState.zone === 'endless') {
+      AudioManager.startAmbient('military_night');
     } else {
       AudioManager.startAmbient('night');
     }
@@ -1589,6 +1593,8 @@ export class NightScene extends Phaser.Scene {
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
     const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
     this.player = new Player(this, mapPixelWidth / 2, mapPixelHeight / 2);
+    // Set zone on player so footstep sounds match zone surface
+    this.player.zone = this.gameState.zone ?? 'forest';
     this.lastPlayerX = this.player.x;
     this.lastPlayerY = this.player.y;
   }
@@ -1722,6 +1728,10 @@ export class NightScene extends Phaser.Scene {
         this.flashDamageOverlay();
         // F4: Guttural zombie attack sound
         AudioManager.play('zombie_attack_hit');
+        // F6: Brute charge impact sound
+        if (zombie.behavior === 'brute' || zombie.behavior === 'military_heavy') {
+          AudioManager.play('zombie_charge');
+        }
       },
     );
 
