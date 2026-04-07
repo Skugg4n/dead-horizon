@@ -195,11 +195,14 @@ describe('LootManager', () => {
       };
 
       // Need strength >= threshold for nearby_houses (50)
-      // rusty_knife = 15 damage + 2 companions * 20 = 55 >= 50
+      // rusty_knife = 15 damage + 2 companions * 20 = 55 >= 50 -> ~70% win
       const weapons = [createTestWeapon({ weaponId: 'rusty_knife' })];
       const companions = [createTestRefugee({ id: 'c1' }), createTestRefugee({ id: 'c2' })];
 
+      // Mock Math.random to return low value (win)
+      vi.spyOn(Math, 'random').mockReturnValue(0.1);
       const resolved = manager.resolveFight(result, weapons, companions);
+      vi.restoreAllMocks();
       expect(resolved.encounterOutcome).toBe('win');
       expect(resolved.encounterResolved).toBe(true);
       expect(resolved.loot.scrap).toBe(Math.round(10 * ENCOUNTER_LOOT_MULTIPLIER));
@@ -217,8 +220,11 @@ describe('LootManager', () => {
         injuredCompanions: [],
       };
 
-      // No weapons, no companions = 0 strength < threshold
+      // No weapons, no companions = 0 strength < threshold -> ~10% win
+      // Mock Math.random high to force lose
+      vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const resolved = manager.resolveFight(result, [], []);
+      vi.restoreAllMocks();
       expect(resolved.encounterOutcome).toBe('lose');
       expect(Object.keys(resolved.loot)).toHaveLength(0);
     });
@@ -234,6 +240,7 @@ describe('LootManager', () => {
       ];
 
       // Run many times to check that injuries can happen (probabilistic)
+      // Use high random to force lose (injuries only happen on loss)
       let anyInjured = false;
       for (let i = 0; i < 100; i++) {
         const testResult: LootResult = {
