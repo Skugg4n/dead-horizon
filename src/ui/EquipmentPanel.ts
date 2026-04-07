@@ -114,6 +114,7 @@ export class EquipmentPanel {
   // ---------------------------------------------------------------------------
 
   private rebuild(): void {
+    this.panel.resetScroll();
     switch (this.viewState.mode) {
       case 'default':
         this.buildDefaultView();

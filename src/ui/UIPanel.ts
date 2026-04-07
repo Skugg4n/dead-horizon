@@ -14,6 +14,7 @@ const BG_COLOR = 0x1A1A1A;
 const BG_ALPHA = 0.95;
 const TITLE_COLOR = '#E8DCC8';
 const MAX_PANEL_HEIGHT = GAME_HEIGHT - 120;
+const SCROLL_STEP = 30; // pixels per scroll tick
 
 export class UIPanel {
   private scene: Phaser.Scene;
@@ -23,6 +24,9 @@ export class UIPanel {
   private panelWidth: number;
   private panelHeight: number;
   private backdrop: Phaser.GameObjects.Graphics;
+  private contentMask!: Phaser.Display.Masks.GeometryMask;
+  private scrollY: number = 0;
+  private contentAreaHeight: number = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -102,6 +106,27 @@ export class UIPanel {
     );
     this.container.add(this.contentContainer);
 
+    // Content area height (visible portion)
+    this.contentAreaHeight = this.panelHeight - HEADER_HEIGHT - PADDING * 2;
+
+    // Mask: clip content to panel bounds so it never overflows
+    const maskShape = scene.make.graphics({ x: 0, y: 0 });
+    // Mask position is in world space -- we compute it relative to container position
+    maskShape.fillStyle(0xffffff);
+    maskShape.fillRect(
+      panelX,
+      PANEL_Y + HEADER_HEIGHT,
+      this.panelWidth,
+      this.panelHeight - HEADER_HEIGHT,
+    );
+    this.contentMask = maskShape.createGeometryMask();
+    this.contentContainer.setMask(this.contentMask);
+
+    // Mouse wheel scrolling on the panel background
+    bg.on('wheel', (_pointer: Phaser.Input.Pointer, _dx: number, _dy: number, dz: number) => {
+      this.scroll(dz > 0 ? SCROLL_STEP : -SCROLL_STEP);
+    });
+
     // Listen for close-all event
     scene.events.on(CLOSE_ALL_PANELS, this.handleCloseAll, this);
 
@@ -145,6 +170,30 @@ export class UIPanel {
 
   isVisible(): boolean {
     return this.visible;
+  }
+
+  /** Scroll content by delta pixels (positive = down, negative = up). */
+  scroll(delta: number): void {
+    // Measure total content height by checking children bounds
+    let maxY = 0;
+    for (const child of this.contentContainer.list) {
+      const obj = child as unknown as { y?: number; height?: number; displayHeight?: number };
+      if (typeof obj.y === 'number') {
+        const h = obj.displayHeight ?? obj.height ?? 12;
+        const bottom = obj.y + h;
+        if (bottom > maxY) maxY = bottom;
+      }
+    }
+
+    const maxScroll = Math.max(0, maxY - this.contentAreaHeight);
+    this.scrollY = Phaser.Math.Clamp(this.scrollY + delta, 0, maxScroll);
+    this.contentContainer.y = HEADER_HEIGHT + PADDING - this.scrollY;
+  }
+
+  /** Reset scroll to top (call after rebuilding content). */
+  resetScroll(): void {
+    this.scrollY = 0;
+    this.contentContainer.y = HEADER_HEIGHT + PADDING;
   }
 
   getContentContainer(): Phaser.GameObjects.Container {
