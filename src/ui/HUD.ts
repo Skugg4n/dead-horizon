@@ -32,6 +32,9 @@ export class HUD {
 
   private wavePanel!: Phaser.GameObjects.Graphics;
   private waveText!: Phaser.GameObjects.Text;
+  private waveSubText!: Phaser.GameObjects.Text;
+  private _currentNight: number = 1;
+  private _maxNights: number = 5;
 
   private baseHpBar!: Phaser.GameObjects.Graphics;
   private baseHpBarBg!: Phaser.GameObjects.Graphics;
@@ -155,12 +158,20 @@ export class HUD {
     this.wavePanel.strokeRoundedRect(wavePanelX, 4, wavePanelW, wavePanelH, 6);
     this.container.add(this.wavePanel);
 
-    this.waveText = scene.add.text(GAME_WIDTH / 2, TOP_H / 2, 'Wave 1/5', {
+    this.waveText = scene.add.text(GAME_WIDTH / 2, TOP_H / 2 - 6, 'Night 1/5', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#FFFFFF',
     }).setOrigin(0.5, 0.5);
     this.container.add(this.waveText);
+
+    // Sub-line: wave + enemy count
+    this.waveSubText = scene.add.text(GAME_WIDTH / 2, TOP_H / 2 + 8, 'Wave 1/1  --  0 enemies', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '7px',
+      color: '#9A9A9A',
+    }).setOrigin(0.5, 0.5);
+    this.container.add(this.waveSubText);
 
     // ---- Base HP section (right side) ----------------------------------
     const baseBarW = 120;
@@ -398,8 +409,22 @@ export class HUD {
     this.staminaBar.fillRect(staminaBarX, STAMINA_Y, 100 * ratio, STAMINA_H);
   }
 
+  /** Set the night number displayed in the main header. */
+  setNight(night: number, maxNights: number = 5): void {
+    this._currentNight = night;
+    this._maxNights = maxNights;
+    this.waveText.setText(`Night ${night} / ${maxNights}`);
+  }
+
+  /** Update wave + enemy count sub-line. */
   updateWave(wave: number, maxWaves: number = 5): void {
-    this.waveText.setText(`Wave ${wave}/${maxWaves}`);
+    this.waveSubText.setText(`Wave ${wave}/${maxWaves}`);
+  }
+
+  /** Update live enemy counter in the wave sub-line. */
+  updateEnemyCount(alive: number, wave: number, maxWaves: number): void {
+    const enemyStr = alive > 0 ? `${alive} left` : 'cleared!';
+    this.waveSubText.setText(`Wave ${wave}/${maxWaves}  --  ${enemyStr}`);
   }
 
   updateKills(kills: number): void {

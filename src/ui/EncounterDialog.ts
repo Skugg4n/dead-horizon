@@ -102,8 +102,8 @@ export class EncounterDialog {
     }).setOrigin(0.5, 0);
     this.container.add(strengthInfo);
 
-    // Fight button (10px)
-    const fightBtn = this.scene.add.text(DIALOG_WIDTH / 2 - 70, 130, '[ FIGHT ]', {
+    // Fight button (10px) with keyboard shortcut hint [1]
+    const fightBtn = this.scene.add.text(DIALOG_WIDTH / 2 - 70, 130, '[1] FIGHT', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#D4620B',
@@ -113,8 +113,8 @@ export class EncounterDialog {
     fightBtn.on('pointerdown', () => this.resolve('fight'));
     this.container.add(fightBtn);
 
-    // Flee button (10px)
-    const fleeBtn = this.scene.add.text(DIALOG_WIDTH / 2 + 70, 130, '[ FLEE ]', {
+    // Flee button (10px) with keyboard shortcut hint [2]
+    const fleeBtn = this.scene.add.text(DIALOG_WIDTH / 2 + 70, 130, '[2] FLEE', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: '#4A90D9',

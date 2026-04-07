@@ -344,6 +344,10 @@ export class NightScene extends Phaser.Scene {
     this.setupPillboxRefugees();
     this.hud = new HUD(this);
     this.gameLog = new GameLog(this);
+    // Show night number: "Night 3 / 5"
+    const nightNumber = this.gameState.progress.currentWave;
+    const isEndless = this.gameState.zone === 'endless';
+    this.hud.setNight(nightNumber, isEndless ? nightNumber : 5);
     this.hud.updateAmmo(this.loadedAmmo);
     this.updateWeaponHUD();
     // F3: Initialize base HP bar
@@ -520,6 +524,12 @@ export class NightScene extends Phaser.Scene {
         this.tryAutoShoot();
       }
     }
+
+    // Update live enemy counter in HUD
+    const aliveZombies = this.zombieGroup.getChildren().filter(c => (c as Phaser.GameObjects.Sprite).active).length;
+    const currentWave = this.waveManager.getCurrentWave();
+    const maxWaves = this.waveManager.getMaxWaves();
+    this.hud.updateEnemyCount(aliveZombies, currentWave, maxWaves);
 
     // Update FPS counter
     if (this.fpsText) {

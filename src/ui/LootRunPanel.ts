@@ -193,8 +193,16 @@ export class LootRunPanel {
       rowBg.fillRect(0, y, contentWidth, 62);
       content.add(rowBg);
 
+      // Keyboard shortcut hint [1]-[9] shown to the left of the destination name
+      const keyHint = this.scene.add.text(0, y + 4, `[${i + 1}]`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: hasAP ? '#445566' : '#333333',
+      });
+      content.add(keyHint);
+
       // Destination name
-      const nameText = this.scene.add.text(0, y + 4, dest.name, {
+      const nameText = this.scene.add.text(28, y + 4, dest.name, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '10px',
         color,
@@ -316,13 +324,21 @@ export class LootRunPanel {
       r => r.status === 'healthy' && r.hp > 0 && r.job !== 'loot_run',
     );
 
-    for (const refugee of healthyRefugees) {
+    for (const [compIndex, refugee] of healthyRefugees.entries()) {
       const isSelected = this.selectedCompanions.some(c => c.id === refugee.id);
       const marker = isSelected ? '[x]' : '[ ]';
       const entryColor = isSelected ? '#4CAF50' : '#E8DCC8';
 
+      // Keyboard shortcut hint for companion selection
+      const compKey = this.scene.add.text(0, yOffset, `[${compIndex + 1}]`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#445566',
+      });
+      content.add(compKey);
+
       const entry = this.scene.add.text(
-        0,
+        28,
         yOffset,
         `${marker} ${refugee.name}  (${refugee.skillBonus})  HP:${refugee.hp}/${refugee.maxHp}`,
         {

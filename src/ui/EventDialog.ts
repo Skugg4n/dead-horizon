@@ -86,9 +86,10 @@ export class EventDialog {
     const longestChoiceLen = Math.max(...event.choices.map(c => c.text.length));
     const choiceFontSize = longestChoiceLen > 40 ? '8px' : '9px';
 
-    // Measure each choice button height
-    const choiceHeights: number[] = event.choices.map(choice => {
-      const tmp = this.scene.add.text(-2000, -2000, `[ ${choice.text} ]`, {
+    // Measure each choice button height (include shortcut prefix in measurement)
+    const choiceHeights: number[] = event.choices.map((choice, idx) => {
+      const shortcutPrefix = idx < 9 ? `[${idx + 1}] ` : '';
+      const tmp = this.scene.add.text(-2000, -2000, `${shortcutPrefix}${choice.text}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: choiceFontSize,
         wordWrap: { width: textAreaW - 16 },
@@ -172,10 +173,12 @@ export class EventDialog {
       btnBg.fillRoundedRect(PADDING - 4, btnY - 4, DIALOG_WIDTH - PADDING * 2 + 8, choiceH + 8, 4);
       this.container.add(btnBg);
 
+      // Prefix each choice with its keyboard shortcut number [1], [2], etc.
+      const shortcutPrefix = index < 9 ? `[${index + 1}] ` : '';
       const btn = this.scene.add.text(
         DIALOG_WIDTH / 2,
         btnY,
-        `[ ${choice.text} ]`,
+        `${shortcutPrefix}${choice.text}`,
         {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: choiceFontSize,

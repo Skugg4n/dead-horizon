@@ -55,6 +55,30 @@ export class RefugeePanel {
     this.scene.events.on('refugee-injured',  () => this.refresh());
   }
 
+  /** Handle keyboard input for the refugee panel (1-9 heals injured refugees). Returns true if handled. */
+  handleKey(key: string): boolean {
+    if (!this.panel.isVisible()) return false;
+
+    if (key === 'Escape') {
+      this.panel.hide();
+      return true;
+    }
+
+    // Number keys: heal injured refugee at that position among injured refugees
+    const num = parseInt(key, 10);
+    if (num >= 1 && num <= 9) {
+      const injured = this.refugeeManager.getAll().filter(r => r.status === 'injured');
+      const target = injured[num - 1];
+      if (target && this.refugeeManager.hasMedsForHeal()) {
+        this.refugeeManager.healRefugee(target.id);
+        this.refresh();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   private buildPanel(): void {
     const content = this.panel.getContentContainer();
     content.removeAll(true);
@@ -85,18 +109,23 @@ export class RefugeePanel {
       return;
     }
 
+    // Track injured index separately so heal buttons can show [1] [2] etc per-injured
+    let injuredIndex = 0;
     refugees.forEach((refugee, i) => {
       const rowY = 18 + i * ROW_HEIGHT;
-      this.buildCrewRow(content, refugee, rowY, i < refugees.length - 1);
+      const keyIndex = refugee.status === 'injured' ? injuredIndex++ : -1;
+      this.buildCrewRow(content, refugee, rowY, i < refugees.length - 1, keyIndex);
     });
   }
 
   // Build one crew member row: portrait circle | name + bonus label | status / heal button
+  // keyIndex: if >= 0, this is an injured refugee at that keyboard-shortcut index
   private buildCrewRow(
     content: Phaser.GameObjects.Container,
     refugee: RefugeeInstance,
     rowY: number,
     addSeparator: boolean,
+    keyIndex: number = -1,
   ): void {
     const isCritical = refugee.status === 'injured' && refugee.hp <= refugee.maxHp * 0.2;
     const portraitColor = isCritical
@@ -158,8 +187,9 @@ export class RefugeePanel {
         }).setOrigin(1, 0),
       );
 
-      // Heal button (costs REFUGEE_HEAL_MEDS_COST med)
-      const healLabel = `Heal (${REFUGEE_HEAL_MEDS_COST} med)`;
+      // Heal button (costs REFUGEE_HEAL_MEDS_COST med) -- show keyboard shortcut if index in range
+      const keyLabel = keyIndex >= 0 && keyIndex < 9 ? `[${keyIndex + 1}] ` : '';
+      const healLabel = `${keyLabel}Heal (${REFUGEE_HEAL_MEDS_COST} med)`;
       const healText = this.scene.add.text(rightX, rowY + 18, healLabel, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
@@ -222,18 +252,6 @@ export class RefugeePanel {
 
   isVisible(): boolean {
     return this.panel.isVisible();
-  }
-
-  /** Handle keyboard input. Returns true if handled. */
-  handleKey(key: string): boolean {
-    if (!this.panel.isVisible()) return false;
-
-    if (key === 'Escape') {
-      this.panel.hide();
-      return true;
-    }
-
-    return false;
   }
 
   getContainer(): Phaser.GameObjects.Container {
