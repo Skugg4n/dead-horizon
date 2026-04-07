@@ -462,7 +462,7 @@ export class NightEventManager {
       const distFromCenter = Math.sqrt((x - mapW / 2) ** 2 + (y - mapH / 2) ** 2);
       attempts++;
       if (distFromCenter > 200 || attempts > 10) break;
-    } while (true);
+    } while (attempts <= 10);
 
     // Visual: explosion flash at world position (converted to screen via camera)
     this.showExplosionFlash(x, y);
