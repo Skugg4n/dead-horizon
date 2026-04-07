@@ -86,6 +86,10 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 **Problem:** GameState-formatet andras mellan versioner (nya falt: zone, achievements, stats, zoneProgress, loadedAmmo, nya SkillTypes). Gamla saves saknar dessa falt och orsakar TypeError.
 **Losning:** SaveManager.load() mergar sparad data med defaults fran createDefaultState(). Varje nytt falt maste finnas i defaults OCH i merge-logiken. Testa alltid Continue-knappen med en gammal save.
 
+### ALDRIG clearSave() i catch-block (KRITISKT)
+**Problem:** DayScene.create() hade try/catch som kallade SaveManager.clearSave() vid VILKET fel som helst. Ny kod som kraschade (challenge badge, dawn animation, Camp Crew) raderade hela spelarens save tyst. Spelaren kastades tillbaka till Forest Dag 1 vid varje reload.
+**Losning:** ALDRIG radera save vid fel. Logga felet, ga tillbaka till meny, behall save intakt. Spelaren kan forsoka igen. SaveManager.load() ska INTE heller radera save vid parse-fel -- returnera defaults men lat save vara kvar sa nasta version kan forsoka ladda den.
+
 ---
 
 ## Gameplay
