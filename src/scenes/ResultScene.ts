@@ -177,7 +177,8 @@ export class ResultScene extends Phaser.Scene {
     const totalContentH = cursorY;
 
     // Apply a mask so content clips inside the content area
-    const maskShape = this.add.graphics();
+    // Use make.graphics (not add.graphics) to avoid rendering the mask shape visibly
+    const maskShape = this.make.graphics({ x: 0, y: 0 });
     maskShape.fillStyle(0xffffff);
     maskShape.fillRect(contentX, contentTopY, contentW, contentH);
     const mask = maskShape.createGeometryMask();

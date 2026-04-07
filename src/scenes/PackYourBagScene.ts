@@ -187,7 +187,7 @@ export class PackYourBagScene extends Phaser.Scene {
 
     // --- Clip mask so content doesn't bleed over header/button ---
     // (Phaser mask via graphics)
-    const maskShape = this.add.graphics();
+    const maskShape = this.make.graphics({ x: 0, y: 0 });
     maskShape.fillStyle(0xffffff);
     maskShape.fillRect(0, this.SCROLL_TOP, GAME_WIDTH, this.SCROLL_VIEW_H);
     const mask = maskShape.createGeometryMask();
