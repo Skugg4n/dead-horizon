@@ -135,7 +135,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (this.body && (this.body.velocity.x !== 0 || this.body.velocity.y !== 0)) {
         if (this.hasWalkAnim) this.play('player-walk');
       } else {
-        this.setTexture('player');
+        this.setTexture('player_walk', 0);
       }
     });
   }
