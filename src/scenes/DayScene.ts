@@ -277,6 +277,9 @@ export class DayScene extends Phaser.Scene {
     // Day-start processing: food consumption, healing, random arrival, leadership XP
     this.processDayStart();
 
+    // Save immediately so progress persists even if player reloads mid-day
+    SaveManager.save(this.gameState);
+
     this.setupInput();
 
     // Show day-phase tutorial on first ever game.
