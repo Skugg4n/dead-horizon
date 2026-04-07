@@ -51,6 +51,7 @@ export class EquipmentPanel {
   private gameState: GameState;
   private panel: UIPanel;
   private viewState: ViewState = { mode: 'default' };
+  private storageScrollOffset: number = 0;
   private currentAP: () => number;
   private spendAP: (cost: number) => void;
   private onResourceChange: () => void;
@@ -205,8 +206,32 @@ export class EquipmentPanel {
       });
       content.add(emptyText);
     } else {
-      for (const w of storageWeapons) {
-        y = this.renderStorageEntry(content, w, y);
+      // Paginate: show max 3 storage weapons at a time
+      const MAX_STORAGE_VISIBLE = 3;
+      const total = storageWeapons.length;
+      const endIdx = Math.min(this.storageScrollOffset + MAX_STORAGE_VISIBLE, total);
+
+      if (this.storageScrollOffset > 0) {
+        const upBtn = this.scene.add.text(0, y, '[ ^ UP ]', {
+          fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#FFD700',
+        }).setInteractive({ useHandCursor: true });
+        upBtn.on('pointerdown', () => { this.storageScrollOffset = Math.max(0, this.storageScrollOffset - 1); this.rebuild(); });
+        content.add(upBtn);
+        y += 12;
+      }
+
+      for (let i = this.storageScrollOffset; i < endIdx; i++) {
+        const weapon = storageWeapons[i];
+        if (weapon) y = this.renderStorageEntry(content, weapon, y);
+      }
+
+      if (endIdx < total) {
+        const downBtn = this.scene.add.text(0, y, `[ v ${total - endIdx} MORE ]`, {
+          fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#FFD700',
+        }).setInteractive({ useHandCursor: true });
+        downBtn.on('pointerdown', () => { this.storageScrollOffset = Math.min(total - MAX_STORAGE_VISIBLE, this.storageScrollOffset + 1); this.rebuild(); });
+        content.add(downBtn);
+        y += 12;
       }
     }
 
