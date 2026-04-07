@@ -92,10 +92,12 @@ export class EncounterDialog {
     }).setOrigin(0.5, 0);
     this.container.add(desc);
 
-    // Strength indicator
-    const chanceColor = strength >= threshold ? '#4CAF50' : '#F44336';
-    const chanceText = strength >= threshold ? 'GOOD ODDS' : 'RISKY';
-    const strengthInfo = this.scene.add.text(DIALOG_WIDTH / 2, 90, `Your strength: ${strength} vs ${threshold}  [${chanceText}]`, {
+    // Strength indicator with win percentage
+    const ratio = threshold > 0 ? strength / threshold : 1;
+    const winPct = Math.round(Math.min(95, Math.max(10, 65 + (ratio - 1) * 50)));
+    const chanceColor = winPct >= 65 ? '#4CAF50' : winPct >= 40 ? '#FFD700' : '#F44336';
+    const chanceText = winPct >= 80 ? 'GOOD ODDS' : winPct >= 50 ? 'EVEN' : 'RISKY';
+    const strengthInfo = this.scene.add.text(DIALOG_WIDTH / 2, 90, `Strength: ${strength} vs ${threshold}  [${winPct}% -- ${chanceText}]`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
       color: chanceColor,

@@ -204,7 +204,11 @@ export class LootManager {
   ): LootResult {
     const strength = this.calculateStrength(weapons, companions.length);
     const threshold = this.getThreshold(result.destination.id);
-    const win = strength >= threshold;
+    // Win chance scales with strength vs threshold ratio
+    // At strength == threshold: 65% win. Above: higher. Below: lower.
+    const ratio = threshold > 0 ? strength / threshold : 1;
+    const winChance = Math.min(0.95, Math.max(0.1, 0.65 + (ratio - 1) * 0.5));
+    const win = Math.random() < winChance;
 
     if (win) {
       // Multiply loot by 1.5x
