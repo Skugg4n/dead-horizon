@@ -516,8 +516,8 @@ export class HUD {
     this.scene.tweens.add({
       targets: [this.waveAnnouncementText, this.waveAnnouncementBg],
       alpha: 0,
-      delay: 300,
-      duration: 2000,
+      delay: 2000,
+      duration: 1500,
       ease: 'Power2',
     });
   }
@@ -547,7 +547,8 @@ export class HUD {
     this.scene.tweens.add({
       targets: [this.waveAnnouncementText, this.waveAnnouncementBg],
       alpha: 0,
-      duration: 3000,
+      delay: 2500,
+      duration: 1500,
       ease: 'Power2',
     });
   }

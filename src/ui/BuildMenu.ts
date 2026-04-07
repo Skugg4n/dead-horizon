@@ -68,6 +68,13 @@ const STRUCTURE_ICONS: Record<string, string> = {
   bear_trap:      '🐻',
   landmine:       '💣',
   oil_slick:      '🛢️',
+  nail_board:     '🪵',
+  trip_wire:      '🪢',
+  glass_shards:   '🔷',
+  tar_pit:        '🟤',
+  shock_wire:     '⚡',
+  spring_launcher:'🔩',
+  chain_wall:     '⛓️',
 };
 
 // Which primitives belong to TRAPS vs WALLS

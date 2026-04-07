@@ -21,7 +21,7 @@ const JOB_LABELS: Record<RefugeeJob, string> = {
   gather_food: 'FOOD',
   gather_scrap: 'SCRAP',
   repair: 'FIX',
-  rest: 'REST',
+  rest: 'REST (1 med)',
   loot_run: 'LOOT',
   pillbox: 'GUARD',
 };
