@@ -31,6 +31,18 @@
         "zone": "city",
         "wave": 5
       }
+    },
+    {
+      "id": "endless",
+      "name": "Endless",
+      "description": "No rest. No mercy. How long can you survive? Unlocked after clearing Military.",
+      "waveFile": "waves-military",
+      "lootMultiplier": 2.5,
+      "unlockCondition": {
+        "type": "wave_cleared",
+        "zone": "military",
+        "wave": 5
+      }
     }
   ]
 }

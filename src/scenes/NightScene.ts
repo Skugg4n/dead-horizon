@@ -70,6 +70,7 @@ import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL,
 import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
+import { NightEventManager, BLOOD_MOON_SPEED_MULTIPLIER, BLOOD_MOON_HP_MULTIPLIER, RAIN_MALFUNCTION_BONUS, RAIN_FIRE_DAMAGE_MULTIPLIER } from '../systems/NightEventManager';
 import { distanceBetween, angleBetween } from '../utils/math';
 import { AudioManager } from '../systems/AudioManager';
 import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect } from '../config/types';
@@ -79,7 +80,7 @@ import structuresData from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import enemiesData from '../data/enemies.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
-import { generateTerrain } from '../systems/TerrainGenerator';
+import { generateTerrain, drawZoneBackground } from '../systems/TerrainGenerator';
 import { PathGrid } from '../systems/PathGrid';
 import type { TerrainResult } from '../config/types';
 
@@ -115,6 +116,23 @@ export class NightScene extends Phaser.Scene {
   private gamePaused: boolean = false;
   private pillboxAssignments: { structure: StructureInstance; refugee: RefugeeInstance; cooldown: number }[] = [];
   private kills: number = 0;
+  // Debrief tracking: kills by source
+  private trapKills: number = 0;
+  private weaponKills: number = 0;
+  // Map from structure ID string to { name, kills } for top-trap report
+  private trapKillMap: Map<string, { name: string; kills: number }> = new Map();
+  // Count of base breakthrough events (zombie reached base center)
+  private breakthroughCount: number = 0;
+  // Structures destroyed this night
+  private destroyedStructures: Array<{ structureId: string; x: number; y: number }> = [];
+  // Ammo snapshot at night start (set after autoLoadAmmo)
+  private ammoAtNightStart: number = 0;
+  // Boss kills this night
+  private bossKillsThisNight: number = 0;
+  // Kill source tracking: set to 'trap' or 'weapon' before zombie.takeDamage() resolves as a kill
+  private _currentKillSource: 'trap' | 'weapon' | null = null;
+  private _currentKillTrapId: string | null = null;
+  private _currentKillTrapName: string | null = null;
   private loadedAmmo: number = 0;
   private weaponUsedThisNight: Set<string> = new Set();
   private gameState!: ReturnType<typeof SaveManager.load>;
@@ -233,6 +251,10 @@ export class NightScene extends Phaser.Scene {
   private bossNightTime: number = 0; // accumulated time (ms) for pulse calculation
   // Shared PathGrid for zombie steering around walls and barricades
   private pathGrid!: PathGrid;
+  // Night weather/events system
+  private nightEventManager!: NightEventManager;
+  // Rain effect: fire-based trap damage multiplier (1.0 normally, 0.5 when rain is active)
+  private _rainFireDamageMultiplier: number = 1.0;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -241,6 +263,16 @@ export class NightScene extends Phaser.Scene {
   create(data?: { hordeMultiplier?: number; fogPenalty?: number }): void {
     this.gameState = SaveManager.load();
     this.kills = 0;
+    this.trapKills = 0;
+    this.weaponKills = 0;
+    this.trapKillMap = new Map();
+    this.breakthroughCount = 0;
+    this.destroyedStructures = [];
+    this.ammoAtNightStart = 0;
+    this.bossKillsThisNight = 0;
+    this._currentKillSource = null;
+    this._currentKillTrapId = null;
+    this._currentKillTrapName = null;
     this.shootCooldown = 0;
     this.isShooting = false;
     this.weaponUsedThisNight = new Set();
@@ -262,7 +294,9 @@ export class NightScene extends Phaser.Scene {
     // F3: Base HP scales with upgrade level
     const baseLvlIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
     const baseLvlHp = (baseLevelsJson.baseLevels[baseLvlIdx] as { baseHp?: number }).baseHp ?? BASE_MAX_HP;
-    this.baseMaxHp = baseLvlHp;
+    // Apply tough_base perk: +50 max HP if unlocked
+    const hasToughBase = (this.gameState.meta?.unlockedPerks ?? []).includes('tough_base');
+    this.baseMaxHp = baseLvlHp + (hasToughBase ? 50 : 0);
     // Restore full HP each night (base regenerates overnight)
     this.baseHp = this.baseMaxHp;
 
@@ -272,6 +306,8 @@ export class NightScene extends Phaser.Scene {
     // Build path grid after structures are placed so walls are registered
     this.pathGrid = new PathGrid();
     this.pathGrid.updateFromStructures(this.gameState.base.structures);
+    // Also register natural terrain blockers (building ruins / bunkers) so zombies route around them
+    this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
     this.createFogOfWar();
     this.createPlayer();
     this.createGroups();
@@ -294,6 +330,8 @@ export class NightScene extends Phaser.Scene {
     // Auto-load ammo: calculate ammoPerNight for each equipped ranged weapon,
     // deduct from stockpile, track per-weapon status for warning display.
     this.loadedAmmo = this.autoLoadAmmo();
+    // Record ammo at night start for debrief report
+    this.ammoAtNightStart = this.loadedAmmo;
 
     // Set the active weapon to the primary equipped slot so key 1 is correct on start.
     this.syncEquippedSlotToWeaponManager();
@@ -315,6 +353,16 @@ export class NightScene extends Phaser.Scene {
     this.setupParticles();
     this.setupLighting();
     this.setupDamageOverlay();
+
+    // Night events: weather, Blood Moon, power outage, bombardment, etc.
+    // Created after setupLighting() so event overlays sit above the boss-night overlay.
+    this.nightEventManager = new NightEventManager(
+      this,
+      this.gameState.zone,
+      this.gameState.progress.currentWave
+    );
+    this.setupNightEventHandlers();
+
     this.isFirstGame = this.gameState.progress.totalRuns === 0 && this.gameState.progress.currentWave <= 1;
     if (this.isFirstGame) {
       this.showTutorialOverlay();
@@ -355,7 +403,11 @@ export class NightScene extends Phaser.Scene {
       this.events.off('screamer-scream');
       this.events.off('boss-death-spawn');
       this.events.off('weapon-fired');
+      this.events.off('zombie-spawned');
+      this.events.off('bombardment-explosion');
+      this.events.off('night-event-expired');
 
+      this.nightEventManager.destroy();
       this.soundMechanic.destroy();
       this.tweens.killAll();
       this.input.keyboard?.removeAllListeners();
@@ -369,6 +421,8 @@ export class NightScene extends Phaser.Scene {
     if (this.bossNightOverlay) {
       this.bossNightTime += delta;
     }
+    // Update weather and night events (visuals + timed expiry)
+    this.nightEventManager.update(delta);
     this.player.update(delta);
     this.hud.updateStaminaBar(this.player.stamina, this.player.maxStamina);
 
@@ -485,134 +539,10 @@ export class NightScene extends Phaser.Scene {
 
     // Determine road row (horizontal path through map center)
     const roadRow = Math.floor(MAP_HEIGHT / 2);
-    const roadY   = roadRow * TILE_SIZE;
 
-    // ------------------------------------------------------------------
-    // GROUND LAYER
-    // ------------------------------------------------------------------
-    // Sprite tiles disabled: WebGL sub-pixel seams. Graphics path is seam-free.
-    const hasGrassTiles = false; // this.textures.exists('terrain_grass_1');
-
-    // Always draw a solid green base layer to fill gaps between tiles
-    const groundFill = this.add.graphics();
-    groundFill.fillStyle(0x2D4A22);
-    groundFill.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
-
-    if (hasGrassTiles) {
-      // --- Sprite-based grass tiles over solid base ---
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          // Use integer positions (origin 0,0) to prevent subpixel gaps
-          const tileX = tx * TILE_SIZE;
-          const tileY = ty * TILE_SIZE;
-          const hash = (tx * 1619 + ty * 3571) | 0;
-
-          const tileKey = ((hash >>> 0) % 10 === 0) ? 'terrain_grass_2' : 'terrain_grass_1';
-          const img = this.add.image(tileX, tileY, tileKey).setOrigin(0, 0);
-          if (tx < 2 || tx >= MAP_WIDTH - 2 || ty < 2 || ty >= MAP_HEIGHT - 2) {
-            img.setTint(0xBBBBBB);
-          }
-        }
-      }
-    } else {
-      // --- Graphics-based ground: single solid fill, no per-tile variation ---
-      // Per-tile color variation caused visible checkerboard patterns.
-      // One solid color + terrain decorations provides all visual interest.
-      const ground = this.add.graphics();
-      ground.setDepth(0);
-      ground.fillStyle(0x2A4A22);
-      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
-
-      // ------------------------------------------------------------------
-      // ROAD -- single continuous horizontal band across the full map.
-      // Three stacked fillRects create a soft edge: dark shoulders + bright
-      // centre. No per-tile variation so there are no visible seams.
-      // ------------------------------------------------------------------
-      const road = this.add.graphics();
-      road.setDepth(0);
-
-      // Road centre Y in pixels
-      const roadCentreY = roadRow * TILE_SIZE + TILE_SIZE / 2;
-      const roadHalfH   = TILE_SIZE; // half-height of the main road band
-
-      // Soft outer edges (semi-transparent dark dirt, slightly wider)
-      road.fillStyle(0x3A2510, 0.55);
-      road.fillRect(0, roadCentreY - roadHalfH - 4, mapPixelWidth, 8);
-      road.fillRect(0, roadCentreY + roadHalfH - 4, mapPixelWidth, 8);
-
-      // Main road body -- single solid fill spanning full map width
-      road.fillStyle(0x4A3218);
-      road.fillRect(0, roadCentreY - roadHalfH, mapPixelWidth, roadHalfH * 2);
-
-      // Subtle inner highlight strip along the road centre
-      road.fillStyle(0x5A3E20, 0.45);
-      road.fillRect(0, roadCentreY - 3, mapPixelWidth, 6);
-
-      // ------------------------------------------------------------------
-      // CLEARED AREA AROUND BASE -- single circular dirt patch.
-      // Uses fillEllipse for one smooth shape instead of per-tile rects.
-      // ------------------------------------------------------------------
-      const baseArea = this.add.graphics();
-      baseArea.setDepth(0);
-
-      const baseClearRadius = 100; // pixels
-      const baDiameter = baseClearRadius * 2;
-
-      // Outer soft halo (slightly transparent)
-      baseArea.fillStyle(0x3E2A12, 0.55);
-      baseArea.fillEllipse(centerX, centerY, baDiameter + 56, baDiameter + 56);
-
-      // Main dirt circle
-      baseArea.fillStyle(0x4A3218);
-      baseArea.fillEllipse(centerX, centerY, baDiameter, baDiameter);
-
-      // ------------------------------------------------------------------
-      // SCATTERED GROUND DETAIL PATCHES (leaves, small stones, grass tufts)
-      // Small semi-transparent overlays at depth 1.
-      // ------------------------------------------------------------------
-      const patches = this.add.graphics();
-      patches.setDepth(1);
-
-      // Use a simple deterministic scatter -- not SeededRandom, just math
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const hash4 = ((tx * 3571 + ty * 6173) * 2654435769) >>> 0;
-          // ~15% chance of a patch per tile
-          if ((hash4 % 100) < 15) {
-            const tileX  = tx * TILE_SIZE;
-            const tileY  = ty * TILE_SIZE;
-            const patchX = tileX + (hash4 % TILE_SIZE);
-            const patchY = tileY + ((hash4 >> 5) % TILE_SIZE);
-            // Patch type: 0=grass tuft, 1=leaf, 2=tiny pebble
-            const pType = (hash4 >> 10) % 3;
-            if (pType === 0) {
-              // Small bright grass tuft
-              patches.fillStyle(0x4A7A2A, 0.55);
-              patches.fillEllipse(patchX, patchY, 6, 4);
-            } else if (pType === 1) {
-              // Dead leaf -- brownish
-              patches.fillStyle(0x6B4A1A, 0.45);
-              patches.fillEllipse(patchX, patchY, 5, 3);
-            } else {
-              // Tiny pebble
-              patches.fillStyle(0x777060, 0.5);
-              patches.fillCircle(patchX, patchY, 1.5);
-            }
-          }
-        }
-      }
-    }
-
-    // Road markings -- only for the Graphics path (no tile sprites)
-    if (!hasGrassTiles) {
-      const markings = this.add.graphics();
-      markings.setDepth(1);
-      markings.fillStyle(0x5A4028, 0.5);
-      // Subtle edge lines along road
-      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 3) {
-        markings.fillRect(x + 6, roadY - 2, TILE_SIZE - 10, 3);
-      }
-    }
+    // Draw zone-specific background (ground + road/streets + detail patches).
+    // drawZoneBackground handles forest, city and military differently.
+    drawZoneBackground(this, this.gameState.zone, mapPixelWidth, mapPixelHeight, centerX, centerY, roadRow);
 
     // ------------------------------------------------------------------
     // BASE STRUCTURE
@@ -1442,9 +1372,12 @@ export class NightScene extends Phaser.Scene {
     this.waveManager.setTarget(this.player);
 
     // Dynamic wave count: night 1 = 1 wave, night 2 = 2 waves, ..., night 5+ = 5 waves (capped)
+    // Endless mode always uses 5 waves (difficulty comes from per-night HP/speed scaling).
     // gameState.progress.currentWave is the night number (1-indexed)
     const nightNumber = this.gameState.progress.currentWave;
-    const totalWaves = Math.min(Math.max(nightNumber, 1), 5);
+    const totalWaves = this.gameState.zone === 'endless'
+      ? 5
+      : Math.min(Math.max(nightNumber, 1), 5);
     this.waveManager.setMaxWaves(totalWaves);
 
     const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
@@ -1458,6 +1391,19 @@ export class NightScene extends Phaser.Scene {
 
     // Provide PathGrid so spawned zombies can steer around walls
     this.waveManager.setPathGrid(this.pathGrid);
+
+    // Pass the current zone so spawned zombies receive zone tints
+    this.waveManager.setZone(this.gameState.zone);
+
+    // Endless mode: scale enemies per night number (+15% count, +10% HP, +5% speed per night)
+    if (this.gameState.zone === 'endless') {
+      const endlessNight = this.gameState.endlessNight ?? 0;
+      const countScale = 1.0 + endlessNight * 0.15;
+      const hpScale = 1.0 + endlessNight * 0.10;
+      const speedScale = 1.0 + endlessNight * 0.05;
+      this.waveManager.setHordeMultiplier(countScale);
+      this.waveManager.setEndlessScaling(hpScale, speedScale);
+    }
 
     // Spawn zones at the four edges
     this.waveManager.setSpawnZones([
@@ -1533,6 +1479,12 @@ export class NightScene extends Phaser.Scene {
             zombie.resetStructureAttackCooldown();
             if (destroyed) {
               AudioManager.play('structure_break');
+              // Debrief: record structure destruction
+              this.destroyedStructures.push({
+                structureId: wallRef.structureInstance.structureId,
+                x: wallRef.structureInstance.x,
+                y: wallRef.structureInstance.y,
+              });
               wallBody.destroy();
             } else {
               // F4: Structure creak/crack on damage
@@ -1604,6 +1556,133 @@ export class NightScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#1E3216');
   }
 
+  /**
+   * Wire up gameplay effects driven by NightEventManager.
+   *
+   * Blood Moon:  each spawned zombie gets +25% speed and +25% HP.
+   * Power Outage: electric traps are disabled (checked in updateMechanicalTraps via hasEvent).
+   * Bombardment: damage zombies and structures in the explosion radius.
+   * Storm:       structure damage is applied once at night start (see applyStormDamage).
+   */
+  private setupNightEventHandlers(): void {
+    // Blood Moon -- apply stat multipliers to every zombie as it spawns
+    if (this.nightEventManager.hasEvent('blood_moon')) {
+      this.events.on('zombie-spawned', (zombie: Zombie) => {
+        if (!zombie.active) return;
+        zombie.hp = Math.round(zombie.hp * BLOOD_MOON_HP_MULTIPLIER);
+        zombie.maxHp = Math.round(zombie.maxHp * BLOOD_MOON_HP_MULTIPLIER);
+        zombie.moveSpeed = zombie.moveSpeed * BLOOD_MOON_SPEED_MULTIPLIER;
+      });
+    }
+
+    // Rain -- increase malfunction chance for all mechanical traps and tag fire-trap damage reduction
+    if (this.nightEventManager.hasEvent('rain')) {
+      this.applyRainEffectsToTraps();
+    }
+
+    // Storm -- deal damage to random structures once at the very start of the night
+    if (this.nightEventManager.hasEvent('storm')) {
+      this.applyStormDamage();
+    }
+
+    // Bombardment -- apply explosion damage to zombies and structures in radius
+    this.events.on('bombardment-explosion', (payload: { x: number; y: number; radius: number; damage: number }) => {
+      this.applyBombardmentDamage(payload.x, payload.y, payload.radius, payload.damage);
+    });
+  }
+
+  /**
+   * Rain effect on traps: increase malfunction chance for ALL mechanical traps,
+   * and reduce fire-based trap effectiveness.
+   * Called once at night start when rain is active.
+   */
+  private applyRainEffectsToTraps(): void {
+    // All TrapBase-derived mechanical traps get +10% malfunction chance (RAIN_MALFUNCTION_BONUS).
+    // CartWall, ShoppingCartWall, CarWreckBarrier, DumpsterFortress extend Graphics (not TrapBase)
+    // and have no malfunctionChance -- they are intentionally excluded.
+    const allMechanical = [
+      ...this._bladeSpinners, ...this._firePits, ...this._propaneGeysers,
+      ...this._washingCannons, ...this._pitTraps,
+      ...this._shockWires, ...this._springLaunchers, ...this._chainWalls,
+      ...this._circleSawTraps, ...this._razorWireCarousels, ...this._lawnmowerLanes,
+      ...this._treadmillsOfDoom, ...this._pendulumAxes, ...this._garageDoorSmashers,
+      ...this._bugZapperXLs, ...this._carBatteryGrids, ...this._electricFences,
+      ...this._netLaunchers, ...this._meatGrinders, ...this._beltSanderGauntlets,
+      ...this._powerDrillPresses, ...this._pianoWireWebs, ...this._combineHarvesters,
+      ...this._carBombs, ...this._napalmSprinklers, ...this._gasMainIgniters,
+      ...this._flamethrowerPosts, ...this._treadmillBlades, ...this._fanGlasses,
+      ...this._elevatorShafts, ...this._rubeGoldbergs,
+    ];
+
+    for (const trap of allMechanical) {
+      trap.malfunctionChance = Math.min(1, trap.malfunctionChance + RAIN_MALFUNCTION_BONUS);
+      // Roll malfunction for traps that haven't malfunctioned yet (wet start)
+      if (!trap.malfunctioned && Math.random() < RAIN_MALFUNCTION_BONUS) {
+        trap.malfunctioned = true;
+      }
+    }
+
+    // Mark fire-trap damage as reduced for this night.
+    // _rainFireDamageMultiplier is read in the fire-trap damage sections of updateMechanicalTraps.
+    this._rainFireDamageMultiplier = RAIN_FIRE_DAMAGE_MULTIPLIER;
+  }
+
+  /**
+   * Storm start effect: 2 random structures take damage.
+   * Called once when storm event is active.
+   */
+  private applyStormDamage(): void {
+    const STORM_COUNT = 2;
+    const STORM_DAMAGE = 15;
+
+    const structs = this.gameState.base.structures.filter(s => s.hp > 0);
+    if (structs.length === 0) return;
+
+    // Shuffle and take first STORM_COUNT
+    const shuffled = [...structs].sort(() => Math.random() - 0.5);
+    const targets = shuffled.slice(0, Math.min(STORM_COUNT, shuffled.length));
+
+    for (const s of targets) {
+      s.hp = Math.max(0, s.hp - STORM_DAMAGE);
+    }
+
+    // Notify the game log after a short delay (so the banner is already shown)
+    this.time.delayedCall(3500, () => {
+      this.gameLog?.addMessage('Storm damaged structures!', '#FFAA44');
+    });
+  }
+
+  /**
+   * Bombardment explosion: damages all active zombies and structures within radius.
+   * @param worldX  World X position of the explosion center.
+   * @param worldY  World Y position of the explosion center.
+   * @param radius  Damage radius in pixels.
+   * @param damage  HP damage to apply.
+   */
+  private applyBombardmentDamage(worldX: number, worldY: number, radius: number, damage: number): void {
+    const r2 = radius * radius;
+
+    // Damage active zombies in radius
+    this.zombieGroup.getChildren().forEach(child => {
+      const zombie = child as Zombie;
+      if (!zombie.active) return;
+      const dx = zombie.x - worldX;
+      const dy = zombie.y - worldY;
+      if (dx * dx + dy * dy <= r2) {
+        zombie.takeDamage(damage);
+      }
+    });
+
+    // Damage structures in radius
+    for (const s of this.gameState.base.structures) {
+      const dx = s.x - worldX;
+      const dy = s.y - worldY;
+      if (dx * dx + dy * dy <= r2) {
+        s.hp = Math.max(0, s.hp - damage);
+      }
+    }
+  }
+
   private setupEvents(): void {
     this.events.on('zombie-killed', (zombie: Zombie) => {
       this.kills++;
@@ -1616,6 +1695,29 @@ export class NightScene extends Phaser.Scene {
       this.bloodEmitter.emitParticleAt(zombie.x, zombie.y, 6);
       // F2: Persistent blood splat on ground layer
       this.createBloodSplat(zombie.x, zombie.y);
+
+      // Debrief: attribute kill to source (trap or weapon)
+      if (this._currentKillSource === 'trap') {
+        this.trapKills++;
+        if (this._currentKillTrapId && this._currentKillTrapName) {
+          const existingEntry = this.trapKillMap.get(this._currentKillTrapId);
+          if (existingEntry) {
+            existingEntry.kills++;
+          } else {
+            this.trapKillMap.set(this._currentKillTrapId, { name: this._currentKillTrapName, kills: 1 });
+          }
+        }
+      } else {
+        this.weaponKills++;
+      }
+      this._currentKillSource = null;
+      this._currentKillTrapId = null;
+      this._currentKillTrapName = null;
+
+      // Track boss kills for LP rewards
+      if (zombie.behavior === 'boss') {
+        this.bossKillsThisNight++;
+      }
 
       // Add weapon XP and combat skill XP based on equipped weapon class
       const equipped = this.weaponManager.getEquipped();
@@ -1696,12 +1798,34 @@ export class NightScene extends Phaser.Scene {
       const completedNight = this.gameState.progress.currentWave - 1;
       const currentZone = this.gameState.zone;
 
+      // --- Endless mode: award 100 LP per endless night, update high score ---
+      if (currentZone === 'endless') {
+        this.gameState.endlessNight++;
+        if (this.gameState.endlessNight > this.gameState.endlessHighScore) {
+          this.gameState.endlessHighScore = this.gameState.endlessNight;
+        }
+        // Award Legacy Points: 100 LP per endless night + 25 LP per boss kill
+        const lpEarned = 100 + this.bossKillsThisNight * 25;
+        this.gameState.meta.legacyPoints += lpEarned;
+        const nightStats = this.buildNightStats(true);
+        SaveManager.save(this.gameState);
+        AudioManager.stopAmbient();
+        this.scene.start('ResultScene', nightStats);
+        return;
+      }
+
+      // --- Award Legacy Points for normal nights: 10 LP per survived night, 25 per boss kill ---
+      const lpNight = 10 + this.bossKillsThisNight * 25;
+      this.gameState.meta.legacyPoints += lpNight;
+
       if (completedNight >= 5) {
         // Record zone clear in zoneProgress
         const existing = this.gameState.zoneProgress[currentZone];
         if (!existing || existing.highestWaveCleared < 5) {
           this.gameState.zoneProgress[currentZone] = { highestWaveCleared: 5 };
         }
+        // Award extra 50 LP for clearing a full zone
+        this.gameState.meta.legacyPoints += 50;
         // Unlock next zone if applicable and advance the active zone
         this.unlockNextZone(currentZone);
         // Advance the active zone so CONTINUE in the menu starts the next zone
@@ -1709,6 +1833,10 @@ export class NightScene extends Phaser.Scene {
           this.gameState.zone = 'city';
         } else if (currentZone === 'city') {
           this.gameState.zone = 'military';
+        } else if (currentZone === 'military') {
+          // Unlock and enter Endless mode
+          this.gameState.zone = 'endless';
+          this.gameState.endlessNight = 0;
         }
         // Reset wave counter to 1 so next run in next zone starts fresh
         this.gameState.progress.currentWave = 1;
@@ -1723,7 +1851,7 @@ export class NightScene extends Phaser.Scene {
       } else {
         SaveManager.save(this.gameState);
         AudioManager.stopAmbient();
-        this.scene.start('ResultScene', { kills: this.kills, wave: this.waveManager.getMaxWaves(), survived: true });
+        this.scene.start('ResultScene', this.buildNightStats(false));
       }
     });
 
@@ -1811,9 +1939,13 @@ export class NightScene extends Phaser.Scene {
 
     // Boss spawns minions on death
     // Play boss roar when a boss zombie is about to spawn
+    let bossAnnouncedThisNight = false;
     this.events.on('boss-spawning', () => {
-      this.gameLog.addMessage('BOSS INCOMING!', '#FF2222');
-      AudioManager.play('boss_roar');
+      if (!bossAnnouncedThisNight) {
+        bossAnnouncedThisNight = true;
+        this.gameLog.addMessage('BOSS INCOMING!', '#FF2222');
+        AudioManager.play('boss_roar');
+      }
     });
 
     this.events.on('boss-death-spawn', (boss: Zombie) => {
@@ -1834,15 +1966,177 @@ export class NightScene extends Phaser.Scene {
           existing.reset(boss.x + offsetX, boss.y + offsetY, spawnConfig);
           if (target) existing.setTarget(target);
           existing.setPathGrid(this.pathGrid);
+          existing.applyZoneTint(this.gameState.zone);
         } else {
           const zombie = new Zombie(this, boss.x + offsetX, boss.y + offsetY, spawnConfig);
           if (target) zombie.setTarget(target);
           zombie.setPathGrid(this.pathGrid);
+          zombie.applyZoneTint(this.gameState.zone);
           this.zombieGroup.add(zombie);
         }
         // Count the spawned enemy for wave tracking
         this.waveManager.addExtraEnemy();
       }
+    });
+
+    // Forest boss phase 2: Brute Alpha enrages when below 50% HP
+    this.events.on('forest-boss-phase2', (boss: Zombie) => {
+      if (!boss.active) return;
+      this.gameLog.addMessage('BRUTE ALPHA ENRAGED!', '#FF4400');
+      AudioManager.play('boss_roar');
+    });
+
+    // Forest boss charge end: spawn walkers at the impact point
+    this.events.on('forest-boss-charge-end', (boss: Zombie) => {
+      if (!boss.active) return;
+      const rawCfg = enemiesData.enemies.find(e => e.id === 'walker');
+      if (!rawCfg) return;
+      const spawnCfg = rawCfg as ZombieConfig;
+      const spawnCount = boss.spawnCount > 0 ? boss.spawnCount : 3;
+      const tgt = boss.getTarget();
+      for (let i = 0; i < spawnCount; i++) {
+        const ang = (i / spawnCount) * Math.PI * 2;
+        const rr = 48 + Math.random() * 32;
+        const sx = boss.x + Math.cos(ang) * rr;
+        const sy = boss.y + Math.sin(ang) * rr;
+        const ex = this.zombieGroup.getFirstDead(false) as Zombie | null;
+        if (ex) {
+          ex.reset(sx, sy, spawnCfg);
+          if (tgt) ex.setTarget(tgt);
+          ex.setBasePosition(this.baseCenterX, this.baseCenterY);
+          ex.setPathGrid(this.pathGrid);
+          ex.applyZoneTint(this.gameState.zone);
+        } else {
+          const z = new Zombie(this, sx, sy, spawnCfg);
+          if (tgt) z.setTarget(tgt);
+          z.setBasePosition(this.baseCenterX, this.baseCenterY);
+          z.setPathGrid(this.pathGrid);
+          z.applyZoneTint(this.gameState.zone);
+          this.zombieGroup.add(z);
+        }
+        this.waveManager.addExtraEnemy();
+      }
+    });
+
+    // Forest boss rock throw: fires a high-damage projectile at the player
+    this.events.on('forest-boss-rock-throw', (boss: Zombie, tgtSprite: Phaser.GameObjects.Sprite) => {
+      if (!boss.active || !tgtSprite.active) return;
+      const ang = angleBetween(boss.x, boss.y, tgtSprite.x, tgtSprite.y);
+      const rockDmg = Math.round(boss.damage * 0.6);
+      const exProj = this.spitterProjectileGroup.getFirstDead(false) as Projectile | null;
+      if (exProj) {
+        exProj.fire(boss.x, boss.y, ang, rockDmg);
+        exProj.setTint(0x886644);
+      } else {
+        const proj = new Projectile(this, boss.x, boss.y);
+        this.spitterProjectileGroup.add(proj);
+        proj.fire(boss.x, boss.y, ang, rockDmg);
+        proj.setTint(0x886644);
+      }
+    });
+
+    // City boss: spawn minions (spitters) nearby
+    this.events.on('city-boss-spawn-minions', (boss: Zombie, minionType: string, count: number) => {
+      if (!boss.active) return;
+      const rawCfg = enemiesData.enemies.find(e => e.id === minionType);
+      if (!rawCfg) return;
+      const spawnCfg = rawCfg as ZombieConfig;
+      const tgt = boss.getTarget();
+      this.gameLog.addMessage('SPITTER QUEEN spawns minions!', '#44FF44');
+      for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const rr = 60 + Math.random() * 40;
+        const sx = boss.x + Math.cos(ang) * rr;
+        const sy = boss.y + Math.sin(ang) * rr;
+        const ex = this.zombieGroup.getFirstDead(false) as Zombie | null;
+        if (ex) {
+          ex.reset(sx, sy, spawnCfg);
+          if (tgt) ex.setTarget(tgt);
+          ex.setBasePosition(this.baseCenterX, this.baseCenterY);
+          ex.setPathGrid(this.pathGrid);
+          ex.applyZoneTint(this.gameState.zone);
+        } else {
+          const z = new Zombie(this, sx, sy, spawnCfg);
+          if (tgt) z.setTarget(tgt);
+          z.setBasePosition(this.baseCenterX, this.baseCenterY);
+          z.setPathGrid(this.pathGrid);
+          z.applyZoneTint(this.gameState.zone);
+          this.zombieGroup.add(z);
+        }
+        this.waveManager.addExtraEnemy();
+      }
+    });
+
+    // City boss: acid pool DOT zone -- damages the player while standing in it
+    this.events.on('city-boss-acid-pool', (x: number, y: number, duration: number, dps: number) => {
+      const pool = this.add.graphics();
+      pool.fillStyle(0x22CC22, 0.45);
+      pool.fillEllipse(0, 0, 48, 32);
+      pool.setPosition(x, y);
+      pool.setDepth(2);
+      const intervalMs = 500;
+      const totalTicks = Math.ceil(duration / intervalMs);
+      let ticksLeft = totalTicks;
+      const damagePerTick = dps * (intervalMs / 1000);
+      const acidTimer = this.time.addEvent({
+        delay: intervalMs,
+        repeat: totalTicks - 1,
+        callback: () => {
+          ticksLeft--;
+          if (this.player.active) {
+            const d = distanceBetween(x, y, this.player.x, this.player.y);
+            if (d < 28) this.player.takeDamage(Math.round(damagePerTick));
+          }
+          if (ticksLeft <= 0) {
+            acidTimer.destroy();
+            this.tweens.add({
+              targets: pool,
+              alpha: 0,
+              duration: 400,
+              onComplete: () => pool.destroy(),
+            });
+          }
+        },
+      });
+    });
+
+    // City boss desperate scream: pulls ALL zombies toward the queen at 25% HP
+    this.events.on('city-boss-desperate-scream', (boss: Zombie, _radius: number) => {
+      if (!boss.active) return;
+      this.gameLog.addMessage('SPITTER QUEEN DESPERATE SCREAM!', '#FF0044');
+      AudioManager.play('boss_roar');
+      const screamRing = this.add.graphics();
+      screamRing.lineStyle(3, 0xFF0088, 0.9);
+      screamRing.strokeCircle(boss.x, boss.y, 15);
+      screamRing.setDepth(10);
+      this.tweens.add({
+        targets: screamRing,
+        scaleX: 50,
+        scaleY: 50,
+        alpha: 0,
+        duration: 800,
+        ease: 'Power2',
+        onComplete: () => screamRing.destroy(),
+      });
+      this.zombieGroup.getChildren().forEach(child => {
+        const z = child as Zombie;
+        if (!z.active || z === boss) return;
+        z.attractTo(boss.x, boss.y);
+      });
+    });
+
+    // Military tank: instantly crushes barricades and walls in its path
+    this.events.on('tank-crushing', (tank: Zombie) => {
+      if (!tank.active) return;
+      const crushRadius = 28 * tank.scaleX;
+      this.barricades.forEach(b => {
+        if (!b.active) return;
+        if (distanceBetween(tank.x, tank.y, b.x, b.y) < crushRadius) b.takeDamage(999);
+      });
+      this.walls.forEach(w => {
+        if (!w.active) return;
+        if (distanceBetween(tank.x, tank.y, w.x, w.y) < crushRadius) w.takeDamage(999);
+      });
     });
 
     // Landmine AOE: damage all zombies within explosion radius
@@ -2540,6 +2834,12 @@ export class NightScene extends Phaser.Scene {
             const destroyed = barricade.takeDamage(zombie.structureDamage);
             zombie.resetStructureAttackCooldown();
             if (destroyed) {
+              // Debrief: record structure destruction
+              this.destroyedStructures.push({
+                structureId: barricade.structureInstance.structureId,
+                x: barricade.structureInstance.x,
+                y: barricade.structureInstance.y,
+              });
               this.barricades.splice(i, 1);
             }
           }
@@ -2600,7 +2900,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= tx && zombie.x <= tx + TILE_SIZE &&
           zombie.y >= ty && zombie.y <= ty + TILE_SIZE
         ) {
-          zombie.takeDamage(trap.getDamage());
+          this._currentKillSource = 'trap'; this._currentKillTrapId = trap.structureInstance.id; this._currentKillTrapName = trap.structureInstance.structureId; zombie.takeDamage(trap.getDamage()); this._currentKillSource = null;
           // Trap trigger particles
           this.trapEmitter.emitParticleAt(
             trap.structureInstance.x + TILE_SIZE / 2,
@@ -2627,7 +2927,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
           zombie.y >= sy && zombie.y <= sy + TILE_SIZE
         ) {
-          zombie.takeDamage(strip.getDamage());
+          this._currentKillSource = 'trap'; this._currentKillTrapId = strip.structureInstance.id; this._currentKillTrapName = 'Spike Strip'; zombie.takeDamage(strip.getDamage()); this._currentKillSource = null;
           zombie.applyCripple(strip.crippleDuration);
           this.trapEmitter.emitParticleAt(
             strip.structureInstance.x + TILE_SIZE / 2,
@@ -2653,7 +2953,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= bx && zombie.x <= bx + TILE_SIZE &&
           zombie.y >= by && zombie.y <= by + TILE_SIZE
         ) {
-          zombie.takeDamage(bt.getDamage());
+          this._currentKillSource = 'trap'; this._currentKillTrapId = bt.structureInstance.id; this._currentKillTrapName = 'Bear Trap'; zombie.takeDamage(bt.getDamage()); this._currentKillSource = null;
           zombie.applyStun(bt.stunDuration);
           this.trapEmitter.emitParticleAt(
             bt.structureInstance.x + TILE_SIZE / 2,
@@ -2697,7 +2997,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= nx && zombie.x <= nx + TILE_SIZE &&
           zombie.y >= ny && zombie.y <= ny + TILE_SIZE
         ) {
-          zombie.takeDamage(nb.trapDamage);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = nb.structureInstance.id; this._currentKillTrapName = 'Nail Board'; zombie.takeDamage(nb.trapDamage); this._currentKillSource = null;
           zombie.applyCripple(nb.crippleDuration);
           // Red flash on the board + small blood burst particles
           nb.triggerActivationEffect();
@@ -2750,7 +3050,7 @@ export class NightScene extends Phaser.Scene {
         if (!gs.isAlive()) continue;
         if (gs.containsPoint(zombie.x, zombie.y)) {
           // Damage proportional to frame time (5 dmg/s)
-          zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = gs.structureInstance.id; this._currentKillTrapName = 'Glass Shards'; zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000); this._currentKillSource = null;
           // Occasional glass tinkling (throttled by 600ms cooldown in AudioManager)
           AudioManager.play('trap_glass_shards');
         }
@@ -2825,6 +3125,8 @@ export class NightScene extends Phaser.Scene {
    */
   private updateMechanicalTraps(): void {
     const delta = this._lastDelta;
+    // Power Outage: electric traps are non-functional while the event is active
+    const electricDisabled = this.nightEventManager.hasEvent('power_outage');
 
     // Update timers for all mechanical traps
     for (const t of this._bladeSpinners)  t.update(delta);
@@ -2869,8 +3171,8 @@ export class NightScene extends Phaser.Scene {
         if (!zombie.active) continue;
 
         if (pit.containsPoint(zombie.x, zombie.y)) {
-          // Damage proportional to frame time (15 dmg/s)
-          zombie.takeDamage(pit.damagePerSecond * delta / 1000);
+          // Damage proportional to frame time (15 dmg/s); rain reduces fire damage
+          this._currentKillSource = 'trap'; this._currentKillTrapId = pit.structureInstance.id; this._currentKillTrapName = 'Pit Trap'; zombie.takeDamage(pit.damagePerSecond * delta / 1000 * this._rainFireDamageMultiplier); this._currentKillSource = null;
         }
       }
     }
@@ -2983,6 +3285,8 @@ export class NightScene extends Phaser.Scene {
     for (const t of this._shockWires) t.update(delta);
     for (let i = this._shockWires.length - 1; i >= 0; i--) {
       const sw = this._shockWires[i];
+      // Power Outage: electric trap is disabled
+      if (electricDisabled) continue;
       if (!sw || !sw.active || !sw.isReady()) continue;
 
       const sx = sw.structureInstance.x;
@@ -3096,7 +3400,7 @@ export class NightScene extends Phaser.Scene {
             wb.triggerImpact();
             this.trapEmitter.emitParticleAt(cx, cy, 14);
           }
-          zombie.takeDamage(wb.damage);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = wb.structureInstance.id; this._currentKillTrapName = 'Wrecking Ball'; zombie.takeDamage(wb.damage); this._currentKillSource = null;
         }
       }
     }
@@ -3166,7 +3470,7 @@ export class NightScene extends Phaser.Scene {
         if (zombie.x >= tbX && zombie.x <= tbX + TILE_SIZE &&
             zombie.y >= tbY && zombie.y <= tbY + TILE_SIZE) {
           // Continuous delta-scaled damage
-          zombie.takeDamage(tb.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = tb.structureInstance.id; this._currentKillTrapName = 'Treadmill Blades'; zombie.takeDamage(tb.damagePerSecond * delta / 1000); this._currentKillSource = null;
           // Pushback: push away from belt center (horizontal)
           if (zombie.body) {
             const cx = tbX + TILE_SIZE / 2;
@@ -3199,7 +3503,7 @@ export class NightScene extends Phaser.Scene {
         const angle = Math.atan2(dy, dx);
         const absAngle = Math.abs(angle);
         if (absAngle < fg.coneHalfAngle || Math.abs(angle - Math.PI) < fg.coneHalfAngle || Math.abs(angle + Math.PI) < fg.coneHalfAngle) {
-          zombie.takeDamage(fg.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = fg.structureInstance.id; this._currentKillTrapName = 'Fan Glass'; zombie.takeDamage(fg.damagePerSecond * delta / 1000); this._currentKillSource = null;
           hitAny = true;
         }
       }
@@ -3268,7 +3572,7 @@ export class NightScene extends Phaser.Scene {
         const mgDy = zombie.y - mgCY;
         if (mgDx * mgDx + mgDy * mgDy <= mgRSq) {
           mgAnyInZone = true;
-          zombie.takeDamage(mg.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = mg.structureInstance.id; this._currentKillTrapName = 'Meat Grinder'; zombie.takeDamage(mg.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
 
@@ -3296,7 +3600,7 @@ export class NightScene extends Phaser.Scene {
           zombie.y >= bsgY && zombie.y <= bsgY + TILE_SIZE
         ) {
           bsgContact = true;
-          zombie.takeDamage(bsg.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = bsg.structureInstance.id; this._currentKillTrapName = 'Belt Sander Gauntlet'; zombie.takeDamage(bsg.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
 
@@ -3375,7 +3679,7 @@ export class NightScene extends Phaser.Scene {
           zombie.y >= chY && zombie.y <= chY + TILE_SIZE
         ) {
           chAnyInZone = true;
-          zombie.takeDamage(ch.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = ch.structureInstance.id; this._currentKillTrapName = 'Combine Harvester'; zombie.takeDamage(ch.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
 
@@ -3428,7 +3732,7 @@ export class NightScene extends Phaser.Scene {
         const cbDx = zombie.x - cbCX;
         const cbDy = zombie.y - cbCY;
         if (cbDx * cbDx + cbDy * cbDy <= cbRSq) {
-          zombie.takeDamage(cb.explosionDamage);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = cb.structureInstance.id; this._currentKillTrapName = 'Car Bomb'; zombie.takeDamage(cb.explosionDamage); this._currentKillSource = null;
         }
       }
 
@@ -3458,7 +3762,7 @@ export class NightScene extends Phaser.Scene {
         const zombie = child as Zombie;
         if (!zombie.active) continue;
         if (ns.isInCone(zombie.x, zombie.y)) {
-          zombie.takeDamage(ns.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = ns.structureInstance.id; this._currentKillTrapName = 'Napalm Sprinkler'; zombie.takeDamage(ns.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
     }
@@ -3522,7 +3826,7 @@ export class NightScene extends Phaser.Scene {
         const zombie = child as Zombie;
         if (!zombie.active) continue;
         if (fp.isInCone(zombie.x, zombie.y)) {
-          zombie.takeDamage(fp.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = fp.structureInstance.id; this._currentKillTrapName = 'Flamethrower Post'; zombie.takeDamage(fp.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
     }
@@ -3632,7 +3936,7 @@ export class NightScene extends Phaser.Scene {
             pa.triggerActivationEffect();
             this.trapEmitter.emitParticleAt(pax, pay, 8);
           }
-          zombie.takeDamage(pa.trapDamage);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = pa.structureInstance.id; this._currentKillTrapName = 'Pendulum Axe'; zombie.takeDamage(pa.trapDamage); this._currentKillSource = null;
         }
       }
     }
@@ -3659,6 +3963,8 @@ export class NightScene extends Phaser.Scene {
     // --- Bug Zapper XL: attract + continuous AOE damage (overheat) ---
     for (const bz of this._bugZapperXLs) {
       bz.update(delta);
+      // Power Outage: electric trap is disabled
+      if (electricDisabled) continue;
       if (!bz.active || bz.malfunctioned || bz.overheated) continue;
       const bzx = bz.structureInstance.x + TILE_SIZE / 2;
       const bzy = bz.structureInstance.y + TILE_SIZE / 2;
@@ -3671,7 +3977,7 @@ export class NightScene extends Phaser.Scene {
         const dy = zombie.y - bzy;
         const distSq = dx * dx + dy * dy;
         if (distSq <= bzRSq) {
-          zombie.takeDamage(bz.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = bz.structureInstance.id; this._currentKillTrapName = 'Bug Zapper XL'; zombie.takeDamage(bz.damagePerSecond * delta / 1000); this._currentKillSource = null;
           const dist = Math.sqrt(distSq);
           if (dist > 4 && zombie.body && !zombie.isStunned()) {
             const nx = -dx / dist;
@@ -3695,6 +4001,8 @@ export class NightScene extends Phaser.Scene {
     // --- Car Battery Grid: stun all zombies in 3x3 zone, cd 10s ---
     for (const t of this._carBatteryGrids) t.update(delta);
     for (const cbg of this._carBatteryGrids) {
+      // Power Outage: electric trap is disabled
+      if (electricDisabled) continue;
       if (!cbg.active || !cbg.isReady()) continue;
       let cbgAny = false;
       for (const child of this.zombieGroup.getChildren()) {
@@ -3715,6 +4023,8 @@ export class NightScene extends Phaser.Scene {
     // --- Electric Fence: continuous damage + physics block via wallBodies ---
     for (const ef of this._electricFences) {
       ef.update(delta);
+      // Power Outage: electric trap is disabled
+      if (electricDisabled) continue;
       if (!ef.active || ef.malfunctioned || ef.overheated) continue;
       const efx0 = ef.structureInstance.x;
       const efy0 = ef.structureInstance.y;
@@ -3723,7 +4033,7 @@ export class NightScene extends Phaser.Scene {
         const zombie = child as Zombie;
         if (!zombie.active) continue;
         if (zombie.x >= efx0 - 4 && zombie.x <= efx0 + TILE_SIZE + 4 && zombie.y >= efy0 - 4 && zombie.y <= efy0 + TILE_SIZE + 4) {
-          zombie.takeDamage(ef.damagePerSecond * delta / 1000);
+          this._currentKillSource = 'trap'; this._currentKillTrapId = ef.structureInstance.id; this._currentKillTrapName = 'Electric Fence'; zombie.takeDamage(ef.damagePerSecond * delta / 1000); this._currentKillSource = null;
           efAny = true;
         }
       }
@@ -4367,6 +4677,8 @@ export class NightScene extends Phaser.Scene {
   private damageBase(amount: number): void {
     this.baseHp = Math.max(0, this.baseHp - amount);
     this.baseDamageTaken += amount;
+    // Debrief: count each hit on the base as a breakthrough event
+    this.breakthroughCount++;
     this.hud.updateBaseHpBar(this.baseHp, this.baseMaxHp);
     // Throttled to max once per 5 seconds so the log doesn't spam
     this.gameLog.addBaseDamageMessage();
@@ -4736,6 +5048,41 @@ export class NightScene extends Phaser.Scene {
       if (!this.gameState.zoneProgress['military']) {
         this.gameState.zoneProgress['military'] = { highestWaveCleared: 0 };
       }
+    } else if (clearedZone === 'military') {
+      // Endless mode unlocked after clearing Military
+      if (!this.gameState.zoneProgress['endless']) {
+        this.gameState.zoneProgress['endless'] = { highestWaveCleared: 0 };
+      }
     }
+  }
+
+  /**
+   * Build a NightStats object from all tracking variables accumulated this night.
+   * Used to populate ResultScene with detailed debrief information.
+   */
+  private buildNightStats(isEndless: boolean): import('../config/types').NightStats {
+    // Sort trap kills map by kills descending, take top 3
+    const topTraps = Array.from(this.trapKillMap.entries())
+      .map(([trapId, data]) => ({ trapId, trapName: data.name, kills: data.kills }))
+      .sort((a, b) => b.kills - a.kills)
+      .slice(0, 3);
+
+    return {
+      kills: this.kills,
+      trapKills: this.trapKills,
+      weaponKills: this.weaponKills,
+      topTraps,
+      breakthroughs: this.breakthroughCount,
+      structuresDestroyed: [...this.destroyedStructures],
+      ammoUsedStart: this.ammoAtNightStart,
+      ammoUsedEnd: this.loadedAmmo,
+      baseHpStart: this.baseMaxHp,
+      baseHpEnd: this.baseHp,
+      baseHpMax: this.baseMaxHp,
+      wave: this.waveManager.getMaxWaves(),
+      survived: true,
+      endlessNight: isEndless ? this.gameState.endlessNight : undefined,
+      bossKills: this.bossKillsThisNight,
+    };
   }
 }

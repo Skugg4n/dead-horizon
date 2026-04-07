@@ -1,5 +1,170 @@
 # Dead Horizon -- Changelog
 
+## [v3.3.1] - 2026-04-04 -- Zon-specifik terranggenering: City och Military
+
+### TerrainGenerator.ts -- fullstandig zon-specifik terrang
+- `drawZoneBackground()`: Ny exporterad funktion som ersatter inline-bakgrundsritning i NightScene och DayScene
+  - Forest: oforandrad organisk bakgrund (gron mark + brun stig + rensad basyta)
+  - City: asfalt (#3A3A3A) + korsande gator (horisontell + vertikal) + faded gul mittlinje + gatukanter + oljeflackar, sprickor
+  - Military: olivgron mark (#4A5A3A) + grusad access-vag + stangsel langs ovre kanten + ren insatsyta kring basen
+- City-specifika dekorationer:
+  - `drawBuildingRuin()`: Rektangulara byggnadsskal med trasiga vaggar, rubbel och fonsteropp. Physics body + PathGrid-blocker
+  - `drawAbandonedCar()`: Fargade bilar med rost och hjul. Dekorativa
+  - `drawStreetlight()`: Lyktstolpar med nattglon-halo
+  - `drawUrbanDebris()`: Betongbitar och tegelstensbitar
+- Military-specifika dekorationer:
+  - `drawBunker()`: Tjockvaggiga betongbunkrar med 3D-skuggning och camo. Physics body + PathGrid-blocker
+  - `drawBarbedWire()`: Sicksack-taggtrad med taggpiggar. Dekorativ
+  - `drawSandbagCluster()`: Sandsacksvallar i ring kring basen
+  - `drawHelipad()`: Helikopterlandningsplatta med H-markering. En per karta
+- `generateForestDecor()`: Befintlig logik extraherad till separat intern funktion
+- Endless-zon: anvander forest-utseende som fallback
+
+### types.ts
+- `NaturalBlockerRect`: Ny typ for AABB hos naturliga terrangblockerare
+- `TerrainResult`: Nytt falt `naturalBlockerRects: NaturalBlockerRect[]`
+
+### PathGrid.ts
+- `addNaturalBlockers(blockers)`: Ny metod -- markerar tiles overlappande NaturalBlockerRect som blockerade. Anropas efter updateFromStructures()
+
+### NightScene.ts
+- `createMap()`: Ersatt hardkodad forest-bakgrund med `drawZoneBackground()`
+- `create()`: Anropar `pathGrid.addNaturalBlockers()` sa zombies navigerar runt ruiner/bunkrar
+
+### DayScene.ts
+- `createMap()`: Ersatt hardkodad forest-bakgrund med `drawZoneBackground()` + laggs till mapContainer
+
+## [v3.3.0] - 2026-04-04 -- Post-Night Debrief + Endless Mode + Legacy Progression
+
+### Post-Night Debrief (ResultScene.ts full rewrite)
+- `ResultScene.ts`: Ersatt enkel "ALL WAVES SURVIVED! Kills: N" med detaljerad nattrapport
+  - Visar total kills, trap kills (%), weapon kills (%)
+  - Top 3 traps med killcount (guld/silver/brons)
+  - Breakthroughs (antal ganger zombies natt basen)
+  - Structures lost med strukturnamn och position
+  - Ammo anvant denna natt (X/Y)
+  - Base HP kvar (fargkodad gron/gul/rod)
+  - Legacy Points tjanade denna natt
+  - Scrollbart innehall via drag + scroll hjul
+  - Forsenad CONTINUE-knapp (1.2s) for att undvika oavsiktlig skip
+
+### Kill-kallsparing (NightScene.ts)
+- `NightScene.ts`: 18 fallor far nu sin dodsstatus trackad (trapKills, weaponKills, trapKillMap)
+- Barricade och wall-forstoring registreras i destroyedStructures
+- breakthroughCount okar varje gang en zombie skadar basen
+- bossKillsThisNight tracker (for LP-beloning)
+- buildNightStats() hjalpermetod aggregerar all data till NightStats
+
+### Endless Mode
+- `src/data/zones.json`: Lagt till Endless-zon (id: "endless", waveFile: "waves-military")
+  - Lacser upp nar Military Wave 5 klaras
+  - Auto-scaling per natt: +15% fiender, +10% HP, +5% speed
+  - Alltid 5 vagor per natt
+- `WaveManager.ts`: Nya falt hpScaleMultiplier + speedScaleMultiplier + setEndlessScaling()
+- `NightScene.ts`: Endless-loop: efter all-waves-complete i endless-zon -> ResultScene -> NightScene
+  - endlessNight-raknar okar per klarad natt
+  - endlessHighScore sparas i GameState
+- `MenuScene.ts`: CONTINUE-text visar "Endless -- Night N" for endlesslaget
+
+### Meta-Progression (Legacy Points)
+- `src/config/types.ts`: NightStats, TrapKillEntry, PerkData interfacen tillagda
+  - GameState: endlessHighScore, endlessNight, meta.legacyPoints, meta.unlockedPerks
+- `src/data/perks.json`: 6 perks definerade (Scrap Stash, Armed and Ready, Camp Fire, Scholar, Tough Base, Lucky Looter)
+- `src/systems/SaveManager.ts`: Migration for nya falt (endlessHighScore, endlessNight, meta)
+- `src/scenes/MenuScene.ts`: Ny LEGACY-knapp och panel
+  - Visar LP-saldo, alla perks med kostnad och status
+  - BUY-knapp for oppen perks (kraver tillrackliga LP)
+- `src/scenes/DayScene.ts`: applyLegacyPerks() applicerar perks pa ny run (totalRuns == 0, wave == 1)
+  - scrap_stash: +10 scrap
+  - armed_and_ready: slumpas ett Uncommon-vapen
+  - camp_fire: en extra refugee laggs till
+  - tough_base: tillampas i NightScene (+50 max base HP)
+  - lucky_looter: tillampas i LootRunPanel (+25% loot)
+- Legacy Points belonas: 10 LP/natt, 50 LP/zon, 100 LP/endless-natt, 25 LP/boss-kill
+
+## [v3.2.0] - 2026-04-04 18:00 -- Zon-specifika zombie-varianter och boss-mekaniker
+
+### Zon-specifika zombie-skins
+- `Zombie.ts`: Ny metod `applyZoneTint(zone)` -- lägger ett zon-specifikt färgfilter på alla zombies
+  - Forest: mörkt mossgrönt (0x3A6B22-blend)
+  - City: grått urbant filter (0x787878-blend)
+  - Military: oliv/kamouflagefärg (0x6B6B3A-blend)
+  - Zone-boss-typer påverkas INTE (har egna distinkta tints)
+- `WaveManager.ts`: Anropar `applyZoneTint()` direkt efter spawn/reset av varje zombie
+
+### Nya enemy-typer
+- `src/data/enemies.json`: 3 nya zon-specifika typer
+  - `city_crawler`: Kryper (snabb runner, litet, ignorerar låga väggar). HP 18, speed 110, scale 0.75. Bara i City.
+  - `military_heavy`: Bepansrad (50% damage reduction). HP 200, speed 22, scale 1.3. Bara i Military.
+  - `tunnel_zombie`: Spawnar INUTI bas-radien istället för vid kartkanten. HP 40, speed 55. Alla zoner natt 4+.
+- `Zombie.ts`: Nya ZombieBehavior-typer: `city_crawler`, `military_heavy`, `tunnel_zombie`, `forest_boss`, `city_boss`, `military_tank`
+- `Zombie.ts`: Nya config-fält: `ignoresLowWalls`, `armorDamageReduction`, `weakSpotMultiplier`, `crushStructuresOnPath`, boss-fas-konfigurationer
+- `Zombie.ts`: `armorDamageReduction` reducerar inkommande damage i `takeDamage()`
+- `WaveManager.ts`: `tunnel_zombie` spawnar inom `baseSpawnRadius` (120px) istallet for vid kartkanter
+
+### 3 nya bossar med fas-mekaniker (implementerade i Zombie.ts state machine)
+
+**Forest Boss -- Brute Alpha** (`forest_boss`)
+- Fas 1: Laddningar mot basen (200px rush, 4s cooldown, 600ms varaktighet)
+- Fas 2 (<=50% HP): Kastar stenar pa spelaren (ranged 300px, 3s cooldown) + ENRAGED-announcement
+- Spawnar 3 walkers vid varje charge-end
+- Tint: morkgron (0x228822)
+
+**City Boss -- Spitter Queen** (`city_boss`)
+- Ranged attacker (spitter-beteende, 350px range, 2.5s cooldown)
+- Spawnar 2 spitters var 10s via `city-boss-spawn-minions`-event
+- Lämnar syrabassänger på marken (DOT-zon, 5s, 15 dmg/s) via `city-boss-acid-pool`-event
+- Vid 25% HP: desperate scream drar ALLA zombies mot drottningen
+- Tint: giftigron (0x44AA00), scale 1.8
+
+**Military Boss -- Tank** (`military_tank`)
+- 2000 HP, speed 12, scale 3.0 (enorm)
+- 75% armor damage reduction på alla träffar
+- Svag punkt (baksida): `getTankDamageMultiplier()` returnerar 3x vid flankning
+- Krossar barrikader och väggar i sin väg (`tank-crushing`-event)
+- Ignorerar PathGrid (rak linje mot basen)
+- Tint: mörkbrun (0x1A1A1A-blend), scale 3.0
+
+### Boss-events i NightScene
+- `forest-boss-phase2`: Log-meddelande + boss_roar
+- `forest-boss-charge-end`: Spawnar walkers runt impakt-punkten
+- `forest-boss-rock-throw`: Skapar brun projektil via spitter-projekti-pool
+- `city-boss-spawn-minions`: Spawnar spitters runt drottningen
+- `city-boss-acid-pool`: Ritar gron ellips + skapar DOT-timer
+- `city-boss-desperate-scream`: Rosa ring-animation + attracts ALL zombies
+- `tank-crushing`: Instant-destroy barrikader och vaggar inom crush-radius
+
+### Uppdaterade wave-filer
+- `waves.json`: Wave 5 anvander `forest_boss` istallet for `brute_boss`
+- `waves-city.json`: Wave 3-5: `city_crawler` tillagd (5/10/12 count). Wave 5: `city_boss`
+- `waves-military.json`: Wave 2-5: `military_heavy` (2/4/6/8). Wave 4-5: `tunnel_zombie` (3/5). Wave 5: `military_tank`
+
+### Tekniska detaljer
+- `ZoneId` importeras nu fran `config/types.ts` och re-exporteras fran `Zombie.ts`
+- `WaveManager.ts`: Nya metoder `setZone()`, `setBaseSpawnRadius()`
+- `NightScene.ts`: Anropar `waveManager.setZone()` i `setupWaveManager()`
+
+## [v3.2.0] - 2026-04-04 17:00 -- Natt-events och vädersystem
+
+### Nyheter
+- `src/systems/NightEventManager.ts` -- ny manager-klass for vaderhändelser och speciella natt-events
+- `src/data/night-events.json` -- JSON-konfiguration for events (zone, night, chans)
+
+### Väderhändelser
+- **Fog** (Forest natt 3-4, 80% chans): grå overlay (alpha 0.22), reducerar synfält via fogPenalty
+- **Rain** (City natt 3-5, 70% chans): animerade regndroppar (Graphics-baserade), +10% malfunction-chans för alla mekaniska fällor, brandbaserade fällor -50% skada
+- **Storm** (alla zoner natt 4, 35% chans): blixt-flash + persistent mörkare overlay, 2 slumpmässiga strukturer tar 15 skada vid nattstart
+- **Bombardment** (Military natt 4, 80% chans): explosioner var 4s på slumpmässiga positioner, skadar zombies och strukturer inom 80px radius
+
+### Speciella natt-events
+- **Blood Moon** (alla zoner natt 4-5, 10% chans): röd pulsande overlay, alla zombies +25% speed +25% HP via zombie-spawned-event
+- **Power Outage** (City natt 2, 65% chans): mörk overlay 30 sekunder, elektriska fällor (ShockWire, BugZapperXL, CarBatteryGrid, ElectricFence) inaktiveras
+
+### Integration
+- NightScene.ts: import + instansiering i create(), update() i game loop, setupNightEventHandlers(), cleanup i shutdown
+- WaveManager.ts: emit('zombie-spawned', zombie) för Blood Moon-applicering
+- Bannrar visas vid nattstart: "NIGHT 3 -- FOGGY", "BLOOD MOON RISES" etc.
+
 ## [Unreleased] - 2026-04-04 -- Tier 2 Trap Batch: 10 Nya Falllor
 
 ### 10 nya Tier 2 fallor implementerade (blad, kraft, elektricitet, fangst)

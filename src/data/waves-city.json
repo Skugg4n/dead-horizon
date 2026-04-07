@@ -21,7 +21,8 @@
         { "type": "walker", "count": 18, "spawnDelay": 1200 },
         { "type": "runner", "count": 10, "spawnDelay": 1800 },
         { "type": "spitter", "count": 4, "spawnDelay": 3500 },
-        { "type": "brute", "count": 2, "spawnDelay": 5000 }
+        { "type": "brute", "count": 2, "spawnDelay": 5000 },
+        { "type": "city_crawler", "count": 5, "spawnDelay": 2000 }
       ]
     },
     {
@@ -30,7 +31,8 @@
         { "type": "walker", "count": 30, "spawnDelay": 1000 },
         { "type": "runner", "count": 15, "spawnDelay": 1500 },
         { "type": "spitter", "count": 6, "spawnDelay": 3000 },
-        { "type": "brute", "count": 4, "spawnDelay": 4000 }
+        { "type": "brute", "count": 4, "spawnDelay": 4000 },
+        { "type": "city_crawler", "count": 10, "spawnDelay": 1500 }
       ]
     },
     {
@@ -40,7 +42,9 @@
         { "type": "runner", "count": 20, "spawnDelay": 1200 },
         { "type": "spitter", "count": 8, "spawnDelay": 2500 },
         { "type": "brute", "count": 6, "spawnDelay": 3000 },
-        { "type": "screamer", "count": 2, "spawnDelay": 6000 }
+        { "type": "screamer", "count": 2, "spawnDelay": 6000 },
+        { "type": "city_crawler", "count": 12, "spawnDelay": 1200 },
+        { "type": "city_boss", "count": 1, "spawnDelay": 10000 }
       ]
     }
   ]

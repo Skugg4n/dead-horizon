@@ -255,3 +255,19 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 ### Toolbar null-gap-pattern orsakar array-typ-fel vid toolbar-refactor
 **Problem:** Toolbar-arrayen hade typen `(ToolbarButton | null)[]` med null-entries for visuella gap. Nar man refactorar toolbar (tar bort knappar) maste man ocksa ta bort null-entries och uppdatera loopen som hoppade over dem.
 **Losning:** Byt till enkel `ToolbarButton[]` utan nulls. Berakna totalWidth med `(n-1) * gap` istallet. Loopen behovar inte langre noll-check.
+
+---
+
+## Natt-events och vädersystem
+
+### Graphics-klasser vs TrapBase -- malfunctionChance-fel
+**Problem:** applyRainEffectsToTraps() byggde en lista av alla "mekaniska fällor" for att modifiera malfunctionChance. CartWall, ShoppingCartWall, CarWreckBarrier, DumpsterFortress extends Graphics (inte TrapBase) och saknar malfunctionChance -- detta orsakar TS2339.
+**Losning:** Undvik att lagga icke-TrapBase-klasser i allMechanical-listan. Grans: bara klasser som extends TrapBase har malfunctionChance/malfunctioned. Kontrollera arvet med `grep "class.*extends"` innan du bygger lista.
+
+### WaveManager zombie-spawned-event for Blood Moon
+**Problem:** Blood Moon behover modifiera alla zombies som spawnas under natten, men NightEventManager har inte direkt access till WaveManager eller zombieGroup.
+**Losning:** Lagg till `this.scene.events.emit('zombie-spawned', zombie)` i WaveManager.spawnEnemy() for bade nya och poolade zombies. NightScene lyssnar pa eventet och applicerar multipliers. Monster: kommunicera via events, inte direkta beroenden.
+
+### for-loop arrayaccess med noUncheckedIndexedAccess
+**Problem:** TypeScript strict mode flaggar `for (let i = ...; ) { const ev = arr[i]; ev.property }` som "possibly undefined" om tsconfig har noUncheckedIndexedAccess.
+**Losning:** Lagg till `if (!ev) continue;` guard direkt efter index-accessen.

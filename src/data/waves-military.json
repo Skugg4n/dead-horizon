@@ -14,7 +14,8 @@
         { "type": "walker", "count": 15, "spawnDelay": 1200 },
         { "type": "runner", "count": 10, "spawnDelay": 1800 },
         { "type": "spitter", "count": 4, "spawnDelay": 3000 },
-        { "type": "brute", "count": 4, "spawnDelay": 3500 }
+        { "type": "brute", "count": 4, "spawnDelay": 3500 },
+        { "type": "military_heavy", "count": 2, "spawnDelay": 5000 }
       ]
     },
     {
@@ -24,7 +25,8 @@
         { "type": "runner", "count": 15, "spawnDelay": 1500 },
         { "type": "spitter", "count": 6, "spawnDelay": 2500 },
         { "type": "brute", "count": 6, "spawnDelay": 3000 },
-        { "type": "screamer", "count": 2, "spawnDelay": 5000 }
+        { "type": "screamer", "count": 2, "spawnDelay": 5000 },
+        { "type": "military_heavy", "count": 4, "spawnDelay": 4000 }
       ]
     },
     {
@@ -34,7 +36,9 @@
         { "type": "runner", "count": 20, "spawnDelay": 1200 },
         { "type": "spitter", "count": 8, "spawnDelay": 2000 },
         { "type": "brute", "count": 8, "spawnDelay": 2500 },
-        { "type": "screamer", "count": 3, "spawnDelay": 4000 }
+        { "type": "screamer", "count": 3, "spawnDelay": 4000 },
+        { "type": "military_heavy", "count": 6, "spawnDelay": 3500 },
+        { "type": "tunnel_zombie", "count": 3, "spawnDelay": 6000 }
       ]
     },
     {
@@ -45,7 +49,9 @@
         { "type": "spitter", "count": 10, "spawnDelay": 1800 },
         { "type": "brute", "count": 10, "spawnDelay": 2000 },
         { "type": "screamer", "count": 4, "spawnDelay": 3500 },
-        { "type": "brute_boss", "count": 1, "spawnDelay": 8000 }
+        { "type": "military_heavy", "count": 8, "spawnDelay": 3000 },
+        { "type": "tunnel_zombie", "count": 5, "spawnDelay": 5000 },
+        { "type": "military_tank", "count": 1, "spawnDelay": 12000 }
       ]
     }
   ]

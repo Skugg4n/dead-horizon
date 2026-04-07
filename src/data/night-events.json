@@ -1,0 +1,58 @@
+{
+  "events": [
+    {
+      "id": "fog",
+      "name": "FOGGY",
+      "label": "NIGHT {n} -- FOGGY",
+      "zones": ["forest"],
+      "nights": [3, 4],
+      "chance": 0.8,
+      "duration": -1
+    },
+    {
+      "id": "rain",
+      "name": "RAINY",
+      "label": "NIGHT {n} -- RAIN",
+      "zones": ["city"],
+      "nights": [3, 4, 5],
+      "chance": 0.7,
+      "duration": -1
+    },
+    {
+      "id": "storm",
+      "name": "STORM",
+      "label": "NIGHT {n} -- STORM",
+      "zones": ["forest", "city", "military"],
+      "nights": [4],
+      "chance": 0.35,
+      "duration": -1
+    },
+    {
+      "id": "bombardment",
+      "name": "BOMBARDMENT",
+      "label": "NIGHT {n} -- BOMBARDMENT",
+      "zones": ["military"],
+      "nights": [4],
+      "chance": 0.8,
+      "duration": -1
+    },
+    {
+      "id": "blood_moon",
+      "name": "BLOOD MOON",
+      "label": "BLOOD MOON RISES",
+      "zones": ["forest", "city", "military"],
+      "nights": [4, 5],
+      "chance": 0.10,
+      "duration": -1
+    },
+    {
+      "id": "power_outage",
+      "name": "POWER OUTAGE",
+      "label": "NIGHT {n} -- BLACKOUT",
+      "zones": ["city"],
+      "nights": [2],
+      "chance": 0.65,
+      "duration": 30000
+    }
+  ]
+}

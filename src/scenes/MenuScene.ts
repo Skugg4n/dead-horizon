@@ -3,7 +3,10 @@ import { SaveManager } from '../systems/SaveManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { GAME_VERSION, GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
 import { AudioManager } from '../systems/AudioManager';
-import type { CharacterType, CharacterData, SkillType, ZoneId, ZoneData } from '../config/types';
+import type { CharacterType, CharacterData, SkillType, ZoneId, ZoneData, PerkData } from '../config/types';
+import perksJson from '../data/perks.json';
+
+const perksData = (perksJson as unknown as { perks: PerkData[] }).perks;
 import { SkillManager } from '../systems/SkillManager';
 import charactersJson from '../data/characters.json';
 import zonesJson from '../data/zones.json';
@@ -24,6 +27,7 @@ export class MenuScene extends Phaser.Scene {
   private mainMenuContainer!: Phaser.GameObjects.Container;
   private achievementContainer: Phaser.GameObjects.Container | null = null;
   private settingsContainer: Phaser.GameObjects.Container | null = null;
+  private legacyContainer: Phaser.GameObjects.Container | null = null;
   private charSelectLeftHandler: (() => void) | null = null;
   private charSelectRightHandler: (() => void) | null = null;
   private charSelectEnterHandler: (() => void) | null = null;
@@ -609,7 +613,12 @@ export class MenuScene extends Phaser.Scene {
       const state = SaveManager.load();
       const zoneName = zonesData.find(z => z.id === (state.zone ?? 'forest'))?.name ?? 'Forest';
       const night = state.progress.currentWave ?? 1;
-      continueSubtext = `${zoneName} -- Night ${night}/5`;
+      if (state.zone === 'endless') {
+        const endlessNight = (state.endlessNight ?? 0) + 1;
+        continueSubtext = `Endless -- Night ${endlessNight}`;
+      } else {
+        continueSubtext = `${zoneName} -- Night ${night}/5`;
+      }
     }
 
     // Button Y starts after title block (~220px from top)
@@ -650,6 +659,13 @@ export class MenuScene extends Phaser.Scene {
     this.createMenuButton(BUTTON_X, btnY, 'ACHIEVEMENTS', false, '', () => {
       AudioManager.play('ui_click');
       this.toggleAchievementPanel();
+    });
+    btnY += BTN_SPACING;
+
+    // Legacy Points / meta-progression
+    this.createMenuButton(BUTTON_X, btnY, 'LEGACY', false, '', () => {
+      AudioManager.play('ui_click');
+      this.toggleLegacyPanel();
     });
 
     // Zone progress panel (right side, visible when save exists)
@@ -1450,4 +1466,157 @@ export class MenuScene extends Phaser.Scene {
     SaveManager.save(state);
     this.scene.start('DayScene');
   }
+
+  // ---------------------------------------------------------------------------
+  // Legacy Panel -- meta-progression perks
+  // ---------------------------------------------------------------------------
+
+  private toggleLegacyPanel(): void {
+    if (this.legacyContainer) {
+      this.legacyContainer.destroy();
+      this.legacyContainer = null;
+      return;
+    }
+
+    const state = SaveManager.load();
+    const lp = state.meta?.legacyPoints ?? 0;
+    const unlockedPerks = state.meta?.unlockedPerks ?? [];
+
+    const centerX = GAME_WIDTH / 2;
+    const centerY = GAME_HEIGHT / 2;
+    const panelWidth = 420;
+    const panelHeight = 440;
+
+    this.legacyContainer = this.add.container(centerX - panelWidth / 2, centerY - panelHeight / 2);
+    this.legacyContainer.setDepth(150);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x100A04, 0.97);
+    bg.fillRect(0, 0, panelWidth, panelHeight);
+    bg.lineStyle(2, 0xC5A030, 1);
+    bg.strokeRect(0, 0, panelWidth, panelHeight);
+    bg.lineStyle(1, 0x4A3010, 0.6);
+    bg.strokeRect(4, 4, panelWidth - 8, panelHeight - 8);
+    this.legacyContainer.add(bg);
+
+    // Title
+    const title = this.add.text(panelWidth / 2, 12, 'LEGACY', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '13px',
+      color: '#C5A030',
+    }).setOrigin(0.5, 0);
+    this.legacyContainer.add(title);
+
+    // LP balance
+    const lpText = this.add.text(panelWidth / 2, 34, `Legacy Points: ${lp}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#FFD700',
+    }).setOrigin(0.5, 0);
+    this.legacyContainer.add(lpText);
+
+    // Close button
+    const closeBtn = this.add.text(panelWidth - 10, 8, 'X', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '12px',
+      color: '#F44336',
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this.toggleLegacyPanel());
+    this.legacyContainer.add(closeBtn);
+
+    // Divider
+    const divG = this.add.graphics();
+    divG.lineStyle(1, 0x4A3010, 0.8);
+    divG.lineBetween(12, 54, panelWidth - 12, 54);
+    this.legacyContainer.add(divG);
+
+    // Perk list
+    let yPos = 64;
+    for (const perk of perksData) {
+      const isUnlocked = unlockedPerks.includes(perk.id);
+      const canAfford = lp >= perk.cost;
+
+      // Perk row background
+      const rowBg = this.add.graphics();
+      rowBg.fillStyle(isUnlocked ? 0x1A2A10 : 0x1A1208, 0.6);
+      rowBg.fillRect(12, yPos, panelWidth - 24, 46);
+      if (isUnlocked) {
+        rowBg.lineStyle(1, 0x4CAF50, 0.5);
+        rowBg.strokeRect(12, yPos, panelWidth - 24, 46);
+      }
+      this.legacyContainer.add(rowBg);
+
+      // Perk name
+      const nameColor = isUnlocked ? '#4CAF50' : canAfford ? '#E8DCC8' : '#6A5A4A';
+      const nameText = this.add.text(20, yPos + 6, perk.name, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: nameColor,
+      }).setOrigin(0, 0);
+      this.legacyContainer.add(nameText);
+
+      // Cost or UNLOCKED badge
+      if (isUnlocked) {
+        const badge = this.add.text(panelWidth - 20, yPos + 6, 'UNLOCKED', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#4CAF50',
+        }).setOrigin(1, 0);
+        this.legacyContainer.add(badge);
+      } else {
+        const costText = this.add.text(panelWidth - 20, yPos + 6, `${perk.cost} LP`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: canAfford ? '#FFD700' : '#6A5A4A',
+        }).setOrigin(1, 0);
+        this.legacyContainer.add(costText);
+      }
+
+      // Description
+      const descText = this.add.text(20, yPos + 22, perk.description, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#6A5A4A',
+        wordWrap: { width: panelWidth - 40 },
+      }).setOrigin(0, 0);
+      this.legacyContainer.add(descText);
+
+      // Buy button (if not yet unlocked)
+      if (!isUnlocked && canAfford) {
+        const buyBtn = this.add.text(panelWidth - 20, yPos + 30, '[BUY]', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#D4620B',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        buyBtn.on('pointerover', () => buyBtn.setColor('#FFD700'));
+        buyBtn.on('pointerout', () => buyBtn.setColor('#D4620B'));
+        buyBtn.on('pointerdown', () => {
+          this.purchasePerk(perk.id, perk.cost);
+        });
+        this.legacyContainer.add(buyBtn);
+      }
+
+      yPos += 52;
+    }
+  }
+
+  /**
+   * Spend Legacy Points to unlock a perk and save the state.
+   * Re-opens the panel to refresh the display.
+   */
+  private purchasePerk(perkId: string, cost: number): void {
+    AudioManager.play('ui_click');
+    const state = SaveManager.load();
+    if ((state.meta?.legacyPoints ?? 0) < cost) return;
+    if ((state.meta?.unlockedPerks ?? []).includes(perkId)) return;
+
+    state.meta.legacyPoints -= cost;
+    state.meta.unlockedPerks.push(perkId);
+    SaveManager.save(state);
+
+    // Refresh the panel
+    this.toggleLegacyPanel();
+    this.toggleLegacyPanel();
+  }
+
 }

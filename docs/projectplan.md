@@ -300,6 +300,13 @@ Dessa features implementeras baserat på feedback och prioritet:
 - [x] Spitter (ranged)
 - [x] Screamer (drar fler zombies)
 - [x] Boss-varianter per wave 5
+- [x] Zon-specifika zombie-skins (forest/city/military tints)
+- [x] city_crawler (ignorerar låga väggar, bara City wave 3+)
+- [x] military_heavy (bepansrad, 50% damage reduction, bara Military wave 2+)
+- [x] tunnel_zombie (spawnar inuti basen, alla zoner natt 4+)
+- [x] forest_boss Brute Alpha (charge-faser, stenkast fas 2, spawnar walkers)
+- [x] city_boss Spitter Queen (minions, syra-pools, desperate scream)
+- [x] military_tank Tank (2000 HP, armor, svag punkt bak, krossar strukturer)
 
 ### 6C: Fler skills
 - [x] Speed/Agility

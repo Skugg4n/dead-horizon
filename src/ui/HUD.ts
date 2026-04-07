@@ -364,7 +364,7 @@ export class HUD {
     const hpBarW = 150;
     this.hpBar.fillRect(hpBarX, BAR_Y, hpBarW * ratio, BAR_H);
 
-    this.hpText.setText(`HP: ${Math.ceil(hp)}/${maxHp}`);
+    this.hpText.setText(`HP: ${Math.max(0, Math.ceil(hp))}/${maxHp}`);
     const textColor = ratio > 0.5 ? '#cccccc' : ratio > 0.25 ? '#FFD700' : '#F44336';
     this.hpText.setColor(textColor);
   }

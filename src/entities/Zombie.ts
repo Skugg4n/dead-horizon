@@ -2,8 +2,25 @@ import Phaser from 'phaser';
 import enemiesData from '../data/enemies.json';
 import { AudioManager } from '../systems/AudioManager';
 import type { PathGrid } from '../systems/PathGrid';
+import type { ZoneId } from '../config/types';
 
-export type ZombieBehavior = 'walker' | 'runner' | 'brute' | 'spitter' | 'screamer' | 'boss';
+// Re-export so WaveManager and other systems can import ZoneId from this module
+export type { ZoneId };
+
+export type ZombieBehavior =
+  | 'walker'
+  | 'runner'
+  | 'brute'
+  | 'spitter'
+  | 'screamer'
+  | 'boss'
+  | 'city_crawler'
+  | 'military_heavy'
+  | 'tunnel_zombie'
+  | 'forest_boss'
+  | 'city_boss'
+  | 'military_tank';
+
 
 export interface ZombieConfig {
   id: string;
@@ -22,6 +39,29 @@ export interface ZombieConfig {
   screamCooldown?: number;
   spawnOnDeath?: string;
   spawnCount?: number;
+  // City crawler: ignores low walls (barricades)
+  ignoresLowWalls?: boolean;
+  // Military heavy: flat damage reduction (0.0 - 1.0)
+  armorDamageReduction?: number;
+  // Tunnel zombie: spawns inside base radius instead of at map edges
+  spawnInsideBase?: boolean;
+  // Forest boss phase config
+  chargeSpeed?: number;
+  chargeCooldown?: number;
+  chargeDuration?: number;
+  rockThrowRange?: number;
+  rockThrowCooldown?: number;
+  phase2HpThreshold?: number;
+  // City boss phase config
+  minionSpawnInterval?: number;
+  minionType?: string;
+  minionCount?: number;
+  acidPoolDuration?: number;
+  acidPoolDamagePerSec?: number;
+  phase4HpThreshold?: number;
+  // Military tank config
+  weakSpotMultiplier?: number;
+  crushStructuresOnPath?: boolean;
 }
 
 export class Zombie extends Phaser.Physics.Arcade.Sprite {
@@ -64,6 +104,47 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   spawnCount: number = 0;
   /** Countdown in ms before next stomp sound. Resets to ~700ms each stomp. */
   private stompTimer: number = 0;
+
+  // City crawler: ignores low walls
+  ignoresLowWalls: boolean = false;
+
+  // Military heavy: flat damage reduction 0.0-1.0
+  armorDamageReduction: number = 0;
+
+  // Tank: weak spot multiplier (rear attacks deal extra damage)
+  weakSpotMultiplier: number = 1.0;
+
+  // Tank: crushes structures when moving through them
+  crushStructuresOnPath: boolean = false;
+
+  // Forest boss phase state machine
+  // Phase 1: charge toward base. Phase 2 (below 50% HP): also throws rocks.
+  private forestBossPhase: 1 | 2 = 1;
+  private forestBossChargeTimer: number = 0;
+  private forestBossChargeDuration: number = 0;
+  private forestBossChargeSpeed: number = 200;
+  private forestBossChargeCooldown: number = 4000;
+  private forestBossChargeCooldownMax: number = 4000;
+  private forestBossCharging: boolean = false;
+  private forestBossRockTimer: number = 0;
+  private forestBossRockCooldown: number = 3000;
+  private forestBossRockRange: number = 300;
+  private forestBossPhase2Threshold: number = 0.5;
+
+  // City boss phase state machine
+  // Spawns minions every minionSpawnInterval ms. Leaves acid pools. At 25% HP: desperate scream.
+  private cityBossMinionTimer: number = 0;
+  private cityBossMinionInterval: number = 10000;
+  private cityBossMinionType: string = 'spitter';
+  private cityBossMinionCount: number = 2;
+  private cityBossAcidDuration: number = 5000;
+  private cityBossAcidDps: number = 15;
+  private cityBossPhase4Threshold: number = 0.25;
+  private cityBossDesperateDone: boolean = false;
+
+  // Military tank state
+  // Armor: armorDamageReduction from enemies.json applies to all hits.
+  // Weak spot (rear): getTankDamageMultiplier() returns weakSpotMultiplier when flanked.
 
   // F5: Aggro behavior -- determined at spawn time
   // 'base_seeker': moves toward base (70% of zombies)
@@ -109,6 +190,31 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     if (config.spawnOnDeath) this.spawnOnDeath = config.spawnOnDeath;
     if (config.spawnCount) this.spawnCount = config.spawnCount;
 
+    // Zone-variant config
+    if (config.ignoresLowWalls) this.ignoresLowWalls = config.ignoresLowWalls;
+    if (config.armorDamageReduction) this.armorDamageReduction = config.armorDamageReduction;
+    if (config.weakSpotMultiplier) this.weakSpotMultiplier = config.weakSpotMultiplier;
+    if (config.crushStructuresOnPath) this.crushStructuresOnPath = config.crushStructuresOnPath;
+
+    // Forest boss config
+    if (config.chargeSpeed) this.forestBossChargeSpeed = config.chargeSpeed;
+    if (config.chargeCooldown) {
+      this.forestBossChargeCooldown = config.chargeCooldown;
+      this.forestBossChargeCooldownMax = config.chargeCooldown;
+    }
+    if (config.chargeDuration) this.forestBossChargeDuration = config.chargeDuration;
+    if (config.rockThrowRange) this.forestBossRockRange = config.rockThrowRange;
+    if (config.rockThrowCooldown) this.forestBossRockCooldown = config.rockThrowCooldown;
+    if (config.phase2HpThreshold) this.forestBossPhase2Threshold = config.phase2HpThreshold;
+
+    // City boss config
+    if (config.minionSpawnInterval) this.cityBossMinionInterval = config.minionSpawnInterval;
+    if (config.minionType) this.cityBossMinionType = config.minionType;
+    if (config.minionCount) this.cityBossMinionCount = config.minionCount;
+    if (config.acidPoolDuration) this.cityBossAcidDuration = config.acidPoolDuration;
+    if (config.acidPoolDamagePerSec) this.cityBossAcidDps = config.acidPoolDamagePerSec;
+    if (config.phase4HpThreshold) this.cityBossPhase4Threshold = config.phase4HpThreshold;
+
     this.baseTint = config.tint;
 
     scene.add.existing(this);
@@ -128,22 +234,113 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /**
+   * Apply zone-specific color tinting on top of the base tint.
+   * Called after initial tint is set so zone flavor is layered correctly.
+   * Zone bosses already have their own distinctive tints -- skip them.
+   */
+  applyZoneTint(zone: ZoneId): void {
+    // Zone bosses have custom tints already defined in enemies.json; skip tinting them.
+    const isBoss =
+      this.behavior === 'forest_boss' ||
+      this.behavior === 'city_boss' ||
+      this.behavior === 'military_tank' ||
+      this.behavior === 'boss';
+    if (isBoss) return;
+
+    switch (zone) {
+      case 'forest':
+        // Dark mossy green tint -- overlays base tint with a green channel boost
+        if (this.baseTint != null) {
+          // Blend base tint toward dark green (0x2D5A1B)
+          const blended = this.blendTint(this.baseTint, 0x2D5A1B, 0.4);
+          this.baseTint = blended;
+          this.setTint(blended);
+        } else {
+          this.baseTint = 0x3A6B22;
+          this.setTint(0x3A6B22);
+        }
+        break;
+      case 'city':
+        // Grey urban tint -- desaturated concrete look
+        if (this.baseTint != null) {
+          const blended = this.blendTint(this.baseTint, 0x888888, 0.35);
+          this.baseTint = blended;
+          this.setTint(blended);
+        } else {
+          this.baseTint = 0x787878;
+          this.setTint(0x787878);
+        }
+        break;
+      case 'military':
+        // Olive/khaki camouflage tint
+        if (this.baseTint != null) {
+          const blended = this.blendTint(this.baseTint, 0x5C5C2E, 0.4);
+          this.baseTint = blended;
+          this.setTint(blended);
+        } else {
+          this.baseTint = 0x6B6B3A;
+          this.setTint(0x6B6B3A);
+        }
+        break;
+    }
+  }
+
+  /** Linear interpolate two hex colors by factor t (0=a, 1=b) */
+  private blendTint(a: number, b: number, t: number): number {
+    const ar = (a >> 16) & 0xFF;
+    const ag = (a >> 8) & 0xFF;
+    const ab = a & 0xFF;
+    const br = (b >> 16) & 0xFF;
+    const bg = (b >> 8) & 0xFF;
+    const bb = b & 0xFF;
+    const r = Math.round(ar + (br - ar) * t);
+    const g = Math.round(ag + (bg - ag) * t);
+    const bl2 = Math.round(ab + (bb - ab) * t);
+    return (r << 16) | (g << 8) | bl2;
+  }
+
   /** Resolve which animation keys are available for this zombie type */
   private resolveAnimKeys(config: ZombieConfig): void {
-    // Map behavior to animation prefix (boss uses walker anims)
-    const prefix = config.behavior === 'boss' ? 'walker' : config.behavior;
-    const walk = `${prefix}-walk`;
+    // Map complex behaviors to base animation prefixes
+    const animBehavior = this.getAnimBehavior(config.behavior);
+    const walk = `${animBehavior}-walk`;
     this.walkAnimKey = this.scene.anims.exists(walk) ? walk : null;
 
     // Special attack anims
-    if (config.behavior === 'spitter') {
+    if (config.behavior === 'spitter' || config.behavior === 'city_boss') {
       this.attackAnimKey = this.scene.anims.exists('spitter-attack') ? 'spitter-attack' : null;
     } else if (config.behavior === 'screamer') {
       this.attackAnimKey = this.scene.anims.exists('screamer-scream') ? 'screamer-scream' : null;
-    } else if (config.behavior === 'walker' || config.behavior === 'boss') {
+    } else if (
+      config.behavior === 'walker' ||
+      config.behavior === 'boss' ||
+      config.behavior === 'forest_boss' ||
+      config.behavior === 'military_tank' ||
+      config.behavior === 'tunnel_zombie'
+    ) {
       this.attackAnimKey = this.scene.anims.exists('walker-attack') ? 'walker-attack' : null;
     } else {
       this.attackAnimKey = null;
+    }
+  }
+
+  /** Map behavior type to a base sprite animation prefix */
+  private getAnimBehavior(behavior: ZombieBehavior): string {
+    switch (behavior) {
+      case 'boss':
+      case 'forest_boss':
+      case 'military_heavy':
+      case 'military_tank':
+        return 'walker'; // reuse walker anims for large enemies
+      case 'city_crawler':
+        return 'runner'; // crawlers are fast like runners
+      case 'city_boss':
+        return 'walker';
+      case 'tunnel_zombie':
+        return 'walker';
+      default:
+        return behavior;
     }
   }
 
@@ -242,6 +439,24 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
+    // Forest boss: charge + phase 2 rock throws
+    if (this.behavior === 'forest_boss') {
+      this.updateForestBoss(delta);
+      return;
+    }
+
+    // City boss: spitter queen -- ranged attacks + minion spawns + acid pools
+    if (this.behavior === 'city_boss') {
+      this.updateCityBoss(delta);
+      return;
+    }
+
+    // Military tank: armored slow behemoth -- crushes everything
+    if (this.behavior === 'military_tank') {
+      this.updateMilitaryTank(delta);
+      return;
+    }
+
     // Screamer pulsing
     if (this.behavior === 'screamer') {
       this.updateScreamerPulse(delta);
@@ -252,6 +467,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       this.updateSpitter(delta);
       return;
     }
+
+    // City boss also uses ranged behavior (handled above via updateCityBoss)
+    // city_crawler: same movement as walker but ignoresLowWalls flag is checked by NightScene collision
+    // military_heavy: same movement as brute, armor reduction applied in takeDamage
+    // tunnel_zombie: same movement as walker, spawn logic handled in WaveManager
 
     // 5C: Throttle pathfinding for all zombies (150ms on-screen, 500ms off-screen)
     this.pathfindTimer -= delta;
@@ -367,8 +587,219 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /**
+   * Forest Boss (Brute Alpha) state machine:
+   * Phase 1: Charges toward the base, taking 50% less damage from the front.
+   *          Spawns 3 walkers each time a charge lands (via event).
+   * Phase 2 (<=50% HP): Also throws rocks at the player (ranged attack via event).
+   */
+  private updateForestBoss(delta: number): void {
+    if (!this.target || !this.basePosition) return;
+
+    this.updateBossPulse(delta);
+
+    // Periodic stomp sounds
+    this.stompTimer -= delta;
+    if (this.stompTimer <= 0) {
+      const vel = this.body ? Math.abs(this.body.velocity.x) + Math.abs(this.body.velocity.y) : 0;
+      if (vel > 5) AudioManager.play('boss_stomp');
+      this.stompTimer = 700;
+    }
+
+    // Check phase transition
+    if (this.forestBossPhase === 1 && this.hp / this.maxHp <= this.forestBossPhase2Threshold) {
+      this.forestBossPhase = 2;
+      // Announce phase 2 transition visually
+      this.scene.events.emit('forest-boss-phase2', this);
+    }
+
+    // Phase 2: rock throw timer
+    if (this.forestBossPhase === 2) {
+      this.forestBossRockTimer = Math.max(0, this.forestBossRockTimer - delta);
+      const distToTarget = Phaser.Math.Distance.Between(this.x, this.y, this.target.x, this.target.y);
+      if (this.forestBossRockTimer <= 0 && distToTarget <= this.forestBossRockRange) {
+        this.forestBossRockTimer = this.forestBossRockCooldown;
+        // Emit rock throw event -- NightScene handles projectile creation
+        this.scene.events.emit('forest-boss-rock-throw', this, this.target);
+      }
+    }
+
+    // Charge logic
+    if (this.forestBossCharging) {
+      // Continue charging in the locked direction
+      this.forestBossChargeTimer -= delta;
+      if (this.forestBossChargeTimer <= 0) {
+        // Charge ended -- emit spawn walkers event
+        this.forestBossCharging = false;
+        this.forestBossChargeCooldown = this.forestBossChargeCooldownMax;
+        this.scene.events.emit('forest-boss-charge-end', this);
+      }
+      // Keep velocity unchanged during charge (set at charge start)
+    } else {
+      // Count down to next charge
+      this.forestBossChargeCooldown -= delta;
+      if (this.forestBossChargeCooldown <= 0) {
+        // Start a new charge toward the base
+        this.forestBossCharging = true;
+        this.forestBossChargeTimer = this.forestBossChargeDuration > 0
+          ? this.forestBossChargeDuration
+          : 600;
+        const angle = Phaser.Math.Angle.Between(this.x, this.y, this.basePosition.x, this.basePosition.y);
+        this.setVelocity(
+          Math.cos(angle) * this.forestBossChargeSpeed,
+          Math.sin(angle) * this.forestBossChargeSpeed
+        );
+        this.scene.events.emit('forest-boss-charge-start', this);
+      } else {
+        // Normal movement between charges (slow walk toward base)
+        const speedMult = this.crippleTimer > 0 ? 0.5 : 1.0;
+        const angle = Phaser.Math.Angle.Between(this.x, this.y, this.basePosition.x, this.basePosition.y);
+        const distToBase = Phaser.Math.Distance.Between(this.x, this.y, this.basePosition.x, this.basePosition.y);
+        if (distToBase < 48) {
+          this.setVelocity(0, 0);
+        } else {
+          this.setVelocity(
+            Math.cos(angle) * this.moveSpeed * speedMult,
+            Math.sin(angle) * this.moveSpeed * speedMult
+          );
+        }
+      }
+    }
+    this.playWalkAnim();
+  }
+
+  /**
+   * City Boss (Spitter Queen) state machine:
+   * - Behaves like a large spitter with extended range.
+   * - Spawns 2 spitters every 10s (via event).
+   * - Leaves acid pools on the ground after each ranged attack (via event).
+   * - At 25% HP: desperate scream that pulls ALL zombies toward the queen.
+   */
+  private updateCityBoss(delta: number): void {
+    if (!this.target) return;
+
+    this.updateBossPulse(delta);
+
+    this.stompTimer -= delta;
+    if (this.stompTimer <= 0) {
+      const vel = this.body ? Math.abs(this.body.velocity.x) + Math.abs(this.body.velocity.y) : 0;
+      if (vel > 5) AudioManager.play('boss_stomp');
+      this.stompTimer = 900;
+    }
+
+    // Desperate scream at 25% HP (fires once)
+    if (!this.cityBossDesperateDone && this.hp / this.maxHp <= this.cityBossPhase4Threshold) {
+      this.cityBossDesperateDone = true;
+      this.scene.events.emit('city-boss-desperate-scream', this, this.screamRadius);
+    }
+
+    // Minion spawn timer
+    this.cityBossMinionTimer = Math.max(0, this.cityBossMinionTimer - delta);
+    if (this.cityBossMinionTimer <= 0) {
+      this.cityBossMinionTimer = this.cityBossMinionInterval;
+      this.scene.events.emit('city-boss-spawn-minions', this, this.cityBossMinionType, this.cityBossMinionCount);
+    }
+
+    // Ranged attack (reuse spitter logic) + acid pool on shot
+    this.spitterTimer = Math.max(0, this.spitterTimer - delta);
+    const dist = Phaser.Math.Distance.Between(this.x, this.y, this.target.x, this.target.y);
+
+    if (dist > this.spitterRange) {
+      const angle = Phaser.Math.Angle.Between(this.x, this.y, this.target.x, this.target.y);
+      const speedMult = this.crippleTimer > 0 ? 0.5 : 1.0;
+      this.setVelocity(
+        Math.cos(angle) * this.moveSpeed * speedMult,
+        Math.sin(angle) * this.moveSpeed * speedMult
+      );
+    } else if (dist < this.spitterRange * 0.5) {
+      // Back away from player when too close
+      const angle = Phaser.Math.Angle.Between(this.target.x, this.target.y, this.x, this.y);
+      this.setVelocity(
+        Math.cos(angle) * this.moveSpeed * 0.4,
+        Math.sin(angle) * this.moveSpeed * 0.4
+      );
+    } else {
+      this.setVelocity(0, 0);
+    }
+
+    if (dist <= this.spitterRange && this.spitterTimer <= 0) {
+      this.spitterTimer = this.spitterCooldown;
+      // Fire ranged projectile
+      this.scene.events.emit('spitter-shoot', this, this.target);
+      // Leave acid pool at current position
+      this.scene.events.emit('city-boss-acid-pool', this.x, this.y, this.cityBossAcidDuration, this.cityBossAcidDps);
+    }
+
+    this.playWalkAnim();
+  }
+
+  /**
+   * Military Tank state machine:
+   * - Extremely slow but unstoppable.
+   * - Armor plates: takes only 25% damage normally (armorDamageReduction = 0.75).
+   * - Weak spot: rear side takes 3x damage (handled in takeDamage via weakSpotMultiplier).
+   * - Crushes ALL structures it moves through (event emitted each pathfind tick).
+   */
+  private updateMilitaryTank(delta: number): void {
+    if (!this.target || !this.basePosition) return;
+
+    this.updateBossPulse(delta);
+
+    this.stompTimer -= delta;
+    if (this.stompTimer <= 0) {
+      const vel = this.body ? Math.abs(this.body.velocity.x) + Math.abs(this.body.velocity.y) : 0;
+      if (vel > 5) AudioManager.play('boss_stomp');
+      this.stompTimer = 500; // More frequent stomps (slow but heavy)
+    }
+
+    // Throttle movement updates like standard pathfinding
+    this.pathfindTimer -= delta;
+    if (this.pathfindTimer > 0) return;
+    this.pathfindTimer = this.offScreen
+      ? Zombie.PATHFIND_INTERVAL_OFFSCREEN
+      : Zombie.PATHFIND_INTERVAL_ONSCREEN;
+
+    const speedMult = this.crippleTimer > 0 ? 0.5 : 1.0;
+
+    // Determine movement target
+    let targetX = this.basePosition.x;
+    let targetY = this.basePosition.y;
+    if (this.soundTarget && this.soundTargetTimer > 0) {
+      this.soundTargetTimer -= delta;
+      targetX = this.soundTarget.x;
+      targetY = this.soundTarget.y;
+    }
+
+    const distToBase = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+    if (distToBase < 48) {
+      this.setVelocity(0, 0);
+      return;
+    }
+
+    // The tank ignores PathGrid and always moves in a straight line (crushes everything)
+    const angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
+    this.setVelocity(
+      Math.cos(angle) * this.moveSpeed * speedMult,
+      Math.sin(angle) * this.moveSpeed * speedMult
+    );
+
+    // Emit crush event so NightScene can destroy structures in its path
+    this.scene.events.emit('tank-crushing', this);
+
+    this.playWalkAnim();
+  }
+
   takeDamage(amount: number): void {
-    this.hp -= amount;
+    // Apply armor damage reduction for military_heavy and military_tank
+    // Reduction is applied for all hits (directional logic would need physics raycasting;
+    // weak spot for tank is handled by the caller passing a multiplied amount via
+    // the 'tank-weakspot-check' helper exposed below).
+    let finalAmount = amount;
+    if (this.armorDamageReduction > 0) {
+      finalAmount = Math.max(1, Math.round(amount * (1 - this.armorDamageReduction)));
+    }
+
+    this.hp -= finalAmount;
 
     // Pain aggro: when hit, turn toward the attacker (player)
     if (this.target) {
@@ -379,6 +810,18 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     if (this.behavior === 'screamer' && this.screamTimer <= 0) {
       this.screamTimer = this.screamCooldown;
       this.scene.events.emit('screamer-scream', this, this.screamRadius);
+    }
+
+    // Forest boss: 50% less damage from the front (while not charging, attacker is likely in front)
+    // The charge state means the boss is rushing forward -- full damage allowed.
+    if (this.behavior === 'forest_boss' && !this.forestBossCharging) {
+      // Already reduced above via armorDamageReduction if set in JSON.
+      // If not set, apply a 50% front reduction by reversing the finalAmount change.
+      // Since forest_boss has no armorDamageReduction in JSON, we apply it here:
+      if (this.armorDamageReduction === 0) {
+        // Half damage while standing/walking (facing attacker)
+        this.hp += Math.round(finalAmount * 0.5); // give back half
+      }
     }
 
     // Flash white
@@ -394,6 +837,32 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /**
+   * Check if a given world position hits the tank's weak spot (rear side).
+   * Returns the damage multiplier to apply (1.0 normal, weakSpotMultiplier for rear).
+   * "Rear" is defined as the attacker being behind the tank's movement direction.
+   */
+  getTankDamageMultiplier(attackerX: number, attackerY: number): number {
+    if (this.behavior !== 'military_tank') return 1.0;
+    if (!this.body) return 1.0;
+
+    const velX = this.body.velocity.x;
+    const velY = this.body.velocity.y;
+    const speed = Math.sqrt(velX * velX + velY * velY);
+    if (speed < 1) return 1.0; // Not moving -- no weak spot
+
+    // Dot product: attacker relative to zombie vs movement direction
+    const relX = attackerX - this.x;
+    const relY = attackerY - this.y;
+    const dot = (relX * velX + relY * velY) / speed;
+
+    // dot < 0 means attacker is BEHIND the tank (negative = flanking rear)
+    if (dot < 0) {
+      return this.weakSpotMultiplier;
+    }
+    return 1.0;
+  }
+
   private restoreTint(): void {
     if (this.baseTint != null) {
       this.setTint(this.baseTint);
@@ -407,7 +876,13 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   }
 
   canAttackStructure(): boolean {
-    return (this.behavior === 'brute' || this.behavior === 'boss') && this.structureAttackCooldown <= 0 && this.structureDamage > 0;
+    const canBreakStructures =
+      this.behavior === 'brute' ||
+      this.behavior === 'boss' ||
+      this.behavior === 'forest_boss' ||
+      this.behavior === 'military_heavy' ||
+      this.behavior === 'military_tank';
+    return canBreakStructures && this.structureAttackCooldown <= 0 && this.structureDamage > 0;
   }
 
   resetAttackCooldown(): void {
@@ -484,9 +959,17 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     if (this.deathStarted) return;
     this.deathStarted = true;
 
-    // Boss: emit spawn event before dying
-    if (this.behavior === 'boss' && this.spawnOnDeath) {
+    // Bosses: emit spawn event before dying so NightScene can spawn minions/walkers
+    if (
+      (this.behavior === 'boss' || this.behavior === 'forest_boss') &&
+      this.spawnOnDeath
+    ) {
       this.scene.events.emit('boss-death-spawn', this);
+    }
+
+    // City boss death: one final desperate scream if not done yet
+    if (this.behavior === 'city_boss' && !this.cityBossDesperateDone) {
+      this.scene.events.emit('city-boss-desperate-scream', this, this.screamRadius);
     }
 
     // Emit killed event -- NightScene handles blood splatters and loot
@@ -554,6 +1037,35 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.spawnOnDeath = config.spawnOnDeath ?? null;
     this.spawnCount = config.spawnCount ?? 0;
     this.baseTint = config.tint;
+
+    // Zone-variant config
+    this.ignoresLowWalls = config.ignoresLowWalls ?? false;
+    this.armorDamageReduction = config.armorDamageReduction ?? 0;
+    this.weakSpotMultiplier = config.weakSpotMultiplier ?? 1.0;
+    this.crushStructuresOnPath = config.crushStructuresOnPath ?? false;
+
+    // Forest boss config
+    this.forestBossPhase = 1;
+    this.forestBossCharging = false;
+    this.forestBossChargeTimer = 0;
+    this.forestBossChargeCooldown = config.chargeCooldown ?? 4000;
+    this.forestBossChargeCooldownMax = config.chargeCooldown ?? 4000;
+    this.forestBossChargeDuration = config.chargeDuration ?? 600;
+    this.forestBossChargeSpeed = config.chargeSpeed ?? 200;
+    this.forestBossRockTimer = 0;
+    this.forestBossRockCooldown = config.rockThrowCooldown ?? 3000;
+    this.forestBossRockRange = config.rockThrowRange ?? 300;
+    this.forestBossPhase2Threshold = config.phase2HpThreshold ?? 0.5;
+
+    // City boss config
+    this.cityBossMinionTimer = 0;
+    this.cityBossMinionInterval = config.minionSpawnInterval ?? 10000;
+    this.cityBossMinionType = config.minionType ?? 'spitter';
+    this.cityBossMinionCount = config.minionCount ?? 2;
+    this.cityBossAcidDuration = config.acidPoolDuration ?? 5000;
+    this.cityBossAcidDps = config.acidPoolDamagePerSec ?? 15;
+    this.cityBossPhase4Threshold = config.phase4HpThreshold ?? 0.25;
+    this.cityBossDesperateDone = false;
 
     // Apply visuals
     this.setScale(config.scale);

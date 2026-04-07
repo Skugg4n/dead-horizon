@@ -1,0 +1,58 @@
+{
+  "perks": [
+    {
+      "id": "scrap_stash",
+      "name": "Scrap Stash",
+      "description": "Start each run with +10 extra scrap.",
+      "cost": 50,
+      "effect": {
+        "startScrap": 10
+      }
+    },
+    {
+      "id": "armed_and_ready",
+      "name": "Armed and Ready",
+      "description": "Start each run with one Uncommon-rarity weapon in addition to your defaults.",
+      "cost": 100,
+      "effect": {
+        "startWeaponRarity": "uncommon"
+      }
+    },
+    {
+      "id": "camp_fire",
+      "name": "Camp Fire",
+      "description": "One extra refugee joins your camp from the very first day.",
+      "cost": 75,
+      "effect": {
+        "startExtraRefugee": 1
+      }
+    },
+    {
+      "id": "scholar",
+      "name": "Scholar",
+      "description": "All unlocked blueprints are kept permanently between runs (never lost on death).",
+      "cost": 150,
+      "effect": {
+        "keepBlueprints": true
+      }
+    },
+    {
+      "id": "tough_base",
+      "name": "Tough Base",
+      "description": "Your base starts each night with +50 extra max HP.",
+      "cost": 100,
+      "effect": {
+        "bonusBaseHp": 50
+      }
+    },
+    {
+      "id": "lucky_looter",
+      "name": "Lucky Looter",
+      "description": "All loot runs yield 25% more resources.",
+      "cost": 75,
+      "effect": {
+        "lootBonusPercent": 25
+      }
+    }
+  ]
+}

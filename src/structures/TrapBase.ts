@@ -278,13 +278,13 @@ export abstract class TrapBase extends Phaser.GameObjects.Graphics {
    */
   private updateStatusVisuals(delta: number): void {
     if (this.malfunctioned) {
-      // Red blinking "!!" label
+      // Red blinking "[E]" label -- tells player which key to press
       this.blinkTimer += delta;
       if (this.blinkTimer >= 400) {
         this.blinkVisible = !this.blinkVisible;
         this.blinkTimer = 0;
       }
-      this.statusText.setText(this.blinkVisible ? '!!' : '');
+      this.statusText.setText(this.blinkVisible ? '[E]' : '');
       this.statusText.setColor('#FF4444');
     } else if (this.overheated) {
       // Orange "HOT!" label (static -- not blinking)

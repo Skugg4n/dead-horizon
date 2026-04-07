@@ -14,7 +14,7 @@ export type CharacterType = 'scavenger' | 'engineer' | 'soldier' | 'medic';
 
 export type SkillType = 'combat_melee' | 'combat_pistol' | 'combat_rifle' | 'combat_shotgun' | 'looting' | 'building' | 'speed_agility' | 'leadership' | 'survival' | 'stealth';
 
-export type ZoneId = 'forest' | 'city' | 'military';
+export type ZoneId = 'forest' | 'city' | 'military' | 'endless';
 
 export interface ZoneData {
   id: ZoneId;
@@ -27,6 +27,43 @@ export interface ZoneData {
     zone: ZoneId;
     wave: number;
   } | null;
+}
+
+// Per-trap kill count entry for the debrief screen
+export interface TrapKillEntry {
+  trapId: string;
+  trapName: string;
+  kills: number;
+}
+
+// Stats collected during a night -- passed to ResultScene
+export interface NightStats {
+  kills: number;
+  trapKills: number;
+  weaponKills: number;
+  topTraps: TrapKillEntry[];
+  breakthroughs: number;
+  structuresDestroyed: Array<{ structureId: string; x: number; y: number }>;
+  ammoUsedStart: number;
+  ammoUsedEnd: number;
+  baseHpStart: number;
+  baseHpEnd: number;
+  baseHpMax: number;
+  wave: number;
+  survived: boolean;
+  // Endless mode: which endless night number this was
+  endlessNight?: number;
+  bossKills: number;
+}
+
+// Legacy Perk definition loaded from perks.json
+export interface PerkData {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  // Effect keys map to effect values (e.g. startScrap: 10, startRarity: 'uncommon')
+  effect: Record<string, string | number | boolean>;
 }
 
 export interface RecipeData {
@@ -160,6 +197,15 @@ export interface StructureInstance {
   y: number;
 }
 
+// Axis-aligned bounding rect for a natural terrain blocker (building ruin, bunker).
+// Used by PathGrid to mark tiles as impassable without adding to GameState.base.structures.
+export interface NaturalBlockerRect {
+  x: number; // world pixel centre-x
+  y: number; // world pixel centre-y
+  w: number; // width in pixels
+  h: number; // height in pixels
+}
+
 // Result from TerrainGenerator.generateTerrain()
 export interface TerrainResult {
   // Static physics group for trees and large rocks (zombies + player collide with these)
@@ -168,6 +214,9 @@ export interface TerrainResult {
   waterZones: Phaser.GameObjects.Group;
   // Container holding all visual decorations (no physics)
   decorContainer: Phaser.GameObjects.Container;
+  // Natural terrain blockers (building ruins in city, bunkers in military).
+  // NightScene passes these to PathGrid so zombies navigate around them.
+  naturalBlockerRects: NaturalBlockerRect[];
 }
 
 // Blueprint data loaded from blueprints.json
@@ -228,4 +277,13 @@ export interface GameState {
   };
   // Blueprint IDs unlocked via loot runs. Empty array = only alwaysAvailable traps are buildable.
   unlockedBlueprints: string[];
+  // Endless mode high score (number of endless nights survived in a single run)
+  endlessHighScore: number;
+  // Current endless night counter (reset to 0 when leaving endless mode)
+  endlessNight: number;
+  // Meta-progression: persists across all runs
+  meta: {
+    legacyPoints: number;
+    unlockedPerks: string[];
+  };
 }

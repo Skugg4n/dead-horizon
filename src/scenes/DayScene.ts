@@ -16,8 +16,11 @@ import { ZoneManager } from '../systems/ZoneManager';
 import { CraftingManager } from '../systems/CraftingManager';
 import { CraftingPanel } from '../ui/CraftingPanel';
 import { AchievementManager } from '../systems/AchievementManager';
-import type { GameState, StructureInstance, ResourceType, TerrainResult } from '../config/types';
-import { generateTerrain } from '../systems/TerrainGenerator';
+import type { GameState, StructureInstance, ResourceType, TerrainResult, PerkData } from '../config/types';
+import perksJson from '../data/perks.json';
+import weaponsJson from '../data/weapons.json';
+import { REFUGEE_NAMES, REFUGEE_SKILL_BONUSES } from '../config/constants';
+import { generateTerrain, drawZoneBackground } from '../systems/TerrainGenerator';
 import { EventManager } from '../systems/EventManager';
 import { EventDialog } from '../ui/EventDialog';
 import type { EventChoice } from '../ui/EventDialog';
@@ -91,6 +94,11 @@ export class DayScene extends Phaser.Scene {
     try {
     this.gameState = SaveManager.load();
     this.currentAP = AP_PER_DAY;
+
+    // Apply legacy perks on the very first day of a fresh run (totalRuns == 0, wave == 1)
+    if (this.gameState.progress.totalRuns === 0 && this.gameState.progress.currentWave === 1) {
+      this.applyLegacyPerks();
+    }
 
     // Load structure data and create BuildingManager
     interface StructuresFile { structures: StructureData[]; }
@@ -316,137 +324,13 @@ export class DayScene extends Phaser.Scene {
 
     // Determine road row (horizontal path through map centre)
     const roadRow = Math.floor(MAP_HEIGHT / 2);
-    const roadY   = roadRow * TILE_SIZE;
 
-    // ------------------------------------------------------------------
-    // GROUND LAYER
-    // Use terrain tile sprites when available, otherwise rich Graphics.
-    // ------------------------------------------------------------------
-    // Sprite tiles disabled: WebGL sub-pixel rendering causes visible seams
-    // between adjacent tile sprites. Graphics path is seam-free.
-    const hasGrassTiles = false; // this.textures.exists('terrain_grass_1');
-
-    // Solid green base layer to fill any gaps between tiles
-    const groundFill = this.add.graphics();
-    groundFill.fillStyle(0x3A6B2A);
-    groundFill.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
-    this.mapContainer.add(groundFill);
-
-    if (hasGrassTiles) {
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          // Integer positions + origin(0,0) to prevent subpixel gaps
-          const tileX = tx * TILE_SIZE;
-          const tileY = ty * TILE_SIZE;
-          const hash = (tx * 1619 + ty * 3571) | 0;
-
-          const tileKey = ((hash >>> 0) % 10 === 0) ? 'terrain_grass_2' : 'terrain_grass_1';
-          const tile = this.add.image(tileX, tileY, tileKey).setOrigin(0, 0);
-          this.mapContainer.add(tile);
-        }
-      }
-    } else {
-      // -----------------------------------------------------------------
-      // Single solid fill -- per-tile variation caused checkerboard pattern
-      // -----------------------------------------------------------------
-      const ground = this.add.graphics();
-      ground.setDepth(0);
-      ground.fillStyle(0x4A7A2A);
-      ground.fillRect(0, 0, mapPixelWidth, mapPixelHeight);
-      this.mapContainer.add(ground);
-
-      // -----------------------------------------------------------------
-      // ROAD -- single continuous horizontal band across the full map.
-      // Three stacked fillRects give a soft natural look without seams.
-      // -----------------------------------------------------------------
-      const road = this.add.graphics();
-      road.setDepth(1);
-
-      // Road centre Y in pixels
-      const roadCentreY = roadRow * TILE_SIZE + TILE_SIZE / 2;
-      const roadHalfH   = TILE_SIZE; // half-height of the main road band
-
-      // Soft outer shoulders
-      road.fillStyle(0x6A5230, 0.55);
-      road.fillRect(0, roadCentreY - roadHalfH - 4, mapPixelWidth, 8);
-      road.fillRect(0, roadCentreY + roadHalfH - 4, mapPixelWidth, 8);
-
-      // Main road body -- one solid fill spanning full map width
-      road.fillStyle(0x7A6248);
-      road.fillRect(0, roadCentreY - roadHalfH, mapPixelWidth, roadHalfH * 2);
-
-      // Subtle inner highlight strip
-      road.fillStyle(0x8A7258, 0.45);
-      road.fillRect(0, roadCentreY - 3, mapPixelWidth, 6);
-
-      this.mapContainer.add(road);
-
-      // -----------------------------------------------------------------
-      // CLEARED BASE AREA -- lighter, sandy dirt around the base.
-      // Single circular shape so there are no per-tile seam artefacts.
-      // -----------------------------------------------------------------
-      const baseArea = this.add.graphics();
-      baseArea.setDepth(1);
-
-      const baseClearRadius = 110; // pixels
-      const baDiameter = baseClearRadius * 2;
-
-      // Outer soft halo
-      baseArea.fillStyle(0x6A5030, 0.55);
-      baseArea.fillEllipse(centerX, centerY, baDiameter + 56, baDiameter + 56);
-
-      // Main cleared dirt circle (lighter sandy earth)
-      baseArea.fillStyle(0x7A6040);
-      baseArea.fillEllipse(centerX, centerY, baDiameter, baDiameter);
-
-      this.mapContainer.add(baseArea);
-
-      // -----------------------------------------------------------------
-      // ROAD EDGE MARKINGS
-      // -----------------------------------------------------------------
-      const markings = this.add.graphics();
-      markings.setDepth(2);
-      markings.fillStyle(0x8B7B5B, 0.5);
-      for (let x = 0; x < mapPixelWidth; x += TILE_SIZE * 3) {
-        markings.fillRect(x + 6, roadY - 2, TILE_SIZE - 10, 3);
-      }
-      this.mapContainer.add(markings);
-
-      // -----------------------------------------------------------------
-      // GROUND DETAIL PATCHES (grass tufts, leaves, pebbles) -- depth 2
-      // -----------------------------------------------------------------
-      const patches = this.add.graphics();
-      patches.setDepth(2);
-
-      for (let ty = 0; ty < MAP_HEIGHT; ty++) {
-        for (let tx = 0; tx < MAP_WIDTH; tx++) {
-          const hash4 = ((tx * 3571 + ty * 6173) * 2654435769) >>> 0;
-          if ((hash4 % 100) < 18) {
-            const tileX  = tx * TILE_SIZE;
-            const tileY  = ty * TILE_SIZE;
-            const patchX = tileX + (hash4 % TILE_SIZE);
-            const patchY = tileY + ((hash4 >> 5) % TILE_SIZE);
-            const pType  = (hash4 >> 10) % 3;
-            if (pType === 0) {
-              // Bright grass tuft
-              patches.fillStyle(0x6AAF3A, 0.55);
-              patches.fillEllipse(patchX, patchY, 6, 4);
-            } else if (pType === 1) {
-              // Dead/dry leaf
-              patches.fillStyle(0x8B6A1A, 0.40);
-              patches.fillEllipse(patchX, patchY, 5, 3);
-            } else {
-              // Small pebble
-              patches.fillStyle(0x9A9080, 0.45);
-              patches.fillCircle(patchX, patchY, 1.5);
-            }
-          }
-        }
-      }
-      this.mapContainer.add(patches);
-
-      // MAP EDGE DECORATIONS removed -- TerrainGenerator handles all decorations
-      // so that DayScene and NightScene show identical layouts.
+    // Draw zone-specific background (ground + road/streets + detail patches).
+    // drawZoneBackground returns an array of Graphics objects that are added to mapContainer.
+    // isDaytime=true uses brighter colour palette.
+    const bgGraphics = drawZoneBackground(this, this.gameState.zone, mapPixelWidth, mapPixelHeight, centerX, centerY, roadRow, true);
+    for (const g of bgGraphics) {
+      this.mapContainer.add(g);
     }
 
     // Grid overlay removed -- caused visible square pattern over terrain tiles
@@ -1895,5 +1779,70 @@ export class DayScene extends Phaser.Scene {
     });
 
     addButton('[CLOSE]', () => { this.toggleDebugMenu(); });
+  }
+
+  /**
+   * Apply legacy perks to the game state at the start of a fresh run.
+   * Perks are one-time bonuses that modify the starting state.
+   * Called only when totalRuns == 0 and currentWave == 1 (brand new run).
+   */
+  private applyLegacyPerks(): void {
+    const unlockedPerks: string[] = this.gameState.meta?.unlockedPerks ?? [];
+    if (unlockedPerks.length === 0) return;
+
+    const perks = (perksJson as unknown as { perks: PerkData[] }).perks;
+
+    for (const perkDef of perks) {
+      if (!unlockedPerks.includes(perkDef.id)) continue;
+
+      // scrap_stash: +10 scrap at start
+      if (perkDef.id === 'scrap_stash') {
+        const bonus = typeof perkDef.effect['startScrap'] === 'number' ? perkDef.effect['startScrap'] as number : 10;
+        this.gameState.inventory.resources.scrap += bonus;
+      }
+
+      // armed_and_ready: add one Uncommon weapon at start
+      if (perkDef.id === 'armed_and_ready') {
+        // Find an uncommon-rarity weapon from weapons.json
+        const weapons = (weaponsJson as { weapons: Array<{ id: string; rarity: string }> }).weapons;
+        const uncommons = weapons.filter(w => w.rarity === 'uncommon');
+        if (uncommons.length > 0) {
+          const pick = uncommons[Math.floor(Math.random() * uncommons.length)];
+          if (pick) {
+            const inst = WeaponManager.createWeaponInstance(pick.id);
+            if (inst) {
+              this.gameState.inventory.weapons.push(inst);
+            }
+          }
+        }
+      }
+
+      // camp_fire: add one starting refugee
+      if (perkDef.id === 'camp_fire') {
+        const name = REFUGEE_NAMES[Math.floor(Math.random() * REFUGEE_NAMES.length)] ?? 'Alex';
+        const bonus = REFUGEE_SKILL_BONUSES[Math.floor(Math.random() * REFUGEE_SKILL_BONUSES.length)] ?? 'none';
+        this.gameState.refugees.push({
+          id: `legacy_refugee_${Date.now()}`,
+          name,
+          hp: 50,
+          maxHp: 50,
+          status: 'healthy',
+          job: null,
+          skillBonus: bonus,
+          bonusType: 'food',
+        });
+      }
+
+      // scholar: keep blueprints -- handled at death by NOT clearing unlockedBlueprints
+      // (NightScene checks for this perk before resetting on death -- not needed here at day start)
+
+      // tough_base: +50 max HP -- we store a flag; NightScene reads it via meta perks
+      // The actual HP bonus is applied in NightScene.create() by checking this perk
+      // (No action needed here at day start)
+
+      // lucky_looter: bonus applies in LootManager.ts dynamically -- no day-start change needed
+    }
+
+    SaveManager.save(this.gameState);
   }
 }

@@ -111,6 +111,12 @@ function createDefaultState(): GameState {
       explored: [],
     },
     unlockedBlueprints: [],
+    endlessHighScore: 0,
+    endlessNight: 0,
+    meta: {
+      legacyPoints: 0,
+      unlockedPerks: [],
+    },
   };
 }
 
@@ -180,6 +186,13 @@ function load(): GameState {
         },
         // Migration: old saves lack unlockedBlueprints -- default to empty array
         unlockedBlueprints: saved.unlockedBlueprints ?? defaults.unlockedBlueprints,
+        // Migration: endless mode and meta-progression fields added in v3.2.0
+        endlessHighScore: (saved as Partial<GameState>).endlessHighScore ?? 0,
+        endlessNight: (saved as Partial<GameState>).endlessNight ?? 0,
+        meta: {
+          legacyPoints: (saved as Partial<GameState>).meta?.legacyPoints ?? 0,
+          unlockedPerks: (saved as Partial<GameState>).meta?.unlockedPerks ?? [],
+        },
       };
       // Ensure all skill keys exist
       for (const key of Object.keys(defaults.player.skills)) {

@@ -3,7 +3,7 @@
 // Strategy: local "probe and turn" steering -- check nearby cells, pick the least blocked direction.
 
 import { MAP_WIDTH, MAP_HEIGHT, TILE_SIZE } from '../config/constants';
-import type { StructureInstance } from '../config/types';
+import type { NaturalBlockerRect, StructureInstance } from '../config/types';
 
 // Structure types that physically block movement (wall bodies in physics)
 const BLOCKING_STRUCTURE_IDS: ReadonlySet<string> = new Set([
@@ -43,6 +43,27 @@ export class PathGrid {
       const tileX = Math.floor(s.x / TILE_SIZE);
       const tileY = Math.floor(s.y / TILE_SIZE);
       this.setBlocked(tileX, tileY);
+    }
+  }
+
+  /**
+   * Mark natural terrain blockers (building ruins, bunkers) as occupied.
+   * Must be called AFTER updateFromStructures() so the grid is not reset.
+   * Each rect is axis-aligned; all tiles overlapping the rect are marked blocked.
+   */
+  addNaturalBlockers(blockers: NaturalBlockerRect[]): void {
+    for (const b of blockers) {
+      // Convert AABB to tile range (inclusive)
+      const tileLeft  = Math.floor((b.x - b.w / 2) / TILE_SIZE);
+      const tileRight = Math.floor((b.x + b.w / 2) / TILE_SIZE);
+      const tileTop   = Math.floor((b.y - b.h / 2) / TILE_SIZE);
+      const tileBot   = Math.floor((b.y + b.h / 2) / TILE_SIZE);
+
+      for (let ty = tileTop; ty <= tileBot; ty++) {
+        for (let tx = tileLeft; tx <= tileRight; tx++) {
+          this.setBlocked(tx, ty);
+        }
+      }
     }
   }
 

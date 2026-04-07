@@ -660,9 +660,13 @@ export class LootRunPanel {
   }
 
   private applyResults(result: LootResult): void {
+    // lucky_looter perk: +25% to all loot amounts
+    const hasLuckyLooter = (this.gameState.meta?.unlockedPerks ?? []).includes('lucky_looter');
+    const lootBonus = hasLuckyLooter ? 1.25 : 1.0;
+
     for (const [resource, amount] of Object.entries(result.loot) as Array<[ResourceType, number]>) {
       if (amount > 0) {
-        this.gameState.inventory.resources[resource] += amount;
+        this.gameState.inventory.resources[resource] += Math.round(amount * lootBonus);
       }
     }
 

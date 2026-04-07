@@ -40,7 +40,7 @@
         { "type": "brute", "count": 6, "spawnDelay": 3000 },
         { "type": "spitter", "count": 3, "spawnDelay": 2500 },
         { "type": "screamer", "count": 2, "spawnDelay": 5000 },
-        { "type": "brute_boss", "count": 1, "spawnDelay": 8000 }
+        { "type": "forest_boss", "count": 1, "spawnDelay": 8000 }
       ]
     }
   ]
