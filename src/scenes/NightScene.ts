@@ -5126,9 +5126,9 @@ export class NightScene extends Phaser.Scene {
     const heading = isPlayerKilled ? 'YOU DIED' : 'BASE DESTROYED';
     const headingColor = isPlayerKilled ? '#F44336' : '#D4620B';
 
-    // Panel dimensions
+    // Panel dimensions -- extra height to fit restart info block
     const panelW = 340;
-    const panelH = 290;
+    const panelH = 340;
     const px = (GAME_WIDTH - panelW) / 2;
     const py = (GAME_HEIGHT - panelH) / 2;
 
@@ -5195,13 +5195,33 @@ export class NightScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     container.add(flavorText);
 
-    // "You keep all your gear" reassurance
-    const gearText = this.add.text(GAME_WIDTH / 2, py + 170, 'You keep all your gear.', {
+    // Restart info: day resets but progression is kept
+    const restartHeaderText = this.add.text(GAME_WIDTH / 2, py + 170, 'You will restart at Day 1', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#4CAF50',
+      fontSize: '8px',
+      color: '#E8B84B',
     }).setOrigin(0.5);
-    container.add(gearText);
+    container.add(restartHeaderText);
+
+    // Three lines listing what is preserved after death
+    const keptLines = [
+      'All gear & weapons kept',
+      'Skills & XP kept',
+      'Refugees & base kept',
+    ];
+    const keptText = this.add.text(
+      GAME_WIDTH / 2,
+      py + 192,
+      keptLines.join('\n'),
+      {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#4CAF50',
+        align: 'center',
+        lineSpacing: 6,
+      }
+    ).setOrigin(0.5, 0);
+    container.add(keptText);
 
     // Continue prompt -- hidden until ready
     const continueText = this.add.text(GAME_WIDTH / 2, py + panelH - 22, '', {

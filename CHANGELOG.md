@@ -1,5 +1,31 @@
 # Dead Horizon -- Changelog
 
+## [v4.3.2] - 2026-04-04 22:28 -- Day-cycle visuals och tydligare death-restart
+
+### Varfor
+Spelaren behover tydligare feedback om vad som hander vid dod (progression bevaras) och en bättre kansla av dag-progression med ljus och atmosfar.
+
+### Andrade filer
+
+#### src/scenes/NightScene.ts
+- `showGameOver()`: panelhojd okad fran 290 till 340px for att rymma ny text
+- Ny text "You will restart at Day 1" i guld (#E8B84B) vid py+170
+- Ny text (tre rader) "All gear & weapons kept", "Skills & XP kept", "Refugees & base kept" i gront (#4CAF50)
+- Ersatter den tidigare enrads "You keep all your gear." med mer specifik och tydlig information
+
+#### src/scenes/DayScene.ts
+- Ny privat field `dayLightOverlay: Phaser.GameObjects.Graphics` -- lighting-overlay for dag-cykel
+- Ny privat field `_lastLightingAP: number` -- change-detection for att undvika onodiga omritningar
+- Ny privat field `nightWarningText: Phaser.GameObjects.Text | null` -- "Night is approaching..." text
+- Ny metod `showDawnAnimation()` -- fade-in-overlay fran morkt (#0A0505) med "A new dawn rises." och "Day N" text
+- Ny metod `updateDayLighting()` -- ritar orange/klart/rod overlay baserat pa aktuell AP
+- Ny metod `updateNightWarning(hoursLeft)` -- skapar/tar bort varningstext vid 1 AP kvar
+- `create()`: skapar dayLightOverlay och anropar showDawnAnimation() och updateDayLighting()
+- `update()`: detekterar AP-forandringar och kallar updateDayLighting() vid behov
+
+#### src/config/constants.ts
+- GAME_VERSION: 4.3.1 -> 4.3.2
+
 ## [perf] - 2026-04-04 22:09 -- SpatialBucketGrid: zombie-trap collision optimization
 
 ### Varfor
