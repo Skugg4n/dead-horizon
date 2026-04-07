@@ -20,8 +20,22 @@
     { "weaponId": "marksman_rifle",   "chance": 0.03, "destinations": ["military_outpost", "armory"] },
     { "weaponId": "combat_shotgun",   "chance": 0.03, "destinations": ["military_outpost", "armory", "police_station"] },
     { "weaponId": "pipe_bomb",        "chance": 0.03, "destinations": ["military_outpost", "armory", "city_ruins"] },
-    { "weaponId": "katana",           "chance": 0.03, "destinations": ["city_ruins", "military_outpost", "armory"] },
-    { "weaponId": "grenade_launcher", "chance": 0.01, "destinations": ["armory", "military_outpost"] }
+    { "weaponId": "katana",              "chance": 0.03, "destinations": ["city_ruins", "military_outpost", "armory"] },
+    { "weaponId": "grenade_launcher",    "chance": 0.01, "destinations": ["armory", "military_outpost"] },
+    { "weaponId": "frying_pan",          "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "city_ruins"] },
+    { "weaponId": "garden_spade",        "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "city_ruins"] },
+    { "weaponId": "lead_pipe",           "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "city_ruins"] },
+    { "weaponId": "kitchen_cleaver",     "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "weaponId": "door_frame",          "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "weaponId": "katana_uncommon",     "chance": 0.08, "destinations": ["ranger_station", "abandoned_store", "city_ruins"] },
+    { "weaponId": "fire_poker",          "chance": 0.08, "destinations": ["ranger_station", "abandoned_store", "city_ruins"] },
+    { "weaponId": "nunchucks",           "chance": 0.08, "destinations": ["ranger_station", "abandoned_store", "city_ruins"] },
+    { "weaponId": "sledgehammer",        "chance": 0.08, "destinations": ["ranger_station", "abandoned_store", "city_ruins"] },
+    { "weaponId": "dual_sai",            "chance": 0.08, "destinations": ["ranger_station", "abandoned_store", "city_ruins"] },
+    { "weaponId": "sharpened_fire_axe",  "chance": 0.03, "destinations": ["military_outpost", "armory", "police_station"] },
+    { "weaponId": "whip",                "chance": 0.03, "destinations": ["military_outpost", "armory", "police_station"] },
+    { "weaponId": "chainsaw",            "chance": 0.03, "destinations": ["military_outpost", "armory", "police_station"] },
+    { "weaponId": "legendary_katana",    "chance": 0.005, "destinations": ["armory"] }
   ],
   "destinations": [
     {

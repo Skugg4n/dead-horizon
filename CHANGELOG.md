@@ -1,5 +1,23 @@
 # Dead Horizon -- Changelog
 
+## [v4.8.0] - 2026-04-04 -- 14 nya melee-vapen i weapons.json och loot-tables.json
+
+### Varfor
+Utoka vapensortimentet med fler melee-alternativ fordelade pa common, uncommon, rare och legendary. Ger spelaren mer taktisk variation tidigt och sent i spelet.
+
+### Tillagt
+- **Common melee** (5 vapen): Frying Pan, Garden Spade, Lead Pipe, Kitchen Cleaver, Door Frame
+- **Uncommon melee** (5 vapen): Katana (uncommon, id katana_uncommon), Fire Poker, Nunchucks, Sledgehammer, Sai x2 (dual_sai)
+- **Rare melee** (3 vapen): Fire Axe (Sharpened), Whip, Chainsaw (noiseLevel 3 -- attraherar zombies)
+- **Legendary melee** (1 vapen): Katana (Legendary)
+- Alla 14 vapen inlagda i loot-tables.json med ratt destinations och chanser per raritet
+- GAME_VERSION bumpad till 4.8.0
+
+### Noteringar
+- Chainsaw har noiseLevel: 3 for att attrahera zombies som i game-design.md
+- Befintlig "katana" (rare, id: katana) bevarad oforandrad -- ny uncommon katana far id katana_uncommon for att undvika kollision
+- Sledgehammer-specialEffect kodar bade knockback och stun via value/duration-falten
+
 ## [v4.6.0] - 2026-04-04 23:36 -- Utokat ljudsystem: zon-ambient, footsteps, pickups, zombie-variation
 
 ### Varfor

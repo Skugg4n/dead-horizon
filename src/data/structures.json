@@ -6,7 +6,7 @@
       "category": "primitive",
       "description": "Slows zombies. 50 HP",
       "hp": 50,
-      "cost": { "scrap": 5 },
+      "cost": { "scrap": 3 },
       "apCost": 1,
       "maxLevel": 3,
       "effect": "slowsEnemies"
@@ -17,7 +17,7 @@
       "category": "primitive",
       "description": "Blocks zombies. 150 HP",
       "hp": 150,
-      "cost": { "scrap": 15 },
+      "cost": { "scrap": 8 },
       "apCost": 2,
       "maxLevel": 3,
       "effect": "blocksEnemies"

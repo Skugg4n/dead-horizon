@@ -149,6 +149,286 @@
       "specialEffect": { "type": "crit", "chance": 0.25, "value": 2, "duration": 0 }
     },
     {
+      "id": "frying_pan",
+      "name": "Frying Pan",
+      "class": "melee",
+      "damage": 18,
+      "range": 45,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 600,
+      "rarity": "common",
+      "maxDurability": 70,
+      "specialEffect": { "type": "stun", "chance": 0.2, "value": 0, "duration": 500 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "garden_spade",
+      "name": "Garden Spade",
+      "class": "melee",
+      "damage": 20,
+      "range": 50,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 550,
+      "rarity": "common",
+      "maxDurability": 55,
+      "specialEffect": { "type": "cripple", "chance": 0.25, "value": 0.5, "duration": 1500 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "lead_pipe",
+      "name": "Lead Pipe",
+      "class": "melee",
+      "damage": 22,
+      "range": 50,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 500,
+      "rarity": "common",
+      "maxDurability": 80,
+      "specialEffect": { "type": "stun", "chance": 0.15, "value": 0, "duration": 800 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "kitchen_cleaver",
+      "name": "Kitchen Cleaver",
+      "class": "melee",
+      "damage": 28,
+      "range": 35,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 400,
+      "rarity": "common",
+      "maxDurability": 40,
+      "specialEffect": { "type": "bleed", "chance": 0.3, "value": 8, "duration": 2000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "door_frame",
+      "name": "Door Frame",
+      "class": "melee",
+      "damage": 15,
+      "range": 65,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 700,
+      "rarity": "common",
+      "maxDurability": 30,
+      "specialEffect": { "type": "knockback", "chance": 1.0, "value": 60, "duration": 0 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "katana_uncommon",
+      "name": "Katana",
+      "class": "melee",
+      "damage": 40,
+      "range": 55,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 350,
+      "rarity": "uncommon",
+      "maxDurability": 45,
+      "specialEffect": { "type": "bleed", "chance": 0.4, "value": 10, "duration": 3000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "fire_poker",
+      "name": "Fire Poker",
+      "class": "melee",
+      "damage": 25,
+      "range": 55,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 450,
+      "rarity": "uncommon",
+      "maxDurability": 60,
+      "specialEffect": { "type": "incendiary", "chance": 0.2, "value": 5, "duration": 2000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "nunchucks",
+      "name": "Nunchucks",
+      "class": "melee",
+      "damage": 30,
+      "range": 40,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 300,
+      "rarity": "uncommon",
+      "maxDurability": 50,
+      "specialEffect": { "type": "stun", "chance": 0.3, "value": 0, "duration": 1000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "sledgehammer",
+      "name": "Sledgehammer",
+      "class": "melee",
+      "damage": 45,
+      "range": 50,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 800,
+      "rarity": "uncommon",
+      "maxDurability": 90,
+      "specialEffect": { "type": "knockback", "chance": 1.0, "value": 80, "duration": 1000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "dual_sai",
+      "name": "Sai x2",
+      "class": "melee",
+      "damage": 22,
+      "range": 35,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 250,
+      "rarity": "uncommon",
+      "maxDurability": 55,
+      "specialEffect": { "type": "bleed", "chance": 0.35, "value": 6, "duration": 2000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "sharpened_fire_axe",
+      "name": "Fire Axe (Sharpened)",
+      "class": "melee",
+      "damage": 50,
+      "range": 55,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 500,
+      "rarity": "rare",
+      "maxDurability": 70,
+      "specialEffect": { "type": "bleed", "chance": 0.5, "value": 12, "duration": 3000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "whip",
+      "name": "Whip",
+      "class": "melee",
+      "damage": 20,
+      "range": 80,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 500,
+      "rarity": "rare",
+      "maxDurability": 60,
+      "specialEffect": { "type": "cripple", "chance": 0.4, "value": 0.5, "duration": 2000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "chainsaw",
+      "name": "Chainsaw",
+      "class": "melee",
+      "damage": 55,
+      "range": 45,
+      "noiseLevel": 3,
+      "ammoPerNight": 0,
+      "fireRate": 200,
+      "rarity": "rare",
+      "maxDurability": 35,
+      "specialEffect": { "type": "bleed", "chance": 0.6, "value": 15, "duration": 3000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Spin Attack",
+        "description": "Hit ALL enemies within 48px radius",
+        "type": "spin_attack",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
+      "id": "legendary_katana",
+      "name": "Katana (Legendary)",
+      "class": "melee",
+      "damage": 60,
+      "range": 60,
+      "noiseLevel": 0,
+      "ammoPerNight": 0,
+      "fireRate": 300,
+      "rarity": "legendary",
+      "maxDurability": 100,
+      "specialEffect": { "type": "bleed", "chance": 0.8, "value": 15, "duration": 3000 },
+      "maxLevel": 5,
+      "ultimate": {
+        "name": "Cleave",
+        "description": "Pierce target and hit the zombie behind (75% dmg)",
+        "type": "cleave_pierce",
+        "cost": { "parts": 15, "scrap": 5 }
+      }
+    },
+    {
       "id": "worn_pistol",
       "name": "Worn Pistol",
       "class": "pistol",
