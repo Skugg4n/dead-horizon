@@ -16,6 +16,7 @@ const COLOR_ZOMBIE = 0xff2222;
 const COLOR_STRUCTURE = 0x44ff44;
 const COLOR_BASE = 0xffffff;
 const COLOR_PLAYER = 0x66aaff;
+const COLOR_PICKUP = 0xFFDD00; // yellow dot for pickups
 const COLOR_BG = 0x111111;
 const COLOR_BORDER = 0x555555;
 
@@ -49,6 +50,7 @@ export class Minimap {
   private lastBaseY: number = 0;
   private lastZombies: Array<{ x: number; y: number }> = [];
   private lastStructures: MinimapStructurePoint[] = [];
+  private lastPickups: Array<{ x: number; y: number }> = [];
 
   constructor(scene: Phaser.Scene, mapWidth: number, mapHeight: number) {
     this.mapPixelWidth = mapWidth;
@@ -77,13 +79,14 @@ export class Minimap {
    * Update minimap data. Call this every frame from NightScene.update().
    * Actual re-render only happens every UPDATE_INTERVAL_MS milliseconds.
    *
-   * @param playerX - Player world X position
-   * @param playerY - Player world Y position
-   * @param zombies - Phaser Group containing active Zombie game objects
+   * @param playerX   - Player world X position
+   * @param playerY   - Player world Y position
+   * @param zombies   - Phaser Group containing active Zombie game objects
    * @param structures - Array of structure positions and active state
-   * @param baseX - Base center world X position
-   * @param baseY - Base center world Y position
-   * @param delta - Frame delta in milliseconds
+   * @param baseX     - Base center world X position
+   * @param baseY     - Base center world Y position
+   * @param delta     - Frame delta in milliseconds
+   * @param pickups   - Optional array of active pickup world positions
    */
   update(
     playerX: number,
@@ -93,6 +96,7 @@ export class Minimap {
     baseX: number,
     baseY: number,
     delta: number,
+    pickups?: Array<{ x: number; y: number }>,
   ): void {
     this.timeSinceUpdate += delta;
     if (this.timeSinceUpdate < UPDATE_INTERVAL_MS) return;
@@ -111,6 +115,7 @@ export class Minimap {
     this.lastPlayerY = playerY;
     this.lastBaseX = baseX;
     this.lastBaseY = baseY;
+    this.lastPickups = pickups ?? [];
 
     this.render();
   }
@@ -144,6 +149,14 @@ export class Minimap {
       if (!s.active) continue;
       const mx = this.clampX(this.toMapX(s.x));
       const my = this.clampY(this.toMapY(s.y));
+      this.graphics.fillRect(mx - 1, my - 1, 2, 2);
+    }
+
+    // Draw pickups as 2x2 yellow dots
+    this.graphics.fillStyle(COLOR_PICKUP, 1);
+    for (const pk of this.lastPickups) {
+      const mx = this.clampX(this.toMapX(pk.x));
+      const my = this.clampY(this.toMapY(pk.y));
       this.graphics.fillRect(mx - 1, my - 1, 2, 2);
     }
 

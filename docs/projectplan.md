@@ -360,6 +360,20 @@ Dessa features implementeras baserat på feedback och prioritet:
 - [x] Visuella statusoverlayn: gron (aktiv), gra+timer (cooldown), orange+HOT! (overheat), rod blinkande !! (malfunction)
 - [x] Alla 6 fallor tillagda i structures.json och build-menyn (auto via getAllStructureData)
 
+### 6J: Night map pickups (v4.5.0)
+- [x] NightPickupManager: spawn, timer, proximity-collection, 6 typer
+- [x] pickups.json: all data i JSON (typ, chans, timer, spawn-lage, effekt)
+- [x] supply_crate: 3-8 slumpmassig resurs, nara basen, wave 2+
+- [x] ammo_cache: +15 loaded ammo, random position, wave 2+
+- [x] medkit: +40 HP, vid kartkanten, wave 1+
+- [x] hidden_stash: +5 scrap +3 ammo, vid kartkanten, wave 3+
+- [x] wounded_survivor: +1 refugee (max 1/natt), 300+px fran bas, wave 2+
+- [x] adrenaline_shot: 15s 1.5x speed+damage buff, random, wave 3+
+- [x] Player.speedBuff + Player.damageBuff fields
+- [x] Gul glow runt spelaren under adrenalin-buff
+- [x] Minimap: gula prickar for aktiva pickups
+- [x] Max 3 aktiva pickups samtidigt (performance-cap)
+
 ---
 
 ## Milstolpar

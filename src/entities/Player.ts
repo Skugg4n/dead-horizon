@@ -17,6 +17,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   maxStamina: number;
   kills: number = 0;
 
+  // Adrenaline buff multipliers (1 = no buff, reset after buff duration expires)
+  speedBuff: number = 1;
+  damageBuff: number = 1;
+
   private cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private wasd: {
     W: Phaser.Input.Keyboard.Key;
@@ -66,7 +70,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   update(delta: number): void {
     const dt = delta / 1000;
     const isSprinting = this.shiftKey?.isDown && this.stamina > 0;
-    const speed = isSprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED;
+    // Apply adrenaline speed buff multiplier (1.0 normally, 1.5 during buff)
+    const speed = (isSprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED) * this.speedBuff;
 
     // Movement
     let vx = 0;

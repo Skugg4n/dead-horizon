@@ -73,6 +73,7 @@ import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
 import { NightEventManager, BLOOD_MOON_SPEED_MULTIPLIER, BLOOD_MOON_HP_MULTIPLIER, RAIN_MALFUNCTION_BONUS, RAIN_FIRE_DAMAGE_MULTIPLIER } from '../systems/NightEventManager';
+import { NightPickupManager } from '../systems/NightPickupManager';
 import { distanceBetween, angleBetween } from '../utils/math';
 import { AudioManager } from '../systems/AudioManager';
 import { SpatialBucketGrid } from '../systems/SpatialGrid';
@@ -288,6 +289,12 @@ export class NightScene extends Phaser.Scene {
   private nightEventManager!: NightEventManager;
   // Rain effect: fire-based trap damage multiplier (1.0 normally, 0.5 when rain is active)
   private _rainFireDamageMultiplier: number = 1.0;
+  // Night pickup system
+  private nightPickupManager!: NightPickupManager;
+  // Adrenaline buff timer (ms remaining, 0 = no buff)
+  private _adrenalineTimer: number = 0;
+  // Glow graphics drawn around the player during adrenaline buff
+  private _adrenalineGlow: Phaser.GameObjects.Graphics | null = null;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -388,6 +395,15 @@ export class NightScene extends Phaser.Scene {
 
     // Minimap -- created after HUD so it sits on top of the HUD container
     this.minimap = new Minimap(this, MAP_WIDTH * TILE_SIZE, MAP_HEIGHT * TILE_SIZE);
+
+    // Night pickup manager -- spawns risk/reward map pickups during waves
+    this.nightPickupManager = new NightPickupManager(
+      this,
+      MAP_WIDTH * TILE_SIZE,
+      MAP_HEIGHT * TILE_SIZE,
+      this.baseCenterX,
+      this.baseCenterY,
+    );
 
     // Challenge HUD: show active challenge label and (for speed_run) a running timer
     if (this.gameState.activeChallenge) {
@@ -492,7 +508,14 @@ export class NightScene extends Phaser.Scene {
       this.events.off('zombie-spawned');
       this.events.off('bombardment-explosion');
       this.events.off('night-event-expired');
+      this.events.off('pickup-heal');
+      this.events.off('pickup-ammo');
+      this.events.off('pickup-resource');
+      this.events.off('pickup-refugee');
+      this.events.off('pickup-stash');
+      this.events.off('pickup-adrenaline');
 
+      this.nightPickupManager.destroy();
       this.nightEventManager.destroy();
       this.soundMechanic.destroy();
       this.tweens.killAll();
@@ -631,6 +654,30 @@ export class NightScene extends Phaser.Scene {
 
     // Update minimap -- internal throttle keeps it at 500ms intervals
     this.updateMinimap(delta);
+
+    // Update night pickups (proximity detection + timer countdown)
+    this.nightPickupManager.update(delta, this.player.x, this.player.y);
+
+    // Tick adrenaline buff timer; reset buffs when it expires
+    if (this._adrenalineTimer > 0) {
+      this._adrenalineTimer -= delta;
+      if (this._adrenalineTimer <= 0) {
+        this._adrenalineTimer = 0;
+        this.player.speedBuff = 1;
+        this.player.damageBuff = 1;
+        this.gameLog.addMessage('Adrenaline faded', '#FF8844');
+        if (this._adrenalineGlow) {
+          this._adrenalineGlow.destroy();
+          this._adrenalineGlow = null;
+        }
+      } else if (this._adrenalineGlow) {
+        // Pulse yellow glow ring around player
+        const pulse = 0.3 + 0.2 * Math.sin(this._adrenalineTimer * 0.008);
+        this._adrenalineGlow.clear();
+        this._adrenalineGlow.fillStyle(0xFFDD00, pulse);
+        this._adrenalineGlow.fillCircle(this.player.x, this.player.y, 20);
+      }
+    }
   }
 
   /**
@@ -644,6 +691,9 @@ export class NightScene extends Phaser.Scene {
     const structures: MinimapStructurePoint[] = this.gameState.base.structures
       .map(s => ({ x: s.x, y: s.y, active: true }));
 
+    // Get active pickup positions for yellow dots on minimap
+    const pickups = this.nightPickupManager.getActivePickups();
+
     this.minimap.update(
       this.player.x,
       this.player.y,
@@ -652,6 +702,7 @@ export class NightScene extends Phaser.Scene {
       this.baseCenterX,
       this.baseCenterY,
       delta,
+      pickups,
     );
   }
 
@@ -1969,6 +2020,13 @@ export class NightScene extends Phaser.Scene {
         this.gameLog.addMessage(`Wave ${wave} started`, '#FFD700');
       }
       AudioManager.play('wave_start');
+
+      // Spawn pickups for this wave (delayed slightly so they appear after wave banner)
+      this.time.delayedCall(1500, () => {
+        if (this.nightPickupManager) {
+          this.nightPickupManager.onWaveStart(wave);
+        }
+      });
     });
 
     this.events.on('wave-complete', (wave: number) => {
@@ -2418,6 +2476,69 @@ export class NightScene extends Phaser.Scene {
         }
       });
     });
+
+    // ---- Pickup events emitted by NightPickupManager ----
+
+    // Heal the player by a fixed amount (capped at maxHp)
+    this.events.on('pickup-heal', (amount: number) => {
+      if (!this.player.active) return;
+      const prev = this.player.hp;
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + amount);
+      const healed = this.player.hp - prev;
+      if (healed > 0) {
+        this.hud.updateHpBar(this.player.hp, this.player.maxHp);
+        this.gameLog.addMessage(`Medkit: +${healed} HP`, '#44FF88');
+      }
+    });
+
+    // Add ammo directly to loaded ammo pool
+    this.events.on('pickup-ammo', (amount: number) => {
+      this.loadedAmmo += amount;
+      this.hud.updateAmmo(this.loadedAmmo);
+      this.gameLog.addMessage(`+${amount} ammo loaded`, '#4488FF');
+    });
+
+    // Add a resource (scrap/food/ammo/meds/parts) to the stockpile
+    this.events.on('pickup-resource', (type: string, amount: number) => {
+      // Validate type is a known ResourceType before spending
+      const valid = ['scrap', 'food', 'ammo', 'meds', 'parts'];
+      if (!valid.includes(type)) return;
+      this.resourceManager.add(type as 'scrap' | 'food' | 'ammo' | 'meds' | 'parts', amount);
+      this.gameLog.addMessage(`Found: +${amount} ${type}`, '#FFD700');
+    });
+
+    // Rescue a survivor -- add as refugee if space is available
+    this.events.on('pickup-refugee', () => {
+      const newRefugee = this.refugeeManager.addRefugee();
+      if (newRefugee) {
+        this.gameLog.addMessage(`Survivor rescued: ${newRefugee.name}!`, '#00FF88');
+      } else {
+        this.gameLog.addMessage('No room for survivor (full camp)', '#FF8844');
+      }
+    });
+
+    // Hidden stash: add 5 scrap + 3 ammo (simple tangible reward, no weapon system at night)
+    this.events.on('pickup-stash', () => {
+      this.resourceManager.add('scrap', 5);
+      this.resourceManager.add('ammo', 3);
+      this.gameLog.addMessage('Stash: +5 scrap, +3 ammo', '#FFFFFF');
+    });
+
+    // Adrenaline buff: 1.5x speed and damage for N seconds
+    this.events.on('pickup-adrenaline', (durationSeconds: number) => {
+      const BUFF_SPEED = 1.5;
+      const BUFF_DAMAGE = 1.5;
+      this.player.speedBuff = BUFF_SPEED;
+      this.player.damageBuff = BUFF_DAMAGE;
+      this._adrenalineTimer = durationSeconds * 1000;
+      this.gameLog.addMessage(`ADRENALINE! +50% speed & damage for ${durationSeconds}s`, '#FF4444');
+
+      // Yellow glow around player
+      if (!this._adrenalineGlow) {
+        this._adrenalineGlow = this.add.graphics();
+        this._adrenalineGlow.setDepth(9); // just below player (depth 10)
+      }
+    });
   }
 
   /**
@@ -2709,7 +2830,11 @@ export class NightScene extends Phaser.Scene {
     // Play player attack animation
     this.player.playAttackAnim();
 
-    const stats = this.weaponManager.getWeaponStats(weapon);
+    const rawStats = this.weaponManager.getWeaponStats(weapon);
+    // Apply adrenaline damageBuff (1.0 normally, 1.5 during buff)
+    const stats = this.player.damageBuff !== 1
+      ? { ...rawStats, damage: Math.round(rawStats.damage * this.player.damageBuff) }
+      : rawStats;
     const isMelee = stats.weaponClass === 'melee';
 
     // Resolve ultimate type before consuming ammo (may redirect firing logic entirely)

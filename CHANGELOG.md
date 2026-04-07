@@ -1,5 +1,62 @@
 # Dead Horizon -- Changelog
 
+## [v4.5.0] - 2026-04-04 23:00 -- Night map pickups (risk/reward system)
+
+### Varfor
+Spelaren saknar anledning att lamna basen under natten. Night pickups ger risk/reward-mekanik -- pickups spawnar pa kartan och lockar spelaren att utforska farliga omraden.
+
+### Nya filer
+- `src/systems/NightPickupManager.ts` -- hanterar spawn, timer, proximity-kollektion och effekter for alla pickups
+- `src/data/pickups.json` -- all pickup-data (typ, timer, chans, spawn-lage, effekt) i JSON
+
+### Andrade filer
+
+#### src/config/constants.ts
+- `GAME_VERSION` bumpad till 4.5.0
+
+#### src/entities/Player.ts
+- Ny publik field `speedBuff: number = 1` -- multipliceras med rorelsehastigheten
+- Ny publik field `damageBuff: number = 1` -- multipliceras med vapenskada vid shootAt()
+- `update()`: speed beraknas nu som `baseSpeed * speedBuff`
+
+#### src/systems/NightPickupManager.ts (ny)
+- 6 pickup-typer: supply_crate, ammo_cache, medkit, hidden_stash, wounded_survivor, adrenaline_shot
+- Max 3 aktiva pickups samtidigt
+- Spawn-logik: viktad slump, separationscheck (80px min), spawn-lage per typ (nara bas / kant / far / random)
+- Varje pickup: Graphics med pulserande glow-tween, floating label, timer-bar (gron/gul/rod)
+- Collection: distance check 32px, ljud (ui_click), popp-animation
+- Expiry: fade-out vid timeout
+- Effekter via scene.events.emit: pickup-heal, pickup-ammo, pickup-resource, pickup-refugee, pickup-stash, pickup-adrenaline
+
+#### src/scenes/NightScene.ts
+- Import `NightPickupManager`
+- Nya privata fields: `nightPickupManager`, `_adrenalineTimer`, `_adrenalineGlow`
+- `create()`: skapar NightPickupManager efter minimap
+- `setupEvents()`: lyssnar pa wave-started och anropar `onWaveStart()` med 1.5s forsening; lyssnar pa alla pickup-events
+- `pickup-heal`: healar spelaren, uppdaterar HP-bar
+- `pickup-ammo`: lagg till loadedAmmo, uppdaterar HUD
+- `pickup-resource`: lagg till resurs via ResourceManager
+- `pickup-refugee`: addRefugee() via RefugeeManager
+- `pickup-stash`: +5 scrap +3 ammo (nattpriset, enkelt)
+- `pickup-adrenaline`: satter speedBuff=1.5, damageBuff=1.5, startar adrenalinTimer
+- `update()`: kallar `nightPickupManager.update()`, tickar `_adrenalineTimer`, ritar gul glow runt spelaren
+- `shootAt()`: multiplcerar `stats.damage * player.damageBuff` nar buff ar aktiv
+- `updateMinimap()`: passar `pickups` till `minimap.update()`
+- `shutdown`: rensar pickup-events + `nightPickupManager.destroy()`
+
+#### src/ui/Minimap.ts
+- Ny constant `COLOR_PICKUP = 0xFFDD00` (gul)
+- Ny privat field `lastPickups: Array<{x,y}>[]`
+- `update()`: tar nu valfri parameter `pickups?`; lagrar i `lastPickups`
+- `render()`: ritar gula 2x2 prickar for varje aktiv pickup (ritade fore zombies sa de inte overlappar)
+
+### Spelmekanik
+- 1-2 pickups spawnar per wave (50% chans att fa 2)
+- Chans: Supply 40%, Ammo 20%, Medkit 15%, Stash 10%, Survivor 10%, Adrenaline 5%
+- Wounded Survivor: max 1 per natt
+- Adrenaline: 15s buff (1.5x speed + 1.5x skada), gul pulsande glow runt spelaren
+- Gula prickar pa minimap visar pickup-positioner
+
 ## [v4.3.2] - 2026-04-04 22:28 -- Day-cycle visuals och tydligare death-restart
 
 ### Varfor
