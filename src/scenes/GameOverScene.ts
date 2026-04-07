@@ -51,7 +51,7 @@ export class GameOverScene extends Phaser.Scene {
 
     const advance = () => this.scene.start('DayScene');
 
-    this.time.delayedCall(3000, () => {
+    this.time.delayedCall(1000, () => {
       retryText.setText('[ TRY AGAIN ]');
       retryText.setInteractive({ useHandCursor: true });
       retryText.on('pointerover', () => retryText.setColor('#FFD700'));

@@ -186,9 +186,10 @@ export class NightScene extends Phaser.Scene {
     this.bloodSplatContainer = this.add.container(0, 0);
     this.bloodSplatContainer.setDepth(0);
 
-    // F3: Load base HP from save (restores between nights)
-    this.baseHp = this.gameState.base.hp ?? BASE_MAX_HP;
-    this.baseMaxHp = this.gameState.base.maxHp ?? BASE_MAX_HP;
+    // F3: Base HP scales with upgrade level
+    const baseLvlIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
+    const baseLvlHp = (baseLevelsJson.baseLevels[baseLvlIdx] as { baseHp?: number }).baseHp ?? BASE_MAX_HP;
+    this.baseMaxHp = baseLvlHp;
     // Restore full HP each night (base regenerates overnight)
     this.baseHp = this.baseMaxHp;
 

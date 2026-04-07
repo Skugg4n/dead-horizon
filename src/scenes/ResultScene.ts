@@ -38,7 +38,7 @@ export class ResultScene extends Phaser.Scene {
 
     const advance = () => this.scene.start('DayScene');
 
-    this.time.delayedCall(3000, () => {
+    this.time.delayedCall(1000, () => {
       continueText.setText('[ CONTINUE ]');
       continueText.setInteractive({ useHandCursor: true });
       continueText.on('pointerover', () => continueText.setColor('#FFD700'));

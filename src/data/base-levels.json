@@ -3,6 +3,7 @@
     {
       "level": 0,
       "name": "Tent",
+      "baseHp": 200,
       "cost": null,
       "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit"],
       "fogRadius": 3,
@@ -16,6 +17,7 @@
     {
       "level": 1,
       "name": "Camp",
+      "baseHp": 350,
       "cost": { "scrap": 30, "parts": 5 },
       "apCost": 3,
       "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "shock_wire", "spring_launcher", "chain_wall"],
@@ -30,6 +32,7 @@
     {
       "level": 2,
       "name": "Outpost",
+      "baseHp": 500,
       "cost": { "scrap": 60, "parts": 10 },
       "apCost": 5,
       "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "washing_cannon", "storage", "farm", "shock_wire", "spring_launcher", "chain_wall"],
@@ -44,6 +47,7 @@
     {
       "level": 3,
       "name": "Settlement",
+      "baseHp": 750,
       "cost": { "scrap": 100, "parts": 20 },
       "apCost": 5,
       "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit", "bear_trap", "landmine", "oil_slick", "pillbox", "shelter", "blade_spinner", "fire_pit", "propane_geyser", "washing_cannon", "storage", "farm", "shock_wire", "spring_launcher", "chain_wall"],
