@@ -361,40 +361,28 @@ export class DayScene extends Phaser.Scene {
   private showDawnAnimation(): void {
     const dayNumber = this.gameState.progress.currentWave;
 
-    // Fullscreen dark overlay -- covers both world and UI at dawn
+    // Quick dawn flash -- depth 600 to be above ALL dialogs/events
     const overlay = this.add.graphics();
-    overlay.fillStyle(0x0A0505, 1);
+    overlay.fillStyle(0x0A0505, 0.85);
     overlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    overlay.setDepth(500).setScrollFactor(0);
+    overlay.setDepth(600).setScrollFactor(0);
     this.addToUI(overlay);
 
-    const dawnText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20, 'A new dawn rises.', {
+    const dayText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, `Day ${dayNumber}`, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '12px',
+      fontSize: '18px',
       color: '#D4920B',
-    }).setOrigin(0.5).setDepth(501).setScrollFactor(0).setAlpha(0);
-    this.addToUI(dawnText);
-
-    const dayText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20, `Day ${dayNumber}`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '16px',
-      color: '#E8DCC8',
-    }).setOrigin(0.5).setDepth(501).setScrollFactor(0).setAlpha(0);
+    }).setOrigin(0.5).setDepth(601).setScrollFactor(0);
     this.addToUI(dayText);
 
-    // Text fades in immediately and slightly delayed
-    this.tweens.add({ targets: dawnText, alpha: 1, duration: 800 });
-    this.tweens.add({ targets: dayText, alpha: 1, duration: 800, delay: 500 });
-
-    // Overlay fades out over 2s (500ms delay so text is readable against darkness first)
+    // Fast fade: visible for 0.8s then gone in 0.5s
     this.tweens.add({
-      targets: overlay,
+      targets: [overlay, dayText],
       alpha: 0,
-      duration: 2000,
-      delay: 500,
+      duration: 500,
+      delay: 800,
       onComplete: () => {
         overlay.destroy();
-        dawnText.destroy();
         dayText.destroy();
       },
     });
