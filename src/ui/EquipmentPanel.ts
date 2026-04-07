@@ -433,18 +433,29 @@ export class EquipmentPanel {
       btnX += btn.width + btnGap;
     };
 
-    // EQUIP
-    makeBtn('[EQUIP]', '#E07030', () => {
-      const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
-      if (!primaryWeaponId) {
-        this.gameState.equipped.primaryWeaponId = w.id;
-      } else if (!secondaryWeaponId) {
-        this.gameState.equipped.secondaryWeaponId = w.id;
-      } else {
-        this.gameState.equipped.primaryWeaponId = w.id;
-      }
-      this.rebuild();
-    });
+    // EQUIP (disabled with [BROKEN] label when weapon durability is zero)
+    if (isBroken) {
+      // Show a non-interactive broken indicator instead of the equip button
+      const brokenLabel = this.scene.add.text(btnX, y, '[BROKEN]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#F44336',
+      });
+      content.add(brokenLabel);
+      btnX += brokenLabel.width + btnGap;
+    } else {
+      makeBtn('[EQUIP]', '#E07030', () => {
+        const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
+        if (!primaryWeaponId) {
+          this.gameState.equipped.primaryWeaponId = w.id;
+        } else if (!secondaryWeaponId) {
+          this.gameState.equipped.secondaryWeaponId = w.id;
+        } else {
+          this.gameState.equipped.primaryWeaponId = w.id;
+        }
+        this.rebuild();
+      });
+    }
 
     // REPAIR (if damaged)
     if (w.durability < w.maxDurability) {

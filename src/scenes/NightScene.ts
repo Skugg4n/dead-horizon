@@ -119,10 +119,12 @@ export class NightScene extends Phaser.Scene {
   // Debrief tracking: kills by source
   private trapKills: number = 0;
   private weaponKills: number = 0;
-  // Map from structure ID string to { name, kills } for top-trap report
+  // Map from trap TYPE (structureId/name) to kill count -- aggregates all instances of same trap type
   private trapKillMap: Map<string, { name: string; kills: number }> = new Map();
   // Count of base breakthrough events (zombie reached base center)
   private breakthroughCount: number = 0;
+  // Guard: only count one breakthrough per wave, not once per hit
+  private waveBreachCounted: boolean = false;
   // Structures destroyed this night
   private destroyedStructures: Array<{ structureId: string; x: number; y: number }> = [];
   // Ammo snapshot at night start (set after autoLoadAmmo)
@@ -131,7 +133,6 @@ export class NightScene extends Phaser.Scene {
   private bossKillsThisNight: number = 0;
   // Kill source tracking: set to 'trap' or 'weapon' before zombie.takeDamage() resolves as a kill
   private _currentKillSource: 'trap' | 'weapon' | null = null;
-  private _currentKillTrapId: string | null = null;
   private _currentKillTrapName: string | null = null;
   private loadedAmmo: number = 0;
   private weaponUsedThisNight: Set<string> = new Set();
@@ -267,11 +268,11 @@ export class NightScene extends Phaser.Scene {
     this.weaponKills = 0;
     this.trapKillMap = new Map();
     this.breakthroughCount = 0;
+    this.waveBreachCounted = false;
     this.destroyedStructures = [];
     this.ammoAtNightStart = 0;
     this.bossKillsThisNight = 0;
     this._currentKillSource = null;
-    this._currentKillTrapId = null;
     this._currentKillTrapName = null;
     this.shootCooldown = 0;
     this.isShooting = false;
@@ -1709,19 +1710,25 @@ export class NightScene extends Phaser.Scene {
       // Debrief: attribute kill to source (trap or weapon)
       if (this._currentKillSource === 'trap') {
         this.trapKills++;
-        if (this._currentKillTrapId && this._currentKillTrapName) {
-          const existingEntry = this.trapKillMap.get(this._currentKillTrapId);
+        if (this._currentKillTrapName) {
+          // Key by trap TYPE name so all instances of the same trap aggregate together
+          // e.g. 3x "Glass Shards" traps produce one "Glass Shards -- 10 kills" entry
+          const typeKey = this._currentKillTrapName;
+          const existingEntry = this.trapKillMap.get(typeKey);
           if (existingEntry) {
             existingEntry.kills++;
           } else {
-            this.trapKillMap.set(this._currentKillTrapId, { name: this._currentKillTrapName, kills: 1 });
+            this.trapKillMap.set(typeKey, { name: this._currentKillTrapName, kills: 1 });
           }
         }
+      } else if (this._currentKillSource === null) {
+        // Kill source was not set -- default to weapon attribution
+        console.warn('[NightScene] zombie-killed fired with null _currentKillSource, defaulting to weapon kill');
+        this.weaponKills++;
       } else {
         this.weaponKills++;
       }
       this._currentKillSource = null;
-      this._currentKillTrapId = null;
       this._currentKillTrapName = null;
 
       // Track boss kills for LP rewards
@@ -1747,6 +1754,8 @@ export class NightScene extends Phaser.Scene {
     });
 
     this.events.on('wave-started', (wave: number) => {
+      // Reset per-wave breach guard so the next wave can register a new breakthrough
+      this.waveBreachCounted = false;
       this.hud.updateWave(wave, this.waveManager.getMaxWaves());
       const maxWaves = this.waveManager.getMaxWaves();
       // Final night: wave 5 in a 5-wave night gets a special banner
@@ -1789,6 +1798,8 @@ export class NightScene extends Phaser.Scene {
       if (this.gameState.progress.currentWave > this.gameState.progress.highestWave) {
         this.gameState.progress.highestWave = this.gameState.progress.currentWave;
       }
+      // Return unused loaded ammo back to the inventory stockpile before saving
+      this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
       this.gameState.inventory.loadedAmmo = this.loadedAmmo;
       this.decreaseUsedWeaponDurability();
       this.skillManager.syncToState(this.gameState);
@@ -1887,6 +1898,8 @@ export class NightScene extends Phaser.Scene {
       this.gameState.progress.currentWave = 1;
       // Randomize map seed so the layout feels fresh on the retry
       this.gameState.mapSeed = Math.floor(Math.random() * 100000);
+      // Return unused loaded ammo back to the inventory stockpile before saving
+      this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
       this.gameState.inventory.loadedAmmo = this.loadedAmmo;
       this.decreaseUsedWeaponDurability();
       this.skillManager.syncToState(this.gameState);
@@ -2910,7 +2923,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= tx && zombie.x <= tx + TILE_SIZE &&
           zombie.y >= ty && zombie.y <= ty + TILE_SIZE
         ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = trap.structureInstance.id; this._currentKillTrapName = trap.structureInstance.structureId; zombie.takeDamage(trap.getDamage()); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = trap.structureInstance.structureId; zombie.takeDamage(trap.getDamage()); this._currentKillSource = null;
           // Trap trigger particles
           this.trapEmitter.emitParticleAt(
             trap.structureInstance.x + TILE_SIZE / 2,
@@ -2937,7 +2950,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= sx && zombie.x <= sx + TILE_SIZE &&
           zombie.y >= sy && zombie.y <= sy + TILE_SIZE
         ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = strip.structureInstance.id; this._currentKillTrapName = 'Spike Strip'; zombie.takeDamage(strip.getDamage()); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Spike Strip'; zombie.takeDamage(strip.getDamage()); this._currentKillSource = null;
           zombie.applyCripple(strip.crippleDuration);
           this.trapEmitter.emitParticleAt(
             strip.structureInstance.x + TILE_SIZE / 2,
@@ -2963,7 +2976,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= bx && zombie.x <= bx + TILE_SIZE &&
           zombie.y >= by && zombie.y <= by + TILE_SIZE
         ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = bt.structureInstance.id; this._currentKillTrapName = 'Bear Trap'; zombie.takeDamage(bt.getDamage()); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Bear Trap'; zombie.takeDamage(bt.getDamage()); this._currentKillSource = null;
           zombie.applyStun(bt.stunDuration);
           this.trapEmitter.emitParticleAt(
             bt.structureInstance.x + TILE_SIZE / 2,
@@ -3007,7 +3020,7 @@ export class NightScene extends Phaser.Scene {
           zombie.x >= nx && zombie.x <= nx + TILE_SIZE &&
           zombie.y >= ny && zombie.y <= ny + TILE_SIZE
         ) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = nb.structureInstance.id; this._currentKillTrapName = 'Nail Board'; zombie.takeDamage(nb.trapDamage); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Nail Board'; zombie.takeDamage(nb.trapDamage); this._currentKillSource = null;
           zombie.applyCripple(nb.crippleDuration);
           // Red flash on the board + small blood burst particles
           nb.triggerActivationEffect();
@@ -3060,7 +3073,7 @@ export class NightScene extends Phaser.Scene {
         if (!gs.isAlive()) continue;
         if (gs.containsPoint(zombie.x, zombie.y)) {
           // Damage proportional to frame time (5 dmg/s)
-          this._currentKillSource = 'trap'; this._currentKillTrapId = gs.structureInstance.id; this._currentKillTrapName = 'Glass Shards'; zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Glass Shards'; zombie.takeDamage(gs.damagePerSecond * this._lastDelta / 1000); this._currentKillSource = null;
           // Occasional glass tinkling (throttled by 600ms cooldown in AudioManager)
           AudioManager.play('trap_glass_shards');
         }
@@ -3182,7 +3195,7 @@ export class NightScene extends Phaser.Scene {
 
         if (pit.containsPoint(zombie.x, zombie.y)) {
           // Damage proportional to frame time (15 dmg/s); rain reduces fire damage
-          this._currentKillSource = 'trap'; this._currentKillTrapId = pit.structureInstance.id; this._currentKillTrapName = 'Pit Trap'; zombie.takeDamage(pit.damagePerSecond * delta / 1000 * this._rainFireDamageMultiplier); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Pit Trap'; zombie.takeDamage(pit.damagePerSecond * delta / 1000 * this._rainFireDamageMultiplier); this._currentKillSource = null;
         }
       }
     }
@@ -3410,7 +3423,7 @@ export class NightScene extends Phaser.Scene {
             wb.triggerImpact();
             this.trapEmitter.emitParticleAt(cx, cy, 14);
           }
-          this._currentKillSource = 'trap'; this._currentKillTrapId = wb.structureInstance.id; this._currentKillTrapName = 'Wrecking Ball'; zombie.takeDamage(wb.damage); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Wrecking Ball'; zombie.takeDamage(wb.damage); this._currentKillSource = null;
         }
       }
     }
@@ -3480,7 +3493,7 @@ export class NightScene extends Phaser.Scene {
         if (zombie.x >= tbX && zombie.x <= tbX + TILE_SIZE &&
             zombie.y >= tbY && zombie.y <= tbY + TILE_SIZE) {
           // Continuous delta-scaled damage
-          this._currentKillSource = 'trap'; this._currentKillTrapId = tb.structureInstance.id; this._currentKillTrapName = 'Treadmill Blades'; zombie.takeDamage(tb.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Treadmill Blades'; zombie.takeDamage(tb.damagePerSecond * delta / 1000); this._currentKillSource = null;
           // Pushback: push away from belt center (horizontal)
           if (zombie.body) {
             const cx = tbX + TILE_SIZE / 2;
@@ -3513,7 +3526,7 @@ export class NightScene extends Phaser.Scene {
         const angle = Math.atan2(dy, dx);
         const absAngle = Math.abs(angle);
         if (absAngle < fg.coneHalfAngle || Math.abs(angle - Math.PI) < fg.coneHalfAngle || Math.abs(angle + Math.PI) < fg.coneHalfAngle) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = fg.structureInstance.id; this._currentKillTrapName = 'Fan Glass'; zombie.takeDamage(fg.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Fan Glass'; zombie.takeDamage(fg.damagePerSecond * delta / 1000); this._currentKillSource = null;
           hitAny = true;
         }
       }
@@ -3582,7 +3595,7 @@ export class NightScene extends Phaser.Scene {
         const mgDy = zombie.y - mgCY;
         if (mgDx * mgDx + mgDy * mgDy <= mgRSq) {
           mgAnyInZone = true;
-          this._currentKillSource = 'trap'; this._currentKillTrapId = mg.structureInstance.id; this._currentKillTrapName = 'Meat Grinder'; zombie.takeDamage(mg.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Meat Grinder'; zombie.takeDamage(mg.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
 
@@ -3610,7 +3623,7 @@ export class NightScene extends Phaser.Scene {
           zombie.y >= bsgY && zombie.y <= bsgY + TILE_SIZE
         ) {
           bsgContact = true;
-          this._currentKillSource = 'trap'; this._currentKillTrapId = bsg.structureInstance.id; this._currentKillTrapName = 'Belt Sander Gauntlet'; zombie.takeDamage(bsg.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Belt Sander Gauntlet'; zombie.takeDamage(bsg.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
 
@@ -3689,7 +3702,7 @@ export class NightScene extends Phaser.Scene {
           zombie.y >= chY && zombie.y <= chY + TILE_SIZE
         ) {
           chAnyInZone = true;
-          this._currentKillSource = 'trap'; this._currentKillTrapId = ch.structureInstance.id; this._currentKillTrapName = 'Combine Harvester'; zombie.takeDamage(ch.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Combine Harvester'; zombie.takeDamage(ch.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
 
@@ -3742,7 +3755,7 @@ export class NightScene extends Phaser.Scene {
         const cbDx = zombie.x - cbCX;
         const cbDy = zombie.y - cbCY;
         if (cbDx * cbDx + cbDy * cbDy <= cbRSq) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = cb.structureInstance.id; this._currentKillTrapName = 'Car Bomb'; zombie.takeDamage(cb.explosionDamage); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Car Bomb'; zombie.takeDamage(cb.explosionDamage); this._currentKillSource = null;
         }
       }
 
@@ -3772,7 +3785,7 @@ export class NightScene extends Phaser.Scene {
         const zombie = child as Zombie;
         if (!zombie.active) continue;
         if (ns.isInCone(zombie.x, zombie.y)) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = ns.structureInstance.id; this._currentKillTrapName = 'Napalm Sprinkler'; zombie.takeDamage(ns.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Napalm Sprinkler'; zombie.takeDamage(ns.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
     }
@@ -3836,7 +3849,7 @@ export class NightScene extends Phaser.Scene {
         const zombie = child as Zombie;
         if (!zombie.active) continue;
         if (fp.isInCone(zombie.x, zombie.y)) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = fp.structureInstance.id; this._currentKillTrapName = 'Flamethrower Post'; zombie.takeDamage(fp.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Flamethrower Post'; zombie.takeDamage(fp.damagePerSecond * delta / 1000); this._currentKillSource = null;
         }
       }
     }
@@ -3946,7 +3959,7 @@ export class NightScene extends Phaser.Scene {
             pa.triggerActivationEffect();
             this.trapEmitter.emitParticleAt(pax, pay, 8);
           }
-          this._currentKillSource = 'trap'; this._currentKillTrapId = pa.structureInstance.id; this._currentKillTrapName = 'Pendulum Axe'; zombie.takeDamage(pa.trapDamage); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Pendulum Axe'; zombie.takeDamage(pa.trapDamage); this._currentKillSource = null;
         }
       }
     }
@@ -3987,7 +4000,7 @@ export class NightScene extends Phaser.Scene {
         const dy = zombie.y - bzy;
         const distSq = dx * dx + dy * dy;
         if (distSq <= bzRSq) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = bz.structureInstance.id; this._currentKillTrapName = 'Bug Zapper XL'; zombie.takeDamage(bz.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Bug Zapper XL'; zombie.takeDamage(bz.damagePerSecond * delta / 1000); this._currentKillSource = null;
           const dist = Math.sqrt(distSq);
           if (dist > 4 && zombie.body && !zombie.isStunned()) {
             const nx = -dx / dist;
@@ -4043,7 +4056,7 @@ export class NightScene extends Phaser.Scene {
         const zombie = child as Zombie;
         if (!zombie.active) continue;
         if (zombie.x >= efx0 - 4 && zombie.x <= efx0 + TILE_SIZE + 4 && zombie.y >= efy0 - 4 && zombie.y <= efy0 + TILE_SIZE + 4) {
-          this._currentKillSource = 'trap'; this._currentKillTrapId = ef.structureInstance.id; this._currentKillTrapName = 'Electric Fence'; zombie.takeDamage(ef.damagePerSecond * delta / 1000); this._currentKillSource = null;
+          this._currentKillSource = 'trap'; this._currentKillTrapName = 'Electric Fence'; zombie.takeDamage(ef.damagePerSecond * delta / 1000); this._currentKillSource = null;
           efAny = true;
         }
       }
@@ -4687,8 +4700,11 @@ export class NightScene extends Phaser.Scene {
   private damageBase(amount: number): void {
     this.baseHp = Math.max(0, this.baseHp - amount);
     this.baseDamageTaken += amount;
-    // Debrief: count each hit on the base as a breakthrough event
-    this.breakthroughCount++;
+    // Debrief: count only one breakthrough per wave (not once per hit)
+    if (!this.waveBreachCounted) {
+      this.breakthroughCount++;
+      this.waveBreachCounted = true;
+    }
     this.hud.updateBaseHpBar(this.baseHp, this.baseMaxHp);
     // Throttled to max once per 5 seconds so the log doesn't spam
     this.gameLog.addBaseDamageMessage();
@@ -5071,7 +5087,8 @@ export class NightScene extends Phaser.Scene {
    * Used to populate ResultScene with detailed debrief information.
    */
   private buildNightStats(isEndless: boolean): import('../config/types').NightStats {
-    // Sort trap kills map by kills descending, take top 3
+    // Sort trap kills map by kills descending, take top 3.
+    // Map is now keyed by trap type name so kills from all instances of the same trap type are merged.
     const topTraps = Array.from(this.trapKillMap.entries())
       .map(([trapId, data]) => ({ trapId, trapName: data.name, kills: data.kills }))
       .sort((a, b) => b.kills - a.kills)

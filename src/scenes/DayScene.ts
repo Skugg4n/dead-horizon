@@ -1399,7 +1399,9 @@ export class DayScene extends Phaser.Scene {
     // Food consumption (survival skill reduces consumption)
     const foodResult = this.refugeeManager.consumeFood();
     if (foodResult.missing > 0) {
-      this.showInfo(`Not enough food! ${foodResult.missing} refugees starving.`);
+      // Show prominent starvation warning in both the info banner and the game log
+      this.showInfo('Refugees starving! Need more food!');
+      this.gameLog.addMessage(`Refugees starving! ${foodResult.missing} went without food.`, '#FF4444');
     }
 
     // Auto-heal injured refugees (uses 1 med per refugee, no job assignment needed)

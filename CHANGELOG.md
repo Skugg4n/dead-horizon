@@ -1,5 +1,37 @@
 # Dead Horizon -- Changelog
 
+## [v4.1.0] - 2026-04-04 19:00 -- Bug fixes: 7 utvarderingsproblem atgardade
+
+### NightScene.ts -- Fix 1: Top Traps aggregerar per trap-typ, inte per instans
+- `trapKillMap` nyckel andrad fran instans-ID till `structureId` (trap-typnamn)
+- Tre "Glass Shards"-traps med 4+3+3 kills ger nu ett korrekt "Glass Shards -- 10 kills"
+
+### NightScene.ts -- Fix 2: Breakthroughs raknar nu bara en gang per wave
+- Lade till `waveBreachCounted: boolean` som nollstalls i wave-started-handler
+- `damageBase()` okar breakthroughCount max en gang per wave, inte per hit-event
+
+### NightScene.ts -- Fix 3: Kill attribution fallback till 'weapon' om kallor ar null
+- Om `_currentKillSource` ar null vid zombie-killed: defaultar till weapon-kill med console.warn
+
+### NightScene.ts -- Fix 5: Oanvand ammo returneras till lagret vid natt-slut
+- `all-waves-complete`: `inventory.resources.ammo += Math.max(0, loadedAmmo)` laggt till innan save
+- `player-died`: samma retur-logik innan save, sa ammo inte forsvinner vid death
+
+### EquipmentPanel.ts -- Fix 6: Trasiga vapen visar [BROKEN] i rott, equip-knapp dold
+- `renderStorageEntry()`: om `weaponManager.isBroken(w)` visas en rod [BROKEN]-text utan interaktion
+- [EQUIP]-knappen visas inte for trasiga vapen
+
+### DayScene.ts -- Fix 7: Svaltningsvarning i HUD och GameLog
+- `processDayStart()`: om `foodResult.missing > 0` visas "Refugees starving! Need more food!" i info-bannern
+- Logg-meddelande i GameLog med rod farg med antalet svaltande refugees
+
+### NightScene.ts -- Fix 10: Verifierade weather gameplay-effekter (inga andingar nodvandiga)
+- `applyRainEffectsToTraps()`, `electricDisabled` via hasEvent, `applyBombardmentDamage` ar alla redan kopplade
+- Veriferade att NightEventManager driver alla tre effekter korrekt
+
+### constants.ts
+- GAME_VERSION: '4.0.3' -> '4.1.0'
+
 ## [v4.0.1] - 2026-04-04 -- UX-fixes: PackYourBag layout, shortcut hints i paneler, HUD-cleanup
 
 ### PackYourBagScene.ts -- komplett omskrivning av layout och UX
