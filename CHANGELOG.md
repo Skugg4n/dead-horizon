@@ -1,5 +1,59 @@
 # Dead Horizon -- Changelog
 
+## [2.5.8] - 2026-04-04
+
+### Multi-tile ghost preview + keyboard nav improvements
+
+**src/data/structures.json:**
+- Added `widthTiles: 3` to `glass_shards` (was missing; oil_slick, fire_pit, tar_pit already had it).
+
+**src/systems/BuildingManager.ts:**
+- Added `zoneRadius` and `damagePerSecond` optional fields to `StructureData` interface so TypeScript accepts the glass_shards values without errors.
+
+**src/scenes/DayScene.ts -- startPlacement():**
+- Ghost preview now reads `widthTiles` from structure data and draws a rectangle that covers the full tile footprint (widthTiles * TILE_SIZE wide and tall).
+- Fallback for zone-based structures (e.g. glass_shards): computes tile count from `zoneRadius * 2 / TILE_SIZE`.
+- Default remains 1x1 tile for structures with no size fields.
+- Ghost stroke width raised from 1 to 2px, alpha 0.9 for better visibility.
+
+**src/ui/LootRunPanel.ts -- handleKey():**
+- Added keyboard support for companion selection screen:
+  - 1-9 toggles companions by index (same as clicking the entry).
+  - Enter starts the run immediately (GO).
+  - Backspace returns to destinations list (same as clicking BACK).
+
+**src/ui/EncounterDialog.ts:**
+- Already had full keyboard support (1=Fight, 2=Flee, ESC=flee, Enter dismisses result). No changes needed.
+
+**src/ui/BuildMenu.ts:**
+- Already had full keyboard nav (1-9, arrows, Enter, Tab). No changes needed.
+
+## [2.5.7] - 2026-04-04
+
+### Polish: Font standardization, tooltip and timing verification
+
+**src/ui/ResourceBar.ts:**
+- Fixed fontSize from 11px to 8px for resource number texts (body text standard).
+
+**src/ui/RefugeePanel.ts:**
+- Fixed "No survivors yet." from 10px to 8px (body text, not a header).
+
+**src/ui/EquipmentPanel.ts:**
+- No changes needed -- font sizes already follow the hierarchy.
+
+**src/scenes/DayScene.ts (tooltips verified):**
+- RESOURCE_TOOLTIPS hover system confirmed working: hover over resource bar shows tooltip above.
+- Tooltip texts confirmed up to date (scrap/food/ammo/parts/meds descriptions).
+- Tooltip positioned at RES_BAR_Y - 2 with setOrigin(0.5, 1) -- stays on screen.
+
+**src/ui/HUD.ts (timing verified):**
+- showWaveAnnouncement: delay=2000ms before fade (OK).
+- showMessage: delay=2500ms before fade (OK).
+
+**src/scenes/NightScene.ts (timing verified):**
+- NO AMMO message: delayedCall(200ms) delay + 2500ms visibility (OK).
+- No-fuel trap warning: delayedCall(500ms) delay + 2500ms visibility (OK).
+
 ## [2.7.0] - 2026-04-07
 
 ### Feature: GameLog UI component

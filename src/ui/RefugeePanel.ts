@@ -80,7 +80,7 @@ export class RefugeePanel {
       content.add(
         this.scene.add.text(0, 20, 'No survivors yet.', {
           fontFamily: '"Press Start 2P", monospace',
-          fontSize: '10px',
+          fontSize: '8px',
           color: '#6B6B6B',
         }),
       );

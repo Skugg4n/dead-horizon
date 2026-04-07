@@ -46,7 +46,7 @@ export class ResourceBar {
         `${config.icon} ${config.label}: ${value}`,
         {
           fontFamily: '"Press Start 2P", monospace',
-          fontSize: '11px',
+          fontSize: '8px',
           color: '#E8DCC8',
         }
       ).setOrigin(0.5);

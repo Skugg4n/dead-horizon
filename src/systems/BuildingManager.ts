@@ -26,9 +26,12 @@ export interface StructureData {
   aoeRadius?: number;
   // Sandbags / Oil Slick
   slowFactor?: number;
-  // Oil Slick
+  // Oil Slick / Tar Pit / Fire Pit
   widthTiles?: number;
   nightDuration?: number;
+  // Glass Shards
+  zoneRadius?: number;
+  damagePerSecond?: number;
 }
 
 /**

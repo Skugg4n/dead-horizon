@@ -123,6 +123,36 @@ export class LootRunPanel {
       }
     }
 
+    // In companions mode: 1-9 toggle companions, Enter = GO, Backspace = back
+    if (this.panelState === 'companions') {
+      if (key === 'Enter') {
+        this.startRun();
+        return true;
+      }
+      if (key === 'Backspace') {
+        this.panelState = 'destinations';
+        this.rebuild();
+        return true;
+      }
+      const num = parseInt(key, 10);
+      if (num >= 1 && num <= 9) {
+        const healthyRefugees = this.gameState.refugees.filter(
+          r => r.status === 'healthy' && r.hp > 0 && r.job !== 'loot_run',
+        );
+        const refugee = healthyRefugees[num - 1];
+        if (refugee) {
+          const isSelected = this.selectedCompanions.some(c => c.id === refugee.id);
+          if (isSelected) {
+            this.selectedCompanions = this.selectedCompanions.filter(c => c.id !== refugee.id);
+          } else {
+            this.selectedCompanions.push(refugee);
+          }
+          this.buildCompanionScreen();
+        }
+        return true;
+      }
+    }
+
     return false;
   }
 

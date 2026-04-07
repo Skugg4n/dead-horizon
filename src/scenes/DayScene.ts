@@ -977,16 +977,37 @@ export class DayScene extends Phaser.Scene {
       this.placementJustStarted = false;
     });
 
-    // Create ghost preview (world-space element, only on main camera)
+    // Create ghost preview (world-space element, only on main camera).
+    // For multi-tile structures (widthTiles > 1 or zoneRadius > TILE_SIZE/2)
+    // we draw a ghost that covers the actual footprint so the player can see
+    // what area will be affected.
     if (this.ghostGraphics) {
       this.ghostGraphics.destroy();
     }
     const color = STRUCTURE_COLORS[structureId] ?? 0x888888;
+    const structData = this.buildingManager.getStructureData(structureId);
+
+    // Determine ghost pixel dimensions from structure data.
+    // Priority: widthTiles field -> zoneRadius field -> default 1 tile.
+    let ghostW = TILE_SIZE;
+    let ghostH = TILE_SIZE;
+    if (structData) {
+      if (structData.widthTiles && structData.widthTiles > 1) {
+        ghostW = structData.widthTiles * TILE_SIZE;
+        ghostH = structData.widthTiles * TILE_SIZE;
+      } else if (structData.zoneRadius && structData.zoneRadius > TILE_SIZE / 2) {
+        // zoneRadius describes a circular zone -- use diameter capped to nearest tile
+        const tiles = Math.round((structData.zoneRadius * 2) / TILE_SIZE);
+        ghostW = tiles * TILE_SIZE;
+        ghostH = tiles * TILE_SIZE;
+      }
+    }
+
     this.ghostGraphics = this.add.graphics();
     this.ghostGraphics.fillStyle(color, 0.5);
-    this.ghostGraphics.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-    this.ghostGraphics.lineStyle(1, 0xFFD700, 0.8);
-    this.ghostGraphics.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
+    this.ghostGraphics.fillRect(0, 0, ghostW, ghostH);
+    this.ghostGraphics.lineStyle(2, 0xFFD700, 0.9);
+    this.ghostGraphics.strokeRect(0, 0, ghostW, ghostH);
     this.ghostGraphics.setDepth(50);
     this.addToWorld(this.ghostGraphics);
 

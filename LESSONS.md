@@ -192,6 +192,14 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ---
 
+## Placement ghost och multi-tile strukturer
+
+### Ghost preview visade alltid 1x1 tile
+**Problem:** startPlacement() ritade alltid en TILE_SIZE x TILE_SIZE ghost, oavsett om strukturen ocksa har widthTiles > 1 (oil_slick, fire_pit, tar_pit, glass_shards ar 3 tiles breda).
+**Losning:** Las `widthTiles` fran StructureData i startPlacement(). Om `widthTiles > 1` ritas ghosten som `widthTiles * TILE_SIZE` bred och hog. For zone-baserade strukturer (glass_shards har `zoneRadius` istallet) beraknas storleken som `round(zoneRadius * 2 / TILE_SIZE) * TILE_SIZE`. Alltid addera `widthTiles` till structures.json for strukturer med bredare fotavtryck.
+
+---
+
 ## BuildMenu och DayScene
 
 ### Ny BuildMenu-klass vs inline build menu i DayScene
