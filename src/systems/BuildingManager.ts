@@ -3,6 +3,17 @@ import { SaveManager } from './SaveManager';
 import { TILE_SIZE } from '../config/constants';
 import type { GameState, StructureInstance, ResourceType } from '../config/types';
 
+/** Per-level upgrade definition loaded from structures.json upgrades field. */
+export interface StructureUpgradeLevel {
+  cost: Record<string, number>;
+  apCost: number;
+  trapDamage?: number;
+  trapDurability?: number;
+  cooldownMs?: number;
+  overheatMax?: number;
+  nightDuration?: number;
+}
+
 export interface StructureData {
   id: string;
   name: string;
@@ -32,6 +43,8 @@ export interface StructureData {
   // Glass Shards
   zoneRadius?: number;
   damagePerSecond?: number;
+  /** Level-specific upgrade data keyed by target level ("2", "3"). */
+  upgrades?: Record<string, StructureUpgradeLevel>;
 }
 
 /**
@@ -140,7 +153,45 @@ export class BuildingManager {
   }
 
   /**
-   * Upgrade a structure by instance id. Costs same resources as initial build.
+   * Returns the upgrade definition for the next level of a structure instance,
+   * or null if the structure is already at max level or has no upgrade data.
+   */
+  getNextUpgrade(instance: StructureInstance): StructureUpgradeLevel | null {
+    const data = this.structureDataMap.get(instance.structureId);
+    if (!data) return null;
+    if (instance.level >= data.maxLevel) return null;
+    const nextLevel = (instance.level + 1).toString();
+    return data.upgrades?.[nextLevel] ?? null;
+  }
+
+  /**
+   * Check if the player can afford the upgrade cost for the next level.
+   * Falls back to the base build cost if no per-level upgrade data exists.
+   */
+  canAffordUpgrade(instance: StructureInstance): boolean {
+    const upgrade = this.getNextUpgrade(instance);
+    const costMap = upgrade ? upgrade.cost : this.structureDataMap.get(instance.structureId)?.cost ?? {};
+    for (const [resource, amount] of Object.entries(costMap)) {
+      const have = this.gameState.inventory.resources[resource as ResourceType] ?? 0;
+      if (have < amount) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Check if there is enough AP for the next upgrade.
+   * Falls back to the base apCost if no per-level upgrade data exists.
+   */
+  hasEnoughAPForUpgrade(instance: StructureInstance, currentAP: number): boolean {
+    const upgrade = this.getNextUpgrade(instance);
+    const apCost = upgrade ? upgrade.apCost : (this.structureDataMap.get(instance.structureId)?.apCost ?? 1);
+    return currentAP >= apCost;
+  }
+
+  /**
+   * Upgrade a structure by instance id.
+   * Uses per-level upgrade cost from structures.json if available,
+   * otherwise falls back to the base build cost (legacy path for barricade/wall/etc).
    * Returns new AP remaining or null if upgrade failed.
    */
   upgrade(instanceId: string, currentAP: number): { apRemaining: number } | null {
@@ -151,11 +202,23 @@ export class BuildingManager {
     if (!data) return null;
 
     if (instance.level >= data.maxLevel) return null;
-    if (currentAP < data.apCost) return null;
-    if (!this.canAfford(instance.structureId)) return null;
+
+    // Determine upgrade cost and AP cost for the target level
+    const nextLevelKey = (instance.level + 1).toString();
+    const upgradeDef = data.upgrades?.[nextLevelKey];
+    const costMap = upgradeDef ? upgradeDef.cost : data.cost;
+    const apCost  = upgradeDef ? upgradeDef.apCost : data.apCost;
+
+    if (currentAP < apCost) return null;
+
+    // Verify player can afford
+    for (const [resource, amount] of Object.entries(costMap)) {
+      const have = this.gameState.inventory.resources[resource as ResourceType] ?? 0;
+      if (have < amount) return null;
+    }
 
     // Deduct resources
-    for (const [resource, amount] of Object.entries(data.cost)) {
+    for (const [resource, amount] of Object.entries(costMap)) {
       this.gameState.inventory.resources[resource as ResourceType] -= amount;
     }
 
@@ -167,7 +230,7 @@ export class BuildingManager {
 
     this.scene.events.emit('structure-upgraded', instance);
 
-    return { apRemaining: currentAP - data.apCost };
+    return { apRemaining: currentAP - apCost };
   }
 
   /**

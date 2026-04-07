@@ -4,19 +4,25 @@ import type { StructureInstance } from '../config/types';
 import type { Zombie } from '../entities/Zombie';
 import { TrapBase } from './TrapBase';
 
+/** Optional overrides for FirePit stats (applied by NightScene when level > 1). */
+export interface FirePitOverrides {
+  damagePerSecond?: number;
+}
+
 /**
  * Fire Pit -- a burning zone that deals continuous damage to zombies standing in it.
  *
  * Visual: flickering orange/red circle drawn via Graphics.
- * Damage: 15 dmg/s (applied as 15*delta/1000 per frame by NightScene).
+ * Damage: 15 dmg/s base (applied as dmg*delta/1000 per frame by NightScene).
  * Cooldown: 0 (always active while fueled).
  * Malfunction chance: 5%.
  * Fuel: 2 food/night.
  * Lasts 3 nights (tracked via nightsRemaining in structureInstance data).
+ * Lv2: 25 dmg/s. Lv3: 35 dmg/s.
  */
 export class FirePit extends TrapBase {
   /** Damage per second dealt to zombies inside the pit zone. */
-  public readonly damagePerSecond: number = 15;
+  public readonly damagePerSecond: number;
 
   /** Width of the burn zone in tiles (3 tiles). */
   public readonly widthTiles: number = 3;
@@ -24,7 +30,7 @@ export class FirePit extends TrapBase {
   /** Flicker phase drives the animated radius variation. */
   private flickerPhase: number = 0;
 
-  constructor(scene: Phaser.Scene, instance: StructureInstance) {
+  constructor(scene: Phaser.Scene, instance: StructureInstance, overrides?: FirePitOverrides) {
     super(
       scene,
       instance,
@@ -36,6 +42,7 @@ export class FirePit extends TrapBase {
       -1,   // uses (-1 = unlimited)
       2,    // fuelPerNight (2 food)
     );
+    this.damagePerSecond = overrides?.damagePerSecond ?? 15;
   }
 
   protected draw(): void {

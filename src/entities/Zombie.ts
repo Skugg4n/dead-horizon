@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import enemiesData from '../data/enemies.json';
 import { AudioManager } from '../systems/AudioManager';
+import type { PathGrid } from '../systems/PathGrid';
 
 export type ZombieBehavior = 'walker' | 'runner' | 'brute' | 'spitter' | 'screamer' | 'boss';
 
@@ -166,9 +167,16 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   private mapHeight: number = 960;
   private flankTarget: { x: number; y: number } | null = null;
 
+  // Optional reference to the shared PathGrid for steering around walls
+  private pathGrid: PathGrid | null = null;
+
   setMapSize(width: number, height: number): void {
     this.mapWidth = width;
     this.mapHeight = height;
+  }
+
+  setPathGrid(grid: PathGrid): void {
+    this.pathGrid = grid;
   }
 
   /** Pick a flanking point: offset from base toward a random map edge */
@@ -300,16 +308,22 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     }
 
     // Move toward target -- apply cripple debuff if active (-50% speed)
-    const angle = Phaser.Math.Angle.Between(
-      this.x, this.y,
-      targetX, targetY
-    );
     const speedMult = this.crippleTimer > 0 ? 0.5 : 1.0;
 
-    this.setVelocity(
-      Math.cos(angle) * this.moveSpeed * speedMult,
-      Math.sin(angle) * this.moveSpeed * speedMult
-    );
+    // Use PathGrid steering if available; otherwise fall back to direct movement
+    if (this.pathGrid) {
+      const dir = this.pathGrid.getSteeringDirection(this.x, this.y, targetX, targetY);
+      this.setVelocity(
+        dir.x * this.moveSpeed * speedMult,
+        dir.y * this.moveSpeed * speedMult
+      );
+    } else {
+      const angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
+      this.setVelocity(
+        Math.cos(angle) * this.moveSpeed * speedMult,
+        Math.sin(angle) * this.moveSpeed * speedMult
+      );
+    }
 
     this.playWalkAnim();
   }

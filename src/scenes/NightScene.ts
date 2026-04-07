@@ -14,8 +14,8 @@ import { BearTrap } from '../structures/BearTrap';
 import { Landmine } from '../structures/Landmine';
 import { Sandbags } from '../structures/Sandbags';
 import { OilSlick } from '../structures/OilSlick';
-import { BladeSpinner } from '../structures/BladeSpinner';
-import { FirePit } from '../structures/FirePit';
+import { BladeSpinner, type BladeSpinnerOverrides } from '../structures/BladeSpinner';
+import { FirePit, type FirePitOverrides } from '../structures/FirePit';
 import { PropaneGeyser } from '../structures/PropaneGeyser';
 import { CartWall } from '../structures/CartWall';
 import { WashingCannon } from '../structures/WashingCannon';
@@ -49,6 +49,7 @@ import baseLevelsJson from '../data/base-levels.json';
 import enemiesData from '../data/enemies.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 import { generateTerrain } from '../systems/TerrainGenerator';
+import { PathGrid } from '../systems/PathGrid';
 import type { TerrainResult } from '../config/types';
 
 // Parse structure colors from JSON (string hex to number)
@@ -162,6 +163,8 @@ export class NightScene extends Phaser.Scene {
   // Boss-night atmosphere: red overlay that pulses in intensity over time
   private bossNightOverlay: Phaser.GameObjects.Graphics | null = null;
   private bossNightTime: number = 0; // accumulated time (ms) for pulse calculation
+  // Shared PathGrid for zombie steering around walls and barricades
+  private pathGrid!: PathGrid;
 
   constructor() {
     super({ key: 'NightScene' });
@@ -198,6 +201,9 @@ export class NightScene extends Phaser.Scene {
     this.createTerrain();
 
     this.createStructures();
+    // Build path grid after structures are placed so walls are registered
+    this.pathGrid = new PathGrid();
+    this.pathGrid.updateFromStructures(this.gameState.base.structures);
     this.createFogOfWar();
     this.createPlayer();
     this.createGroups();
@@ -631,10 +637,35 @@ export class NightScene extends Phaser.Scene {
     const landmineDef    = structuresData.structures.find(s => s.id === 'landmine');
     const sandbagsDef    = structuresData.structures.find(s => s.id === 'sandbags');
     const oilSlickDef    = structuresData.structures.find(s => s.id === 'oil_slick');
-    const nailBoardDef   = structuresData.structures.find(s => s.id === 'nail_board');
-    const tripWireDef    = structuresData.structures.find(s => s.id === 'trip_wire');
-    const glassShardsdef = structuresData.structures.find(s => s.id === 'glass_shards');
-    const tarPitDef      = structuresData.structures.find(s => s.id === 'tar_pit');
+    const nailBoardDef    = structuresData.structures.find(s => s.id === 'nail_board');
+    const tripWireDef     = structuresData.structures.find(s => s.id === 'trip_wire');
+    const glassShardsdef  = structuresData.structures.find(s => s.id === 'glass_shards');
+    const tarPitDef       = structuresData.structures.find(s => s.id === 'tar_pit');
+    const bladeSpinnerDef = structuresData.structures.find(s => s.id === 'blade_spinner');
+    const firePitDef      = structuresData.structures.find(s => s.id === 'fire_pit');
+
+    /**
+     * Return the effective numeric stat for a structure, merging level-specific
+     * upgrade overrides from the "upgrades" field in structures.json.
+     * If the structure is Lv1 (or has no upgrades entry), the base value is returned.
+     */
+    function getLeveledStat<T extends Record<string, unknown>>(
+      def: T | undefined,
+      level: number,
+      key: keyof T,
+      fallback: number,
+    ): number {
+      if (!def) return fallback;
+      // Try to find an upgrades entry for the current level
+      const upgrades = (def as Record<string, unknown>)['upgrades'] as Record<string, Record<string, number>> | undefined;
+      if (upgrades && level >= 2) {
+        const lvlData = upgrades[level.toString()];
+        if (lvlData && key in lvlData) return lvlData[key as string] as number;
+      }
+      // Fall back to base value
+      const base = def[key];
+      return typeof base === 'number' ? base : fallback;
+    }
 
     const noFuelTraps: string[] = [];
 
@@ -704,7 +735,13 @@ export class NightScene extends Phaser.Scene {
           break;
         }
         case 'blade_spinner': {
-          const spinner = new BladeSpinner(this, structure);
+          // Build level-based overrides (Lv2: 35 dmg/3s cd, Lv3: 50 dmg/2s cd/-50% overheat)
+          const bsOverrides: BladeSpinnerOverrides = {
+            trapDamage:  getLeveledStat(bladeSpinnerDef, structure.level, 'trapDamage',  25),
+            cooldownMs:  getLeveledStat(bladeSpinnerDef, structure.level, 'cooldownMs',  4000),
+            overheatMax: getLeveledStat(bladeSpinnerDef, structure.level, 'overheatMax', 30000),
+          };
+          const spinner = new BladeSpinner(this, structure, bsOverrides);
           // Roll malfunction at night start
           if (Math.random() < spinner.malfunctionChance) {
             spinner.malfunctioned = true;
@@ -722,7 +759,11 @@ export class NightScene extends Phaser.Scene {
           break;
         }
         case 'fire_pit': {
-          const pit = new FirePit(this, structure);
+          // Build level-based overrides (Lv2: 25 dmg/s, Lv3: 35 dmg/s)
+          const fpOverrides: FirePitOverrides = {
+            damagePerSecond: getLeveledStat(firePitDef, structure.level, 'trapDamage', 15),
+          };
+          const pit = new FirePit(this, structure, fpOverrides);
           if (Math.random() < pit.malfunctionChance) {
             pit.malfunctioned = true;
           }
@@ -777,9 +818,10 @@ export class NightScene extends Phaser.Scene {
           break;
         }
         case 'nail_board': {
-          const dmg   = (nailBoardDef as { trapDamage?: number } | undefined)?.trapDamage ?? 10;
+          // Apply level-based stat bonuses (Lv2: 15 dmg / 25 uses, Lv3: 20 dmg / 35 uses)
+          const dmg   = getLeveledStat(nailBoardDef, structure.level, 'trapDamage', 10);
           const crip  = (nailBoardDef as { crippleDuration?: number } | undefined)?.crippleDuration ?? 2000;
-          const uses  = (nailBoardDef as { trapDurability?: number } | undefined)?.trapDurability ?? 20;
+          const uses  = getLeveledStat(nailBoardDef, structure.level, 'trapDurability', 20);
           const nb    = new NailBoard(this, structure, dmg, crip, uses);
           this._nailBoards.push(nb);
           break;
@@ -943,6 +985,9 @@ export class NightScene extends Phaser.Scene {
 
     // Pass map dimensions to waveManager for wanderer boundary calculations
     this.waveManager.setMapSize(mapPixelWidth, mapPixelHeight);
+
+    // Provide PathGrid so spawned zombies can steer around walls
+    this.waveManager.setPathGrid(this.pathGrid);
 
     // Spawn zones at the four edges
     this.waveManager.setSpawnZones([
@@ -1318,9 +1363,11 @@ export class NightScene extends Phaser.Scene {
         if (existing) {
           existing.reset(boss.x + offsetX, boss.y + offsetY, spawnConfig);
           if (target) existing.setTarget(target);
+          existing.setPathGrid(this.pathGrid);
         } else {
           const zombie = new Zombie(this, boss.x + offsetX, boss.y + offsetY, spawnConfig);
           if (target) zombie.setTarget(target);
+          zombie.setPathGrid(this.pathGrid);
           this.zombieGroup.add(zombie);
         }
         // Count the spawned enemy for wave tracking

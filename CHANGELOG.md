@@ -1,5 +1,135 @@
 # Dead Horizon -- Changelog
 
+## [Unreleased] - 2026-04-04 -- Fall-leveling Lv1-3
+
+### Fall-leveling: Nail Board, Blade Spinner, Fire Pit kan uppgraderas till Lv3
+
+**src/data/structures.json:**
+- nail_board: maxLevel 1 -> 3, lagt till "upgrades": { "2": {parts:3, dmg:15, uses:25}, "3": {parts:8, dmg:20, uses:35} }
+- blade_spinner: maxLevel 1 -> 3, lagt till "upgrades": { "2": {parts:3, dmg:35, cd:3s}, "3": {parts:8, dmg:50, cd:2s, overheat:15s} }
+- fire_pit: maxLevel 1 -> 3, lagt till "upgrades": { "2": {parts:3, dmg:25/s}, "3": {parts:8, dmg:35/s} }
+
+**src/systems/BuildingManager.ts:**
+- Ny interface StructureUpgradeLevel -- typdef for per-niva upgrade data
+- Ny metod getNextUpgrade(instance) -- returnerar nasta nivans StructureUpgradeLevel eller null
+- Ny metod canAffordUpgrade(instance) -- kontrollerar upgrade-kostnad (ej bygg-kostnad)
+- Ny metod hasEnoughAPForUpgrade(instance, ap) -- kontrollerar AP mot upgrade-kostnad
+- upgrade() omskriven: anvander nu per-niva kostnad fran upgrades-faltet, faller tillbaka pa bygg-kostnad om upgrades saknas (bakatkompat)
+
+**src/scenes/DayScene.ts:**
+- showStructurePopup() anvander nu canAffordUpgrade/hasEnoughAPForUpgrade
+- Visar "Lv2: 3 parts, 1 AP" ovanfor upgrade-knappen
+- Popup hogre (110px) nar upgrade finns
+
+**src/structures/BladeSpinner.ts:**
+- Ny interface BladeSpinnerOverrides {trapDamage, cooldownMs, overheatMax}
+- Konstruktorn tar optional overrides -- injiceras av NightScene vid Lv>1
+- trapDamage ar nu en public mutabel property (ej hardkodad 25)
+
+**src/structures/FirePit.ts:**
+- Ny interface FirePitOverrides {damagePerSecond}
+- Konstruktorn tar optional overrides -- injiceras av NightScene vid Lv>1
+- damagePerSecond ar nu satt fran overrides (default 15)
+
+**src/scenes/NightScene.ts:**
+- Importerar BladeSpinnerOverrides, FirePitOverrides
+- Laddar bladeSpinnerDef, firePitDef fran structuresData
+- Ny inner-funktion getLeveledStat<T>() -- slår upp upgrades[level] faltet i def, faller tillbaka pa bas-varde
+- blade_spinner case: bygger bsOverrides med getLeveledStat for damage/cooldown/overheat
+- fire_pit case: bygger fpOverrides med getLeveledStat for damagePerSecond
+- nail_board case: anvander getLeveledStat for dmg och uses
+
+## [Unreleased] - 2026-04-04 -- Grid-baserad zombie-steering runt vaggar
+
+### PathGrid: lokal steering for zombies runt vaggar och barrikader
+
+**src/systems/PathGrid.ts (ny fil):**
+- Skapar en 2D Uint8Array-grid (MAP_WIDTH x MAP_HEIGHT tiles)
+- `updateFromStructures(structures)` -- markerar wall, barricade, cart_wall, chain_wall som blocked
+- `getSteeringDirection(fromX, fromY, targetX, targetY)` -- returnerar normaliserad riktningsvektor
+- Steering-algoritm: provar idealriktning, sedan +/-45, +/-90, +/-135 grader tills fri cell hittas
+- Fallback till rak riktning om alla riktningar blockeras (zombie instaingd av vaggar)
+- Ingen full A* -- kors per zombie-pathfind-tick (150ms/500ms), inte varje frame
+
+**src/entities/Zombie.ts:**
+- Ny privat field `pathGrid: PathGrid | null = null`
+- Ny metod `setPathGrid(grid: PathGrid): void`
+- `update()`: om pathGrid finns, anva nder `getSteeringDirection()` istallet for direkt vinkel
+- Fallback till befintlig rak-mot-target-logik om ingen grid finns (bakart-kompatibelt)
+
+**src/systems/WaveManager.ts:**
+- Ny privat field `pathGrid: PathGrid | null = null`
+- Ny metod `setPathGrid(grid: PathGrid): void`
+- `spawnEnemy()`: skickar pathGrid-referens till varje zombie vid spawn och pool-reuse
+
+**src/scenes/NightScene.ts:**
+- Ny privat field `pathGrid: PathGrid`
+- I `create()`: skapar PathGrid och populerar den med strukturer direkt efter `createStructures()`
+- I `setupWaveManager()`: skickar pathGrid till waveManager via `setPathGrid()`
+- Boss-death spawns: skickar pathGrid till boss-spawnade zombies
+
+**Varfor:** Zombies gick rakt igenom vaggar via physics-pushback utan att navigera runt dem.
+Nu styr de runt blockerande strukturer med minimal CPU-kostnad.
+
+## [Unreleased] - 2026-04-04 -- Camp Crew: passivt refugee-system
+
+### Forenklat refugee-system (Camp Crew)
+
+Refugees tilldelas inte langre jobb. Varje refugee ger en passiv bonus automatiskt.
+
+**src/config/types.ts:**
+- Lade till `RefugeeBonusType = 'food' | 'scrap' | 'repair'`
+- Lade till `bonusType: RefugeeBonusType` pa `RefugeeInstance`
+
+**src/systems/RefugeeManager.ts:**
+- Tog bort jobb-tilldelnings-logik fran gathering-flode
+- Varje ny refugee far `bonusType` tilldelad vid rescue (cyklar food/scrap/repair jamnt)
+- `ensureBonusTypes()`: backward compat -- tilldelar bonusType till gamla saves utan det faltet
+- `applyDailyBonuses()`: ger food/scrap till inventory, returnerar repairBonus-antal
+- `getDailyFoodBonus()`, `getDailyScrapBonus()`, `getRepairBonus()`: raknar friska refugees per typ
+- `healRefugee(id)`: manuell heala en skadad refugee (kostar 1 med), anropas fran panel
+- `hasMedsForHeal()`: returnerar om meds finns for healing
+- `processHealing()`: auto-healar alla skadade refugees vid dagstart om meds finns (krav pa 'rest'-jobb borttaget)
+- `processGathering()`: stub (returnerar nollor) -- gathering sker nu passivt vid dagstart
+
+**src/ui/RefugeePanel.ts:**
+- Komplett omskrivning: byt ut jobb-knappar mot enkel Camp Crew-lista
+- Visar: portratt | namn | bonustyp (+1 Food/day etc) | status (healthy/injured)
+- Enda knapp: "Heal (1 med)" for skadade refugees
+- Panel-titel andrad till "CAMP CREW"
+
+**src/scenes/DayScene.ts:**
+- `processDayStart()`: anropar `applyDailyBonuses()` och visar Camp Crew-info
+- `processDayStart()`: anropar `ensureBonusTypes()` direkt efter RefugeeManager-konstruktion
+- `endDay()`: tog bort `processGathering()`-anropet (bonusar appliceras nu vid dagstart)
+- Debug-knapp ADD REFUGEE: fick `bonusType: 'food'` pa hardkodat objekt
+
+Anledning: Foljde design fran docs/defense-redesign.md sektion 4 -- forenklat system,
+ingen jobb-tilldelning, refugees hjalper automatiskt.
+
+## [Unreleased] - 2026-04-04 -- PackYourBag zone-transition screen
+
+### Ny skärm: PackYourBagScene
+
+**src/scenes/PackYourBagScene.ts (ny fil):**
+- Ny Phaser-scen som visas mellan ZoneCompleteScene och DayScene vid zon-byte
+- Vapensektionen: visar alla vapen spelaren äger, max 4 kan väljas via klick eller tangent 1-9
+- Resurssektionen: +/- knappar och visualiserad bar per resurs, totalt budget 50 enheter
+- Budget-display uppdateras live och byter färg (grön/gul/röd) beroende på återstående utrymme
+- Refugee-sektionen: visar alla refugees, alla följer med (ingen val)
+- Skills-sektionen: visar aktiva skills med nivå, alla behålls
+- MOVE OUT-knapp (Enter eller klick): applicerar val och startar DayScene
+- Tangentbord: 1-9 vapen, piltangenter Up/Down för resurs-fokus, Left/Right/+/- justering, Enter bekräftar
+- applyZoneTransition(): sätter nextZone, ny mapSeed, nollställer bas och equipped, behåller refugees/skills/blueprints
+
+**src/scenes/ZoneCompleteScene.ts (modifierad):**
+- Knappen "[ BACK TO MENU ]" byts mot "[ CONTINUE >> ]" om det finns en nästa zon
+- Navigerar till PackYourBagScene (med fromZone-data) istället för direkt till MenuScene
+- Sista zonen (military cleared) behåller "[ BACK TO MENU ]"-beteendet
+
+**src/main.ts (modifierad):**
+- PackYourBagScene importerad och registrerad i scene-arrayen
+
 ## [2.7.7] - 2026-04-04
 
 ### Forbattrade karaktarsportrait och nya struktur-sprites

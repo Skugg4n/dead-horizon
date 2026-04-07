@@ -92,7 +92,7 @@
       "hp": 100,
       "cost": { "scrap": 5, "parts": 3 },
       "apCost": 1,
-      "maxLevel": 1,
+      "maxLevel": 3,
       "effect": "aoeRotatingBlades",
       "trapDamage": 25,
       "aoeRadius": 40,
@@ -100,7 +100,11 @@
       "overheatMax": 30000,
       "recoveryMs": 10000,
       "malfunctionChance": 0.15,
-      "fuelPerNight": 1
+      "fuelPerNight": 1,
+      "upgrades": {
+        "2": { "cost": { "parts": 3 }, "apCost": 1, "trapDamage": 35, "cooldownMs": 3000 },
+        "3": { "cost": { "parts": 8 }, "apCost": 1, "trapDamage": 50, "cooldownMs": 2000, "overheatMax": 15000 }
+      }
     },
     {
       "id": "fire_pit",
@@ -110,13 +114,17 @@
       "hp": 60,
       "cost": { "scrap": 3, "food": 2 },
       "apCost": 1,
-      "maxLevel": 1,
+      "maxLevel": 3,
       "effect": "burnZone",
       "trapDamage": 15,
       "widthTiles": 3,
       "malfunctionChance": 0.05,
       "fuelPerNight": 2,
-      "nightDuration": 3
+      "nightDuration": 3,
+      "upgrades": {
+        "2": { "cost": { "parts": 3 }, "apCost": 1, "trapDamage": 25 },
+        "3": { "cost": { "parts": 8 }, "apCost": 1, "trapDamage": 35, "nightDuration": 3 }
+      }
     },
     {
       "id": "propane_geyser",
@@ -245,11 +253,15 @@
       "hp": 20,
       "cost": { "scrap": 2 },
       "apCost": 1,
-      "maxLevel": 1,
+      "maxLevel": 3,
       "effect": "damagesAndCripples",
       "trapDamage": 10,
       "trapDurability": 20,
-      "crippleDuration": 2000
+      "crippleDuration": 2000,
+      "upgrades": {
+        "2": { "cost": { "parts": 3 }, "apCost": 1, "trapDamage": 15, "trapDurability": 25 },
+        "3": { "cost": { "parts": 8 }, "apCost": 1, "trapDamage": 20, "trapDurability": 35 }
+      }
     },
     {
       "id": "trip_wire",

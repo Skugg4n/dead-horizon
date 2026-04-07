@@ -271,7 +271,11 @@ export class ZoneCompleteScene extends Phaser.Scene {
       ease: 'Power2',
     });
 
-    // === BACK TO MENU button (appears after 3s) ===
+    // === CONTINUE button (appears after 3s) ===
+    // If there is a next zone, CONTINUE goes to PackYourBagScene so the player
+    // can choose what to bring. If this was the last zone, return to MenuScene.
+    const continueLabel = nextZone ? '[ CONTINUE >> ]' : '[ BACK TO MENU ]';
+
     const backBtn = this.add.text(cx, cy + 138, '', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -281,11 +285,16 @@ export class ZoneCompleteScene extends Phaser.Scene {
     let blinkTween: Phaser.Tweens.Tween | null = null;
 
     const advance = (): void => {
-      this.scene.start('MenuScene');
+      if (nextZone) {
+        // Go to packing screen before the next zone starts
+        this.scene.start('PackYourBagScene', { fromZone: data.zone });
+      } else {
+        this.scene.start('MenuScene');
+      }
     };
 
     this.time.delayedCall(3000, () => {
-      backBtn.setText('[ BACK TO MENU ]');
+      backBtn.setText(continueLabel);
 
       this.tweens.add({
         targets: backBtn,

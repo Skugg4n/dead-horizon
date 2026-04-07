@@ -1,8 +1,9 @@
 // Dead Horizon -- Refugee manager
-// Tracks refugees, job assignments, healing, food consumption, and random arrivals
+// Camp Crew: each refugee provides a passive daily bonus (food, scrap, or repair).
+// No job assignment needed -- they just exist and help.
 
 import Phaser from 'phaser';
-import type { GameState, RefugeeInstance, RefugeeJob, RefugeeStatus } from '../config/types';
+import type { GameState, RefugeeInstance, RefugeeJob, RefugeeStatus, RefugeeBonusType } from '../config/types';
 import {
   REFUGEE_NAMES,
   REFUGEE_SKILL_BONUSES,
@@ -12,10 +13,10 @@ import {
   REFUGEE_FOOD_PER_DAY,
   REFUGEE_FOOD_STARVE_DAMAGE,
   REFUGEE_HEAL_MEDS_COST,
-  REFUGEE_GATHER_FOOD_AMOUNT,
-  REFUGEE_GATHER_SCRAP_AMOUNT,
-  REFUGEE_REPAIR_AMOUNT,
 } from '../config/constants';
+
+// Possible passive bonus types in order so we can cycle through them evenly
+const BONUS_TYPES: RefugeeBonusType[] = ['food', 'scrap', 'repair'];
 
 export class RefugeeManager {
   private scene: Phaser.Scene;
@@ -56,6 +57,10 @@ export class RefugeeManager {
       return null;
     }
 
+    // Assign bonus type at rescue time: cycle through food/scrap/repair evenly
+    const bonusType: RefugeeBonusType =
+      BONUS_TYPES[this.refugees.length % BONUS_TYPES.length] ?? 'food';
+
     const refugee: RefugeeInstance = {
       id: `refugee_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       name: this.generateName(),
@@ -64,11 +69,24 @@ export class RefugeeManager {
       status: 'healthy',
       job: null,
       skillBonus: REFUGEE_SKILL_BONUSES[Math.floor(Math.random() * REFUGEE_SKILL_BONUSES.length)] ?? 'Tough',
+      bonusType,
     };
 
     this.refugees.push(refugee);
     this.scene.events.emit('refugee-arrived', refugee);
     return refugee;
+  }
+
+  // Ensure all loaded refugees have a bonusType (backward compat with saves from before Camp Crew).
+  // Called once after constructing the manager. Old save files lack this field at runtime.
+  ensureBonusTypes(): void {
+    this.refugees.forEach((refugee, i) => {
+      // Cast to allow undefined-check on data that predates the bonusType field
+      const r = refugee as RefugeeInstance & { bonusType?: RefugeeBonusType };
+      if (!r.bonusType) {
+        refugee.bonusType = BONUS_TYPES[i % BONUS_TYPES.length] ?? 'food';
+      }
+    });
   }
 
   removeRefugee(id: string): void {
@@ -125,12 +143,32 @@ export class RefugeeManager {
     return { needed, available, missing };
   }
 
-  // Called at day start -- injured refugees on 'rest' job heal if meds available
+  // Returns true if the inventory has at least one med for healing
+  hasMedsForHeal(): boolean {
+    return this.gameState.inventory.resources.meds >= REFUGEE_HEAL_MEDS_COST;
+  }
+
+  // Manually heal one refugee via the panel Heal button (costs 1 med)
+  healRefugee(id: string): boolean {
+    const refugee = this.getById(id);
+    if (!refugee || refugee.status !== 'injured') return false;
+    if (!this.hasMedsForHeal()) return false;
+
+    this.gameState.inventory.resources.meds -= REFUGEE_HEAL_MEDS_COST;
+    refugee.hp = refugee.maxHp;
+    refugee.status = 'healthy';
+    this.scene.events.emit('refugee-healed', refugee);
+    return true;
+  }
+
+  // Called at day start -- injured refugees heal passively if player spends 1 med
+  // In Camp Crew mode the player clicks "Heal" in the panel, but this auto-heals on day start too.
   processHealing(): string[] {
     const messages: string[] = [];
-    const resting = this.refugees.filter(r => r.status === 'injured' && r.job === 'rest');
+    // Heal any injured refugees that can afford meds (no job assignment required)
+    const injured = this.refugees.filter(r => r.status === 'injured');
 
-    for (const refugee of resting) {
+    for (const refugee of injured) {
       if (this.gameState.inventory.resources.meds >= REFUGEE_HEAL_MEDS_COST) {
         this.gameState.inventory.resources.meds -= REFUGEE_HEAL_MEDS_COST;
         refugee.hp = refugee.maxHp;
@@ -142,52 +180,44 @@ export class RefugeeManager {
     return messages;
   }
 
-  // Called at end of day -- refugees on jobs produce resources
-  processGathering(): { food: number; scrap: number; repaired: number } {
-    let food = 0;
-    let scrap = 0;
-    let repaired = 0;
+  // --- Camp Crew passive bonuses ---
 
-    for (const refugee of this.refugees) {
-      if (refugee.status !== 'healthy') continue;
+  // Returns count of healthy refugees with a given bonus type
+  private countHealthyByBonus(type: RefugeeBonusType): number {
+    return this.refugees.filter(r => r.status === 'healthy' && r.bonusType === type).length;
+  }
 
-      switch (refugee.job) {
-        case 'gather_food': {
-          const amount = refugee.skillBonus === 'Fast gatherer'
-            ? REFUGEE_GATHER_FOOD_AMOUNT + 1
-            : REFUGEE_GATHER_FOOD_AMOUNT;
-          food += amount;
-          break;
-        }
-        case 'gather_scrap': {
-          const amount = refugee.skillBonus === 'Fast gatherer'
-            ? REFUGEE_GATHER_SCRAP_AMOUNT + 1
-            : REFUGEE_GATHER_SCRAP_AMOUNT;
-          scrap += amount;
-          break;
-        }
-        case 'repair': {
-          const amount = refugee.skillBonus === 'Mechanic'
-            ? REFUGEE_REPAIR_AMOUNT + 5
-            : REFUGEE_REPAIR_AMOUNT;
-          // Find a damaged structure and repair it
-          const damaged = this.gameState.base.structures.filter(s => s.hp < s.maxHp);
-          if (damaged.length > 0) {
-            const target = damaged[Math.floor(Math.random() * damaged.length)];
-            if (target) {
-              target.hp = Math.min(target.maxHp, target.hp + amount);
-              repaired += amount;
-            }
-          }
-          break;
-        }
-      }
-    }
+  getDailyFoodBonus(): number {
+    return this.countHealthyByBonus('food');
+  }
+
+  getDailyScrapBonus(): number {
+    return this.countHealthyByBonus('scrap');
+  }
+
+  // Returns the repair bonus count -- used to extend trap lifetime by this many nights
+  getRepairBonus(): number {
+    return this.countHealthyByBonus('repair');
+  }
+
+  // Apply passive daily bonuses to game state resources.
+  // Repair bonus applies via getRepairBonus() -- callers read the value and handle trap extension.
+  applyDailyBonuses(): { food: number; scrap: number; repairBonus: number } {
+    const food = this.getDailyFoodBonus();
+    const scrap = this.getDailyScrapBonus();
+    const repairBonus = this.getRepairBonus();
 
     this.gameState.inventory.resources.food += food;
     this.gameState.inventory.resources.scrap += scrap;
 
-    return { food, scrap, repaired };
+    return { food, scrap, repairBonus };
+  }
+
+  // Legacy method kept for backward compatibility -- returns zeroes since gathering is now passive
+  processGathering(): { food: number; scrap: number; repaired: number } {
+    // Gathering is now handled by applyDailyBonuses() at day start.
+    // This stub prevents compile errors from any remaining callers.
+    return { food: 0, scrap: 0, repaired: 0 };
   }
 
   // Night phase: damage a refugee in a pillbox when the structure takes damage

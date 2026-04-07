@@ -1,42 +1,38 @@
-// Dead Horizon -- Refugee panel UI for DayScene
-// U2: Redesigned with portrait icon per refugee (circle, colour-coded by health status),
-//     cleaner job buttons with active highlight, contained layout (no overflow).
+// Dead Horizon -- Camp Crew panel (simplified refugee UI)
+// Replaces the old job-assignment panel.
+// Each refugee shows: name | bonus type | status (healthy / injured - healing).
+// Only interactive element: "Heal" button for injured refugees (costs 1 med).
 
 import Phaser from 'phaser';
 import { RefugeeManager } from '../systems/RefugeeManager';
-import { REFUGEE_FOOD_PER_DAY } from '../config/constants';
+import { REFUGEE_FOOD_PER_DAY, REFUGEE_HEAL_MEDS_COST } from '../config/constants';
 import { UIPanel } from './UIPanel';
-import type { RefugeeJob, RefugeeInstance } from '../config/types';
+import type { RefugeeInstance } from '../config/types';
 
-// Height per refugee row: portrait (32) + buttons (20) + separator (8) + gap (4)
-const ROW_HEIGHT = 68;
+// Height per refugee row: portrait circle + text + separator
+const ROW_HEIGHT = 42;
 
 // Portrait circle radius
-const PORTRAIT_R = 14;
+const PORTRAIT_R = 12;
 
-// Jobs shown as buttons (loot_run is not assignable via button)
-const JOB_BUTTONS: RefugeeJob[] = ['gather_food', 'gather_scrap', 'repair', 'rest', 'pillbox'];
-
-const JOB_LABELS: Record<RefugeeJob, string> = {
-  gather_food: 'FOOD',
-  gather_scrap: 'SCRAP',
-  repair: 'FIX',
-  rest: 'REST (1 med)',
-  loot_run: 'LOOT',
-  pillbox: 'GUARD',
+// Human-readable labels for each bonus type
+const BONUS_LABELS: Record<string, string> = {
+  food:   '+1 Food/day',
+  scrap:  '+1 Scrap/day',
+  repair: '+1 Repair',
 };
 
-// Status -> portrait fill colour
+// Portrait colour by status
 const STATUS_COLORS: Record<string, number> = {
   healthy: 0x4CAF50,
   injured: 0xFFD700,
-  away: 0x4A90D9,
+  away:    0x4A90D9,
 };
 
-// Used when an injured refugee is critically low on HP
+// Colour used when hp is critically low
 const CRITICAL_COLOR = 0xF44336;
 
-// Content area width (panel width 360, padding 12 each side)
+// Content area width (panel 360, padding 12 each side)
 const CONTENT_W = 360 - 24;
 
 export class RefugeePanel {
@@ -48,14 +44,15 @@ export class RefugeePanel {
     this.scene = scene;
     this.refugeeManager = refugeeManager;
 
-    this.panel = new UIPanel(scene, 'REFUGEES', 360, 460);
+    this.panel = new UIPanel(scene, 'CAMP CREW', 360, 380);
 
     this.buildPanel();
 
-    // Refresh when refugee state changes
-    this.scene.events.on('refugee-arrived', () => this.refresh());
-    this.scene.events.on('refugee-healed', () => this.refresh());
-    this.scene.events.on('refugee-died', () => this.refresh());
+    // Refresh on any refugee state change
+    this.scene.events.on('refugee-arrived',  () => this.refresh());
+    this.scene.events.on('refugee-healed',   () => this.refresh());
+    this.scene.events.on('refugee-died',     () => this.refresh());
+    this.scene.events.on('refugee-injured',  () => this.refresh());
   }
 
   private buildPanel(): void {
@@ -64,12 +61,12 @@ export class RefugeePanel {
 
     const refugees = this.refugeeManager.getAll();
     const maxRefugees = this.refugeeManager.getMaxRefugees();
-    const foodNeeded = refugees.length * REFUGEE_FOOD_PER_DAY + 1;
 
-    // Summary info line
-    const infoStr = `${refugees.length}/${maxRefugees} survivors  |  Food: ${foodNeeded}/day`;
+    // Header summary
+    const foodNeeded = refugees.length * REFUGEE_FOOD_PER_DAY + 1;
+    const summaryStr = `CAMP CREW (${refugees.length}/${maxRefugees})  |  Food: ${foodNeeded}/day`;
     content.add(
-      this.scene.add.text(0, 0, infoStr, {
+      this.scene.add.text(0, 0, summaryStr, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
         color: '#6B6B6B',
@@ -78,170 +75,124 @@ export class RefugeePanel {
 
     if (refugees.length === 0) {
       content.add(
-        this.scene.add.text(0, 20, 'No survivors yet.', {
+        this.scene.add.text(0, 20, 'No crew yet. Rescue survivors on loot runs.', {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '8px',
           color: '#6B6B6B',
+          wordWrap: { width: CONTENT_W },
         }),
       );
       return;
     }
 
-    // Render each refugee row
     refugees.forEach((refugee, i) => {
       const rowY = 18 + i * ROW_HEIGHT;
-      this.buildRefugeeRow(content, refugee, rowY, i < refugees.length - 1);
+      this.buildCrewRow(content, refugee, rowY, i < refugees.length - 1);
     });
   }
 
-  // Build a single refugee row: portrait | name + stats | job buttons
-  private buildRefugeeRow(
+  // Build one crew member row: portrait circle | name + bonus label | status / heal button
+  private buildCrewRow(
     content: Phaser.GameObjects.Container,
     refugee: RefugeeInstance,
     rowY: number,
     addSeparator: boolean,
   ): void {
-    // Determine portrait colour: critical (injured + low HP) uses red, otherwise status map
     const isCritical = refugee.status === 'injured' && refugee.hp <= refugee.maxHp * 0.2;
     const portraitColor = isCritical
       ? CRITICAL_COLOR
       : (STATUS_COLORS[refugee.status] ?? 0x4CAF50);
 
-    // --- Portrait circle ---
+    // Portrait circle with initials
     const portrait = this.scene.add.graphics();
     portrait.fillStyle(portraitColor, 1);
     portrait.fillCircle(PORTRAIT_R, PORTRAIT_R, PORTRAIT_R);
-    // Thin darker ring
     portrait.lineStyle(1, 0x000000, 0.4);
     portrait.strokeCircle(PORTRAIT_R, PORTRAIT_R, PORTRAIT_R);
+    portrait.setPosition(0, rowY + 2);
+    content.add(portrait);
 
-    // Initials inside circle
-    const initials = refugee.name.split(' ').map(n => n[0] ?? '').join('').substring(0, 2).toUpperCase();
-    const initialsText = this.scene.add.text(PORTRAIT_R, PORTRAIT_R, initials, {
+    const initials = refugee.name
+      .split(' ')
+      .map(n => n[0] ?? '')
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+    const initialsText = this.scene.add.text(PORTRAIT_R, rowY + 2 + PORTRAIT_R, initials, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
+      fontSize: '7px',
       color: '#000000',
     }).setOrigin(0.5);
-
-    portrait.setPosition(0, rowY + 2);
-    initialsText.setPosition(PORTRAIT_R, rowY + 2 + PORTRAIT_R);
-
-    content.add(portrait);
     content.add(initialsText);
 
-    // --- Name + stats ---
+    // Name and bonus label
     const textX = PORTRAIT_R * 2 + 6;
-
-    const nameText = this.scene.add.text(textX, rowY + 2, refugee.name, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#E8DCC8',
-      wordWrap: { width: CONTENT_W - textX },
-    });
-    content.add(nameText);
-
-    const hpPct = refugee.maxHp > 0 ? refugee.hp / refugee.maxHp : 0;
-    const hpColor = hpPct > 0.5 ? '#4CAF50' : hpPct > 0.25 ? '#FFD700' : '#F44336';
-    const jobLabel = refugee.job ? JOB_LABELS[refugee.job] ?? refugee.job : 'Idle';
-    const statsText = this.scene.add.text(
-      textX,
-      rowY + 15,
-      `HP ${refugee.hp}/${refugee.maxHp}  |  ${jobLabel}  |  ${refugee.skillBonus}`,
-      {
+    content.add(
+      this.scene.add.text(textX, rowY + 3, refugee.name, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: hpColor,
-        wordWrap: { width: CONTENT_W - textX },
-      },
+        fontSize: '9px',
+        color: '#E8DCC8',
+      }),
     );
-    content.add(statsText);
 
-    // HP bar (narrow, under stats text)
-    const barW = CONTENT_W - textX;
-    const barBg = this.scene.add.graphics();
-    barBg.fillStyle(0x333333, 1);
-    barBg.fillRect(textX, rowY + 26, barW, 3);
-    content.add(barBg);
-
-    if (hpPct > 0) {
-      const barFill = this.scene.add.graphics();
-      const fillColor = hpPct > 0.5 ? 0x4CAF50 : hpPct > 0.25 ? 0xFFD700 : 0xF44336;
-      barFill.fillStyle(fillColor, 1);
-      barFill.fillRect(textX, rowY + 26, Math.floor(barW * hpPct), 3);
-      content.add(barFill);
-    }
-
-    // --- Job buttons ---
-    const btnY = rowY + 34;
-    let btnX = textX;
-
-    for (const job of JOB_BUTTONS) {
-      const isCurrentJob = refugee.job === job;
-      const canAssign = refugee.status !== 'injured' || job === 'rest';
-
-      // Decide colours
-      let bgColor = 0x2A2A2A;
-      let textColor = '#6B6B6B';
-      if (isCurrentJob) {
-        bgColor = 0x4A90D9;
-        textColor = '#FFFFFF';
-      } else if (canAssign) {
-        bgColor = 0x333333;
-        textColor = '#E8DCC8';
-      }
-
-      const label = JOB_LABELS[job];
-      // Measure text to size button dynamically -- use same fontSize as rendered label
-      const tmpText = this.scene.add.text(0, 0, label, {
+    const bonusLabel = BONUS_LABELS[refugee.bonusType] ?? refugee.bonusType;
+    const bonusColor = refugee.status === 'healthy' ? '#88FF88' : '#888888';
+    content.add(
+      this.scene.add.text(textX, rowY + 16, bonusLabel, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '8px',
-        color: textColor,
-      });
-      const btnW = tmpText.width + 8;
-      tmpText.destroy();
+        color: bonusColor,
+      }),
+    );
 
-      // Button background -- 18px height to fit 8px font with padding
-      const btnBg = this.scene.add.graphics();
-      btnBg.fillStyle(bgColor, 1);
-      btnBg.fillRoundedRect(btnX, btnY, btnW, 18, 2);
-      content.add(btnBg);
+    // Status text + optional Heal button (right side)
+    const rightX = CONTENT_W;
 
-      // Button label
-      const btnText = this.scene.add.text(btnX + btnW / 2, btnY + 9, label, {
+    if (refugee.status === 'injured') {
+      // Status label
+      content.add(
+        this.scene.add.text(rightX, rowY + 3, 'injured', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#FFD700',
+        }).setOrigin(1, 0),
+      );
+
+      // Heal button (costs REFUGEE_HEAL_MEDS_COST med)
+      const healLabel = `Heal (${REFUGEE_HEAL_MEDS_COST} med)`;
+      const healText = this.scene.add.text(rightX, rowY + 18, healLabel, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: textColor,
-      }).setOrigin(0.5);
-      content.add(btnText);
+        fontSize: '7px',
+        color: '#4A90D9',
+      }).setOrigin(1, 0);
 
-      // Interaction
-      if (canAssign && !isCurrentJob) {
-        btnBg.setInteractive(
-          new Phaser.Geom.Rectangle(btnX, btnY, btnW, 18),
-          Phaser.Geom.Rectangle.Contains,
-        );
-        btnBg.on('pointerover', () => {
-          btnBg.clear();
-          btnBg.fillStyle(0x4A90D9, 0.6);
-          btnBg.fillRoundedRect(btnX, btnY, btnW, 18, 2);
-          btnText.setColor('#FFD700');
-        });
-        btnBg.on('pointerout', () => {
-          btnBg.clear();
-          btnBg.fillStyle(0x333333, 1);
-          btnBg.fillRoundedRect(btnX, btnY, btnW, 18, 2);
-          btnText.setColor('#E8DCC8');
-        });
-        btnBg.on('pointerdown', () => {
-          this.refugeeManager.assignJob(refugee.id, job);
+      const hasMeds =
+        // Access gameState indirectly via manager -- read current resource count
+        this.refugeeManager.getAll().length >= 0 &&
+        this.canAffordHeal();
+
+      if (hasMeds) {
+        healText.setInteractive({ useHandCursor: true });
+        healText.on('pointerover', () => healText.setColor('#FFD700'));
+        healText.on('pointerout',  () => healText.setColor('#4A90D9'));
+        healText.on('pointerdown', () => {
+          this.refugeeManager.healRefugee(refugee.id);
           this.refresh();
         });
+      } else {
+        healText.setColor('#555555');
       }
 
-      btnX += btnW + 4;
-
-      // Stop adding buttons if we'd overflow the content area
-      if (btnX > CONTENT_W - 20) break;
+      content.add(healText);
+    } else {
+      // Healthy status
+      content.add(
+        this.scene.add.text(rightX, rowY + 3, 'healthy', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '8px',
+          color: '#4CAF50',
+        }).setOrigin(1, 0),
+      );
     }
 
     // Row separator
@@ -251,6 +202,11 @@ export class RefugeePanel {
       sep.lineBetween(0, rowY + ROW_HEIGHT - 4, CONTENT_W, rowY + ROW_HEIGHT - 4);
       content.add(sep);
     }
+  }
+
+  // Check if meds are available via refugeeManager (uses public accessor)
+  private canAffordHeal(): boolean {
+    return this.refugeeManager.hasMedsForHeal();
   }
 
   toggle(): void {

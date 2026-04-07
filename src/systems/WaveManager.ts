@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Zombie } from '../entities/Zombie';
 import type { ZombieConfig } from '../entities/Zombie';
+import type { PathGrid } from './PathGrid';
 import enemiesData from '../data/enemies.json';
 import defaultWavesData from '../data/waves.json';
 
@@ -35,6 +36,8 @@ export class WaveManager {
   private hordeMultiplier: number = 1.0;
   private mapWidth: number = 0;
   private mapHeight: number = 0;
+  // Optional shared PathGrid for zombie steering around walls
+  private pathGrid: PathGrid | null = null;
   // Max waves for this night (dynamically set from NightScene based on night number)
   private maxWaves: number = 5;
 
@@ -64,6 +67,11 @@ export class WaveManager {
   setMapSize(width: number, height: number): void {
     this.mapWidth = width;
     this.mapHeight = height;
+  }
+
+  /** Provide the shared PathGrid so newly spawned zombies receive it */
+  setPathGrid(grid: PathGrid): void {
+    this.pathGrid = grid;
   }
 
   getCurrentWave(): number {
@@ -168,12 +176,14 @@ export class WaveManager {
       if (this.basePosition) existing.setBasePosition(this.basePosition.x, this.basePosition.y);
       existing.aggroType = aggroType;
       if (this.mapWidth && this.mapHeight) existing.setMapSize(this.mapWidth, this.mapHeight);
+      if (this.pathGrid) existing.setPathGrid(this.pathGrid);
     } else {
       const zombie = new Zombie(this.scene, zone.x + offsetX, zone.y + offsetY, config);
       if (this.target) zombie.setTarget(this.target);
       if (this.basePosition) zombie.setBasePosition(this.basePosition.x, this.basePosition.y);
       zombie.aggroType = aggroType;
       if (this.mapWidth && this.mapHeight) zombie.setMapSize(this.mapWidth, this.mapHeight);
+      if (this.pathGrid) zombie.setPathGrid(this.pathGrid);
       this.zombieGroup.add(zombie);
     }
 

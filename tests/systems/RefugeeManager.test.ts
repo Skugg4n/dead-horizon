@@ -5,9 +5,6 @@ import {
   REFUGEE_FOOD_PER_DAY,
   REFUGEE_FOOD_STARVE_DAMAGE,
   REFUGEE_HEAL_MEDS_COST,
-  REFUGEE_GATHER_FOOD_AMOUNT,
-  REFUGEE_GATHER_SCRAP_AMOUNT,
-  REFUGEE_REPAIR_AMOUNT,
   REFUGEES_PER_SHELTER,
 } from '../../src/config/constants';
 
@@ -86,6 +83,7 @@ function createTestRefugee(overrides?: Partial<RefugeeInstance>): RefugeeInstanc
     status: 'healthy',
     job: null,
     skillBonus: 'Good shot',
+    bonusType: 'food',
     ...overrides,
   };
 }
@@ -286,14 +284,15 @@ describe('RefugeeManager', () => {
       expect(manager.getById('ref_1')?.hp).toBe(20);
     });
 
-    it('does not heal injured refugee not on rest', () => {
+    it('heals injured refugee regardless of job (Camp Crew auto-heal)', () => {
       const injured = createTestRefugee({ status: 'injured', job: null, hp: 20 });
       gameState.refugees = [injured];
       gameState.inventory.resources.meds = 5;
       manager = new RefugeeManager(mockScene as never, gameState);
 
       const messages = manager.processHealing();
-      expect(messages.length).toBe(0);
+      // Camp Crew: all injured refugees heal automatically if meds available
+      expect(messages.length).toBe(1);
     });
 
     it('emits refugee-healed event', () => {
@@ -310,112 +309,37 @@ describe('RefugeeManager', () => {
     });
   });
 
-  describe('processGathering', () => {
-    it('healthy refugee on gather_food produces food', () => {
-      gameState.refugees = [createTestRefugee({ job: 'gather_food' })];
+  describe('applyDailyBonuses (Camp Crew)', () => {
+    it('healthy food-bonus refugee produces +1 food', () => {
+      gameState.refugees = [createTestRefugee({ bonusType: 'food' })];
       manager = new RefugeeManager(mockScene as never, gameState);
 
-      const result = manager.processGathering();
-      expect(result.food).toBe(REFUGEE_GATHER_FOOD_AMOUNT);
-      expect(gameState.inventory.resources.food).toBe(10 + REFUGEE_GATHER_FOOD_AMOUNT);
+      const result = manager.applyDailyBonuses();
+      expect(result.food).toBe(1);
     });
 
-    it('healthy refugee on gather_scrap produces scrap', () => {
-      gameState.refugees = [createTestRefugee({ job: 'gather_scrap' })];
+    it('healthy scrap-bonus refugee produces +1 scrap', () => {
+      gameState.refugees = [createTestRefugee({ bonusType: 'scrap' })];
       manager = new RefugeeManager(mockScene as never, gameState);
 
-      const result = manager.processGathering();
-      expect(result.scrap).toBe(REFUGEE_GATHER_SCRAP_AMOUNT);
-      expect(gameState.inventory.resources.scrap).toBe(10 + REFUGEE_GATHER_SCRAP_AMOUNT);
-    });
-
-    it('Fast gatherer refugee produces bonus food', () => {
-      gameState.refugees = [createTestRefugee({ job: 'gather_food', skillBonus: 'Fast gatherer' })];
-      manager = new RefugeeManager(mockScene as never, gameState);
-
-      const result = manager.processGathering();
-      expect(result.food).toBe(REFUGEE_GATHER_FOOD_AMOUNT + 1);
-    });
-
-    it('Fast gatherer refugee produces bonus scrap', () => {
-      gameState.refugees = [createTestRefugee({ job: 'gather_scrap', skillBonus: 'Fast gatherer' })];
-      manager = new RefugeeManager(mockScene as never, gameState);
-
-      const result = manager.processGathering();
-      expect(result.scrap).toBe(REFUGEE_GATHER_SCRAP_AMOUNT + 1);
+      const result = manager.applyDailyBonuses();
+      expect(result.scrap).toBe(1);
     });
 
     it('injured refugee does not produce', () => {
-      gameState.refugees = [createTestRefugee({ status: 'injured', job: 'gather_food' })];
+      gameState.refugees = [createTestRefugee({ status: 'injured', bonusType: 'food' })];
       manager = new RefugeeManager(mockScene as never, gameState);
 
-      const result = manager.processGathering();
+      const result = manager.applyDailyBonuses();
       expect(result.food).toBe(0);
     });
 
-    it('refugee on repair job repairs a damaged structure', () => {
-      const damaged: StructureInstance = {
-        id: 'wall_1',
-        structureId: 'wall',
-        level: 1,
-        hp: 50,
-        maxHp: 100,
-        x: 0,
-        y: 0,
-      };
-      gameState.base.structures.push(damaged);
-      gameState.refugees = [createTestRefugee({ job: 'repair' })];
+    it('repair-bonus refugee contributes repair bonus', () => {
+      gameState.refugees = [createTestRefugee({ bonusType: 'repair' })];
       manager = new RefugeeManager(mockScene as never, gameState);
 
-      const result = manager.processGathering();
-      expect(result.repaired).toBe(REFUGEE_REPAIR_AMOUNT);
-      expect(damaged.hp).toBe(50 + REFUGEE_REPAIR_AMOUNT);
-    });
-
-    it('Mechanic refugee repairs more', () => {
-      const damaged: StructureInstance = {
-        id: 'wall_1',
-        structureId: 'wall',
-        level: 1,
-        hp: 50,
-        maxHp: 100,
-        x: 0,
-        y: 0,
-      };
-      gameState.base.structures.push(damaged);
-      gameState.refugees = [createTestRefugee({ job: 'repair', skillBonus: 'Mechanic' })];
-      manager = new RefugeeManager(mockScene as never, gameState);
-
-      const result = manager.processGathering();
-      expect(result.repaired).toBe(REFUGEE_REPAIR_AMOUNT + 5);
-    });
-
-    it('repair does not exceed maxHp', () => {
-      const damaged: StructureInstance = {
-        id: 'wall_1',
-        structureId: 'wall',
-        level: 1,
-        hp: 95,
-        maxHp: 100,
-        x: 0,
-        y: 0,
-      };
-      gameState.base.structures.push(damaged);
-      gameState.refugees = [createTestRefugee({ job: 'repair' })];
-      manager = new RefugeeManager(mockScene as never, gameState);
-
-      manager.processGathering();
-      expect(damaged.hp).toBe(100);
-    });
-
-    it('refugee on null job produces nothing', () => {
-      gameState.refugees = [createTestRefugee({ job: null })];
-      manager = new RefugeeManager(mockScene as never, gameState);
-
-      const result = manager.processGathering();
-      expect(result.food).toBe(0);
-      expect(result.scrap).toBe(0);
-      expect(result.repaired).toBe(0);
+      const result = manager.applyDailyBonuses();
+      expect(result.repairBonus).toBe(1);
     });
   });
 

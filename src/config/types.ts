@@ -135,6 +135,9 @@ export interface WeaponInstance {
   upgrades: WeaponUpgrade[];
 }
 
+// Camp Crew bonus type: what passive bonus this refugee provides per day
+export type RefugeeBonusType = 'food' | 'scrap' | 'repair';
+
 export interface RefugeeInstance {
   id: string;
   name: string;
@@ -143,6 +146,8 @@ export interface RefugeeInstance {
   status: RefugeeStatus;
   job: RefugeeJob | null;
   skillBonus: string;
+  // Passive Camp Crew bonus (assigned at rescue, persists for the refugee's lifetime)
+  bonusType: RefugeeBonusType;
 }
 
 export interface StructureInstance {

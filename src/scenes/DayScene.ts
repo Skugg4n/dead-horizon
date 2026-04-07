@@ -162,8 +162,10 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(this.skillPanel.getContainer());
     this.addToUI(this.skillPanel.getPanel().getBackdrop());
 
-    // Refugee system
+    // Refugee system (Camp Crew)
     this.refugeeManager = new RefugeeManager(this, this.gameState);
+    // Backward compat: assign bonusType to refugees loaded from old saves
+    this.refugeeManager.ensureBonusTypes();
     this.refugeePanel = new RefugeePanel(this, this.refugeeManager);
     this.addToUI(this.refugeePanel.getContainer());
     this.addToUI(this.refugeePanel.getPanel().getBackdrop());
@@ -1003,7 +1005,7 @@ export class DayScene extends Phaser.Scene {
     // Determine ghost pixel dimensions from structure data.
     // Priority: widthTiles field -> zoneRadius field -> default 1 tile.
     let ghostW = TILE_SIZE;
-    let ghostH = TILE_SIZE;
+    const ghostH = TILE_SIZE;
     if (structData) {
       if (structData.widthTiles && structData.widthTiles > 1) {
         ghostW = structData.widthTiles * TILE_SIZE;
@@ -1280,6 +1282,23 @@ export class DayScene extends Phaser.Scene {
     const data = this.buildingManager.getStructureData(instance.structureId);
     if (!data) return;
 
+    // Determine whether there is an upgrade available and what it costs
+    const nextUpgrade = this.buildingManager.getNextUpgrade(instance);
+    const hasUpgradeSlot = instance.level < data.maxLevel;
+    const canUpgrade = hasUpgradeSlot
+      && this.buildingManager.canAffordUpgrade(instance)
+      && this.buildingManager.hasEnoughAPForUpgrade(instance, this.currentAP);
+
+    // Build a compact cost string for the upgrade button label (e.g. "3 parts, 1 AP")
+    const upgradeCostLabel = (nextUpgrade != null)
+      ? Object.entries(nextUpgrade.cost)
+          .map(([r, n]) => `${n} ${r}`)
+          .join(', ') + `, 1 AP`
+      : '';
+
+    // Popup height: taller when there is an upgrade row
+    const popupH = hasUpgradeSlot ? 110 : 90;
+
     // Convert structure world position to screen position for the popup
     const cam = this.cameras.main;
     const popupX = instance.x - cam.scrollX + TILE_SIZE + 8;
@@ -1290,12 +1309,12 @@ export class DayScene extends Phaser.Scene {
 
     const bg = this.add.graphics();
     bg.fillStyle(0x1A1A2E, 0.95);
-    bg.fillRect(0, 0, 160, 90);
+    bg.fillRect(0, 0, 168, popupH);
     bg.lineStyle(1, 0x6B6B6B);
-    bg.strokeRect(0, 0, 160, 90);
+    bg.strokeRect(0, 0, 168, popupH);
     this.structurePopup.add(bg);
 
-    // Structure info
+    // Structure name, level, and HP
     const info = this.add.text(8, 6, `${data.name} Lv${instance.level}\nHP: ${instance.hp}/${instance.maxHp}`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '10px',
@@ -1303,13 +1322,20 @@ export class DayScene extends Phaser.Scene {
     });
     this.structurePopup.add(info);
 
-    // Upgrade button (if not max level)
-    if (instance.level < data.maxLevel) {
-      const canUpgrade = this.buildingManager.canAfford(instance.structureId)
-        && this.buildingManager.hasEnoughAP(instance.structureId, this.currentAP);
+    // Upgrade section (when at least one more level exists)
+    if (hasUpgradeSlot) {
       const upgradeColor = canUpgrade ? '#4CAF50' : '#6B6B6B';
 
-      const upgradeBtn = this.add.text(8, 48, '[ UPGRADE ]', {
+      // Cost label row (shows what the upgrade costs)
+      const costText = this.add.text(8, 48, `Lv${instance.level + 1}: ${upgradeCostLabel}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#AAAAAA',
+        wordWrap: { width: 152 },
+      });
+      this.structurePopup.add(costText);
+
+      const upgradeBtn = this.add.text(8, 68, '[ UPGRADE ]', {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '11px',
         color: upgradeColor,
@@ -1327,6 +1353,7 @@ export class DayScene extends Phaser.Scene {
             this.updateResourceDisplay();
             this.renderPlacedStructures();
             this.closeStructurePopup();
+            // instance.level was mutated by upgrade() -- show new level
             this.showInfo(`${data.name} upgraded to Lv${instance.level}!`);
           }
         });
@@ -1334,8 +1361,9 @@ export class DayScene extends Phaser.Scene {
       this.structurePopup.add(upgradeBtn);
     }
 
-    // Sell button
-    const sellBtn = this.add.text(8, 68, '[ SELL ]', {
+    // Sell button -- placed below upgrade row when present, otherwise at same y as before
+    const sellY = hasUpgradeSlot ? 90 : 68;
+    const sellBtn = this.add.text(8, sellY, '[ SELL ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '11px',
       color: '#F44336',
@@ -1474,13 +1502,23 @@ export class DayScene extends Phaser.Scene {
       this.skillManager.addXP('leadership', refugeeCount * 10);
     }
 
+    // Camp Crew passive bonuses (food/scrap per healthy refugee, repair = trap lifetime bonus)
+    const bonuses = this.refugeeManager.applyDailyBonuses();
+    if (bonuses.food > 0 || bonuses.scrap > 0 || bonuses.repairBonus > 0) {
+      const parts: string[] = [];
+      if (bonuses.food > 0) parts.push(`+${bonuses.food} food`);
+      if (bonuses.scrap > 0) parts.push(`+${bonuses.scrap} scrap`);
+      if (bonuses.repairBonus > 0) parts.push(`+${bonuses.repairBonus} trap life`);
+      this.showInfo(`Camp Crew: ${parts.join(', ')}`);
+    }
+
     // Food consumption (survival skill reduces consumption)
     const foodResult = this.refugeeManager.consumeFood();
     if (foodResult.missing > 0) {
       this.showInfo(`Not enough food! ${foodResult.missing} refugees starving.`);
     }
 
-    // Heal injured refugees on rest
+    // Auto-heal injured refugees (uses 1 med per refugee, no job assignment needed)
     const healed = this.refugeeManager.processHealing();
     if (healed.length > 0) {
       this.showInfo(healed.join(', '));
@@ -1616,24 +1654,8 @@ export class DayScene extends Phaser.Scene {
 
   private endDay(): void {
     AudioManager.stopAmbient();
-    // Process refugee gathering before saving
-    const gathering = this.refugeeManager.processGathering();
-    if (gathering.food > 0 || gathering.scrap > 0 || gathering.repaired > 0) {
-      const parts: string[] = [];
-      if (gathering.food > 0) parts.push(`+${gathering.food} food`);
-      if (gathering.scrap > 0) parts.push(`+${gathering.scrap} scrap`);
-      if (gathering.repaired > 0) parts.push(`${gathering.repaired} HP repaired`);
-      console.log(`Refugee gathering: ${parts.join(', ')}`);
-    }
-
-    // Apply leadership gathering efficiency bonus
-    const gatherBonus = this.skillManager.getBonus('leadership', 'gatherEfficiency');
-    if (gatherBonus > 0 && (gathering.food > 0 || gathering.scrap > 0)) {
-      const bonusFood = Math.floor(gathering.food * gatherBonus);
-      const bonusScrap = Math.floor(gathering.scrap * gatherBonus);
-      this.gameState.inventory.resources.food += bonusFood;
-      this.gameState.inventory.resources.scrap += bonusScrap;
-    }
+    // Note: Camp Crew bonuses are applied at day START (processDayStart).
+    // No gathering step needed here anymore.
 
     // Check achievements before saving
     this.achievementManager.checkAll();
@@ -1845,7 +1867,7 @@ export class DayScene extends Phaser.Scene {
       const id = `debug_${Date.now()}`;
       gs.refugees.push({
         id, name: 'Debug Dave', hp: 100, maxHp: 100,
-        status: 'healthy', job: null, skillBonus: 'none',
+        status: 'healthy', job: null, skillBonus: 'none', bonusType: 'food',
       });
     });
 
