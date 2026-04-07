@@ -97,8 +97,8 @@ export class AchievementManager {
     this.scene.tweens.add({
       targets: [bg, text, desc],
       alpha: 0,
-      delay: 3000,
-      duration: 1000,
+      delay: 4000,
+      duration: 1500,
       ease: 'Power2',
       onComplete: () => {
         bg.destroy();

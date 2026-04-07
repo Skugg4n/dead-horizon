@@ -296,8 +296,10 @@ export class DayScene extends Phaser.Scene {
     this.dayLightOverlay.setDepth(90).setScrollFactor(0);
     this.updateDayLighting();
 
-    // Dawn fade-in animation (overlay at depth 500 so it covers everything including UI)
-    this.showDawnAnimation();
+    // Dawn fade-in animation -- skip if tutorial is showing (first game)
+    if (!this.tutorialShowing) {
+      this.showDawnAnimation();
+    }
 
     this.events.emit('day-started', this.gameState.progress.currentWave);
 
@@ -1244,7 +1246,7 @@ export class DayScene extends Phaser.Scene {
     );
     this.addToUI(panel);
 
-    const prompt = this.add.text(GAME_WIDTH / 2, py + 20, 'End day and start night?', {
+    const prompt = this.add.text(GAME_WIDTH / 2, py + 20, 'The sun is setting.\nAre you ready for the horde?', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#E8DCC8',
@@ -1265,7 +1267,7 @@ export class DayScene extends Phaser.Scene {
       if (handlers.key) this.input.keyboard?.off('keydown', handlers.key);
     };
 
-    const yesBtn = this.add.text(GAME_WIDTH / 2 - 50, py + 72, '[ YES ]', {
+    const yesBtn = this.add.text(GAME_WIDTH / 2 - 50, py + 82, '[ BRING IT ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#4CAF50',
@@ -1275,7 +1277,7 @@ export class DayScene extends Phaser.Scene {
     yesBtn.on('pointerdown', () => { dismiss(); this.endDay(); });
     this.addToUI(yesBtn);
 
-    const noBtn = this.add.text(GAME_WIDTH / 2 + 50, py + 72, '[ NO ]', {
+    const noBtn = this.add.text(GAME_WIDTH / 2 + 50, py + 82, '[ NOT YET ]', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#F44336',
@@ -1740,11 +1742,10 @@ export class DayScene extends Phaser.Scene {
     this.tutorialShowing = true;
 
     const steps = [
-      { title: 'DAY PHASE', text: 'You have 12 Action Points\nto prepare for the night.' },
-      { title: 'BUILD', text: 'Use the BUILD menu to place\nbarricades, walls and traps\naround your base.' },
-      { title: 'AMMO', text: 'Ammo is loaded AUTOMATICALLY\nat the start of each night.\nCollect more ammo via LOOT runs.' },
-      { title: 'LOOT RUNS', text: 'Send expeditions to find\nscrap, food, ammo and meds.\nCosts 3-5 AP.' },
-      { title: 'END DAY', text: 'When ready, press END DAY.\nNight begins immediately.\nGood luck.' },
+      { title: 'DAY PHASE', text: 'You have 12 hours to\nprepare before nightfall.' },
+      { title: 'BUILD', text: 'Place traps and walls\naround your base to\ndefend against zombies.' },
+      { title: 'LOOT', text: 'Send loot runs to find\nscrap, ammo, parts.\nMay find weapons and blueprints!' },
+      { title: 'END DAY', text: 'Press END DAY when ready.\nNight begins immediately.\nGood luck, survivor.' },
     ];
     let currentStep = 0;
 

@@ -5262,11 +5262,10 @@ export class NightScene extends Phaser.Scene {
 
   private showTutorialOverlay(): void {
     const steps = [
-      { title: 'MOVE', text: 'Use WASD or arrow keys\nto move your character.' },
-      { title: 'SHOOT', text: 'Melee: auto-attacks nearby.\nRanged: click/SPACE to fire.' },
-      { title: 'SPRINT', text: 'Hold SHIFT to sprint.\nWatch your stamina bar.' },
-      { title: 'SWITCH', text: 'Press 1-5 to switch\nweapons during combat.' },
-      { title: 'SURVIVE', text: `Survive ${this.waveManager.getMaxWaves()} wave(s).\nYou keep everything\nwhen you die.` },
+      { title: 'MOVE', text: 'WASD or arrow keys\nto move.' },
+      { title: 'FIGHT', text: 'Melee auto-attacks.\nRanged: click/SPACE.\nPress 1 or 2 to switch.' },
+      { title: 'SPRINT', text: 'Hold SHIFT to sprint.\nWatch your stamina.' },
+      { title: 'SURVIVE', text: 'Survive 5 nights to\nclear this zone.\nBuild traps during day.\nYou keep all gear on death.' },
     ];
     let currentStep = 0;
 
