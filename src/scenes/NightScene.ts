@@ -4998,6 +4998,27 @@ export class NightScene extends Phaser.Scene {
           refugee,
           cooldown: 0,
         });
+
+        // Visual indicator: green dot + refugee initial on manned pillbox
+        const px = pillbox.x + TILE_SIZE / 2;
+        const py = pillbox.y - 6;
+        const indicator = this.add.graphics();
+        indicator.fillStyle(0x4CAF50, 0.9);
+        indicator.fillCircle(px, py, 5);
+        indicator.setDepth(12);
+        const initial = this.add.text(px, py, refugee.name[0] ?? '?', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '6px',
+          color: '#FFFFFF',
+        }).setOrigin(0.5).setDepth(13);
+        // Pulse to show it's active
+        this.tweens.add({
+          targets: [indicator, initial],
+          alpha: 0.5,
+          duration: 1000,
+          yoyo: true,
+          repeat: -1,
+        });
       }
     }
   }
