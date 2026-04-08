@@ -330,13 +330,13 @@ export class NightPickupManager {
     graphics.x = x;
     graphics.y = y;
 
-    // ---- Floating label ----
+    // ---- Floating label: small and muted so it doesn't dominate the screen ----
     const labelText = this.scene.add.text(x, y + LABEL_Y_OFFSET, def.label, {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '6px',
-      color: '#FFFFFF',
+      fontSize: '7px',
+      color: '#888888',
       stroke: '#000000',
-      strokeThickness: 2,
+      strokeThickness: 1,
     }).setOrigin(0.5, 1).setDepth(6);
 
     // ---- Timer bar ----

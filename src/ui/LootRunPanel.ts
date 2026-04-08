@@ -8,6 +8,17 @@ import { EncounterDialog } from './EncounterDialog';
 import { UIPanel } from './UIPanel';
 import { WeaponManager } from '../systems/WeaponManager';
 import type { GameState, RefugeeInstance, ResourceType, WeaponInstance } from '../config/types';
+import blueprintsJson from '../data/blueprints.json';
+
+// Minimal type for blueprint lookup (only fields we need here)
+interface BlueprintEntry {
+  id: string;
+  name: string;
+  unlocks: string[];
+}
+
+const blueprintList = blueprintsJson.blueprints as BlueprintEntry[];
+const blueprintMap = new Map<string, BlueprintEntry>(blueprintList.map(b => [b.id, b]));
 
 const PANEL_WIDTH = 360;
 
@@ -596,12 +607,24 @@ export class LootRunPanel {
     if (result.foundBlueprintId) {
       yOffset += 8;
 
+      // Look up full blueprint data to show unlock list
+      const bpData = blueprintMap.get(result.foundBlueprintId);
+      const bpRealName = bpData?.name ?? result.foundBlueprintId.replace(/_/g, ' ');
+      // Format unlocks as human-readable trap names
+      const unlockNames = (bpData?.unlocks ?? [])
+        .map(u => u.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+        .join(', ');
+      const unlocksLabel = unlockNames.length > 0 ? `Unlocks: ${unlockNames}` : 'New trap unlocked';
+
+      // Expand highlight box height to fit name + unlocks line
+      const bpBoxH = 72;
+
       // Gold background highlight box behind the blueprint section
       const bpBg = this.scene.add.graphics();
       bpBg.fillStyle(0x1A1400, 0.9);
       bpBg.lineStyle(1, 0xC5A030, 0.85);
-      bpBg.strokeRect(0, yOffset - 4, contentWidth, 56);
-      bpBg.fillRect(0, yOffset - 4, contentWidth, 56);
+      bpBg.strokeRect(0, yOffset - 4, contentWidth, bpBoxH);
+      bpBg.fillRect(0, yOffset - 4, contentWidth, bpBoxH);
       content.add(bpBg);
 
       // "NEW BLUEPRINT FOUND!" header in gold with glow effect
@@ -612,20 +635,21 @@ export class LootRunPanel {
       }).setOrigin(0.5, 0).setAlpha(0).setScale(0.5);
       content.add(bpHeader);
 
-      // Blueprint name line
-      const blueprintDisplayName = result.foundBlueprintId.replace(/_/g, ' ').toUpperCase();
-      const bpLine = this.scene.add.text(contentWidth / 2, yOffset + 22, `+ ${blueprintDisplayName}`, {
+      // Blueprint real name (from blueprints.json)
+      const bpLine = this.scene.add.text(contentWidth / 2, yOffset + 20, bpRealName, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
+        fontSize: '8px',
         color: '#FFE066',
+        wordWrap: { width: contentWidth - 8 },
       }).setOrigin(0.5, 0).setAlpha(0);
       content.add(bpLine);
 
-      // Sub-hint label
-      const bpHint = this.scene.add.text(contentWidth / 2, yOffset + 38, 'New trap unlocked in build menu', {
+      // Unlocks line -- shows which traps are now available
+      const bpHint = this.scene.add.text(contentWidth / 2, yOffset + 48, unlocksLabel, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: '#A07820',
+        wordWrap: { width: contentWidth - 8 },
       }).setOrigin(0.5, 0).setAlpha(0);
       content.add(bpHint);
 
@@ -672,7 +696,7 @@ export class LootRunPanel {
         });
       });
 
-      yOffset += 64;
+      yOffset += bpBoxH + 8;
     }
 
     yOffset += 8;

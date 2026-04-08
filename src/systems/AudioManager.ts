@@ -79,6 +79,47 @@ let muted = false;
 let sfxMuted = false;
 let ambientMuted = false;
 let masterVolume = 0.4;
+// Separate SFX and music volume levels (0-1). Applied on top of masterVolume.
+let sfxVolume = 1.0;
+let musicVolume = 1.0;
+
+// localStorage key for persisting audio settings
+const SETTINGS_KEY = 'dead-horizon-audio-settings';
+
+interface AudioSettings {
+  masterVolume: number;
+  sfxVolume: number;
+  musicVolume: number;
+  muted: boolean;
+  sfxMuted: boolean;
+  ambientMuted: boolean;
+}
+
+/** Load persisted audio settings from localStorage and apply them. */
+function loadSettings(): void {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const s: AudioSettings = JSON.parse(raw) as AudioSettings;
+    masterVolume = Math.max(0, Math.min(1, s.masterVolume ?? 0.4));
+    sfxVolume    = Math.max(0, Math.min(1, s.sfxVolume    ?? 1.0));
+    musicVolume  = Math.max(0, Math.min(1, s.musicVolume  ?? 1.0));
+    muted        = s.muted        ?? false;
+    sfxMuted     = s.sfxMuted     ?? false;
+    ambientMuted = s.ambientMuted ?? false;
+    // Apply master volume to gain node if already initialised
+    if (masterGain) masterGain.gain.value = muted ? 0 : masterVolume;
+    if (ambientMuted) stopAmbient();
+  } catch { /* ignore parse errors */ }
+}
+
+/** Persist current audio settings to localStorage. */
+function saveSettings(): void {
+  try {
+    const s: AudioSettings = { masterVolume, sfxVolume, musicVolume, muted, sfxMuted, ambientMuted };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  } catch { /* ignore quota errors */ }
+}
 
 // Ambient state
 let ambientSource: AudioBufferSourceNode | null = null;
@@ -1924,6 +1965,8 @@ function stopAmbient(): void {
 function setMuted(value: boolean): void {
   muted = value;
   if (muted) stopAmbient();
+  if (masterGain) masterGain.gain.value = muted ? 0 : masterVolume;
+  saveSettings();
 }
 
 function isMuted(): boolean {
@@ -1932,6 +1975,7 @@ function isMuted(): boolean {
 
 function setSfxMuted(value: boolean): void {
   sfxMuted = value;
+  saveSettings();
 }
 
 function isSfxMuted(): boolean {
@@ -1941,6 +1985,7 @@ function isSfxMuted(): boolean {
 function setAmbientMuted(value: boolean): void {
   ambientMuted = value;
   if (ambientMuted) stopAmbient();
+  saveSettings();
 }
 
 function isAmbientMuted(): boolean {
@@ -1949,17 +1994,51 @@ function isAmbientMuted(): boolean {
 
 function setVolume(vol: number): void {
   masterVolume = Math.max(0, Math.min(1, vol));
-  if (masterGain) {
+  if (masterGain && !muted) {
     masterGain.gain.value = masterVolume;
   }
+  saveSettings();
 }
 
 function getVolume(): number {
   return masterVolume;
 }
 
+/** Alias for setVolume -- used by settings panel for clarity. */
+function setMasterVolume(vol: number): void {
+  setVolume(vol);
+}
+
+function getMasterVolume(): number {
+  return masterVolume;
+}
+
+function setSfxVolume(vol: number): void {
+  sfxVolume = Math.max(0, Math.min(1, vol));
+  saveSettings();
+}
+
+function getSfxVolume(): number {
+  return sfxVolume;
+}
+
+function setMusicVolume(vol: number): void {
+  musicVolume = Math.max(0, Math.min(1, vol));
+  // Update ambient gain if playing
+  if (ambientGain && globalCtx) {
+    ambientGain.gain.value = ambientMuted ? 0 : musicVolume;
+  }
+  saveSettings();
+}
+
+function getMusicVolume(): number {
+  return musicVolume;
+}
+
 // Initialize audio context on first user interaction
 function initOnInteraction(): void {
+  // Load persisted settings immediately (before first interaction)
+  loadSettings();
   const handler = () => {
     getContext();
     document.removeEventListener('click', handler);
@@ -1982,5 +2061,13 @@ export const AudioManager = {
   isAmbientMuted,
   setVolume,
   getVolume,
+  setMasterVolume,
+  getMasterVolume,
+  setSfxVolume,
+  getSfxVolume,
+  setMusicVolume,
+  getMusicVolume,
+  loadSettings,
+  saveSettings,
   initOnInteraction,
 };

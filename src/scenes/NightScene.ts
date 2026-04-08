@@ -156,6 +156,11 @@ export class NightScene extends Phaser.Scene {
   // Kill source tracking: set to 'trap' or 'weapon' before zombie.takeDamage() resolves as a kill
   private _currentKillSource: 'trap' | 'weapon' | null = null;
   private _currentKillTrapName: string | null = null;
+  // Max pickup log messages per night to prevent spam (reset each night in create())
+  private _pickupLogCount: number = 0;
+  private static readonly MAX_PICKUP_LOG_MESSAGES = 3;
+  // Combo tutorial hint: show once per game session (not persisted -- resets on page reload)
+  private static _comboTutorialShown: boolean = false;
   private loadedAmmo: number = 0;
   private weaponUsedThisNight: Set<string> = new Set();
   private gameState!: ReturnType<typeof SaveManager.load>;
@@ -322,6 +327,7 @@ export class NightScene extends Phaser.Scene {
     this._comboCount = 0;
     this._currentKillSource = null;
     this._currentKillTrapName = null;
+    this._pickupLogCount = 0;
     this.shootCooldown = 0;
     this.isShooting = false;
     this.weaponUsedThisNight = new Set();
@@ -2034,9 +2040,21 @@ export class NightScene extends Phaser.Scene {
           }
         }
       } else if (this._currentKillSource === null) {
-        // Kill source was not set -- default to weapon attribution
-        console.warn('[NightScene] zombie-killed fired with null _currentKillSource, defaulting to weapon kill');
-        this.weaponKills++;
+        // Kill source was not set -- happens when DOT (burn, glass shards, fire pit) kills a zombie
+        // outside applyTrapDamage (e.g. Zombie.update() burn tick).
+        // Check if zombie is inside a known DOT trap zone; if so, attribute to trap.
+        const trapName = this.findDotTrapAtPosition(zombie.x, zombie.y);
+        if (trapName !== null) {
+          this.trapKills++;
+          const existingEntry = this.trapKillMap.get(trapName);
+          if (existingEntry) {
+            existingEntry.kills++;
+          } else {
+            this.trapKillMap.set(trapName, { name: trapName, kills: 1 });
+          }
+        } else {
+          this.weaponKills++;
+        }
       } else {
         this.weaponKills++;
       }
@@ -2088,10 +2106,14 @@ export class NightScene extends Phaser.Scene {
       });
     });
 
-    // Pickup spawned notification: brief camera flash, game log message, sound
-    this.events.on('pickup-spawned', (_label: string, _px: number, _py: number) => {
-      this.gameLog.addMessage(`SUPPLY CRATE appeared!`, '#FFD700');
-      // Brief yellow camera flash at pickup location
+    // Pickup spawned notification: brief camera flash, game log message (max 3 per night), sound
+    this.events.on('pickup-spawned', (label: string, _px: number, _py: number) => {
+      // Cap log messages to avoid spam across many waves (2 pickups/wave x 5 waves = 10 messages)
+      if (this._pickupLogCount < NightScene.MAX_PICKUP_LOG_MESSAGES) {
+        this.gameLog.addMessage(`${label} appeared!`, '#FFD700');
+        this._pickupLogCount++;
+      }
+      // Camera flash and sound always play regardless of log cap
       this.cameras.main.flash(200, 255, 220, 0, false);
       AudioManager.play('ui_click');
     });
@@ -3251,6 +3273,26 @@ export class NightScene extends Phaser.Scene {
    * @param trapType    Unique identifier for the trap (structureId or display name).
    * @param baseDamage  Damage before any combo multiplier.
    */
+
+  /**
+   * Checks if a world position is inside any active DOT trap zone (glass shards, fire pit, tar pit).
+   * Used to attribute kills when _currentKillSource is null (e.g. burn DOT from Zombie.update()).
+   * Returns the display name of the trap, or null if no trap zone contains the position.
+   */
+  private findDotTrapAtPosition(px: number, py: number): string | null {
+    for (const gs of this._glassShards) {
+      if (gs.isAlive() && gs.containsPoint(px, py)) return 'Glass Shards';
+    }
+    for (const fp of this._firePits) {
+      // FirePit extends TrapBase (no isAlive()) -- use active property from Phaser.GameObjects.Graphics
+      if (fp.active && fp.containsPoint(px, py)) return 'Fire Pit';
+    }
+    for (const tp of this._tarPits) {
+      if (tp.isAlive() && tp.containsPoint(px, py)) return 'Tar Pit';
+    }
+    return null;
+  }
+
   private applyTrapDamage(zombie: Zombie, trapType: string, baseDamage: number): void {
     const now = this.time.now;
     let finalDamage = baseDamage;
@@ -3266,6 +3308,12 @@ export class NightScene extends Phaser.Scene {
       zombie.comboActive = true;
       // Gold combo floater replaces the regular damage number for this hit
       this.showComboFloater(zombie.x, zombie.y, finalDamage);
+
+      // First combo ever this session: show tutorial hint in GameLog
+      if (!NightScene._comboTutorialShown) {
+        NightScene._comboTutorialShown = true;
+        this.gameLog.addMessage('TRAP COMBO! Place different traps near each other for +50% damage!', '#FFD700');
+      }
     }
 
     // Update combo tracking on the zombie

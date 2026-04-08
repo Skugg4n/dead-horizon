@@ -258,11 +258,11 @@ describe('BuildingManager', () => {
       const placed = manager.place('barricade', 64, 64, 12);
       expect(placed).not.toBeNull();
 
-      // scrap went from 50 to 47 after building barricade (cost: 3)
+      // scrap went from 50 to 45 after building barricade (test mock cost: 5)
       const result = manager.sell(placed!.instance.id);
       expect(result).toBe(true);
-      // Refund: ceil(3 * 0.75) = 3 -> 47 + 3 = 50
-      expect(gameState.inventory.resources.scrap).toBe(50);
+      // Refund: ceil(5 * 0.75) = 4 -> 45 + 4 = 49
+      expect(gameState.inventory.resources.scrap).toBe(49);
       expect(gameState.base.structures).toHaveLength(0);
     });
 

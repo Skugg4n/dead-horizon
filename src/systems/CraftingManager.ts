@@ -2,7 +2,8 @@
 // Handles recipe-based crafting using resources and AP
 
 import Phaser from 'phaser';
-import type { GameState, RecipeData, ResourceType } from '../config/types';
+import type { GameState, RecipeData, ResourceType, ArmorInstance, ShieldInstance } from '../config/types';
+import armorJson from '../data/armor.json';
 import recipesJson from '../data/recipes.json';
 
 const recipeList = recipesJson.recipes as unknown as RecipeData[];
@@ -117,6 +118,36 @@ export class CraftingManager {
           injured.status = 'healthy';
           this.scene.events.emit('refugee-healed', injured);
         }
+        break;
+      }
+      case 'craft_armor': {
+        // Create a new armor instance and add to inventory
+        const armorId = recipe.result.itemId;
+        if (!armorId) break;
+        const armorDef = (armorJson.armor as Array<{ id: string; durabilityNights: number }>)
+          .find(a => a.id === armorId);
+        if (!armorDef) break;
+        const instance: ArmorInstance = {
+          id: `armor_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+          armorId,
+          rarity: 'common',
+          nightsRemaining: armorDef.durabilityNights,
+        };
+        this.gameState.inventory.armorInventory.push(instance);
+        this.scene.events.emit('inventory-changed');
+        break;
+      }
+      case 'craft_shield': {
+        // Create a new shield instance and add to inventory
+        const shieldId = recipe.result.itemId;
+        if (!shieldId) break;
+        const instance: ShieldInstance = {
+          id: `shield_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+          shieldId,
+          rarity: 'common',
+        };
+        this.gameState.inventory.shieldInventory.push(instance);
+        this.scene.events.emit('inventory-changed');
         break;
       }
     }

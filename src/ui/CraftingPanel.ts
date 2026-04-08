@@ -170,13 +170,21 @@ export class CraftingPanel {
     }
   }
 
-  private getResultDescription(result: { type: string; amount: number }): string {
+  private getResultDescription(result: { type: string; amount: number; itemId?: string }): string {
     switch (result.type) {
       case 'food': return `+${result.amount} food`;
       case 'ammo': return `+${result.amount} ammo`;
       case 'repair_weapon': return 'Fully repair 1 weapon';
       case 'wall_hp': return `+${result.amount} HP to 1 wall`;
       case 'heal_refugee': return 'Heal 1 refugee';
+      case 'craft_armor': {
+        const name = (result.itemId ?? 'armor').replace(/_/g, ' ');
+        return `Craft: ${name.charAt(0).toUpperCase() + name.slice(1)}`;
+      }
+      case 'craft_shield': {
+        const name = (result.itemId ?? 'shield').replace(/_/g, ' ');
+        return `Craft: ${name.charAt(0).toUpperCase() + name.slice(1)}`;
+      }
       default: return `${result.type} x${result.amount}`;
     }
   }

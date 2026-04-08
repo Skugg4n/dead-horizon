@@ -314,3 +314,25 @@ Om nagon failar, fixa INNAN push. GitHub Pages visar senaste LYCKADE deploy, sa 
 ### Cap boss-damage per struktur-hit
 **Problem:** Zombies med hog structureDamage (military_tank: 20, forest_boss: 12) kan forstaraga vaggar (150 HP) pa 8-13 sekunders konstant kontakt. Spelaren upplevde det som att bossar gick igenom vaggar.
 **Losning:** Cappade per-hit strukturskada till max 15 i NightScene wall-collision callback: `Math.min(zombie.structureDamage, 15)`. Modifierar inte enemies.json (inga biverk pa zombie-DPS mot spelare).
+
+---
+
+## Kill-attribution och DOT-skada
+
+### zombie-killed med null kill source fran Zombie.update() burn-tick
+**Problem:** `applyTrapDamage()` satter `_currentKillSource = 'trap'` synkront runt `zombie.takeDamage()`.
+Men Zombie.update() har sin egna burn-DOT-loop (`this.takeDamage(this.burnDamage)`) utan att gara genom
+applyTrapDamage. Om branden dodar zombien ar `_currentKillSource` fortfarande null nar zombie-killed emittas.
+**Losning:** Lagg till `findDotTrapAtPosition(x, y)` i NightScene som kontrollerar om zombien stod i en
+Glass Shards, Fire Pit eller Tar Pit-zon. Om ja attributeras kills till trap, annars weapon. Ta bort console.warn.
+
+### RecipeData med valfria faelt i result
+**Problem:** Nya recept (craft_armor, craft_shield) behover veta vilket `armorId`/`shieldId` som ska skapas.
+`RecipeData.result` hade bara `type` och `amount`.
+**Losning:** Lagg till `itemId?: string` pa result-objektet i RecipeData-interfacet. JSON-validering
+fungerar eftersom TypeScript endast kontrollerar vid kompilering.
+
+### AudioManager -- persistera instaellningar i localStorage
+**Problem:** Volume/mute-instaellningar i AudioManager aterstalldes till defaults vid sidomladdning.
+**Losning:** `saveSettings()` serialiserar alla volym/mute-vaerden till localStorage vid varje aendring.
+`loadSettings()` anropas i `initOnInteraction()` for att ladda dem vid start. Nyckel: `dead-horizon-audio-settings`.

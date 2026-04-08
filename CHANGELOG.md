@@ -1,5 +1,43 @@
 # Dead Horizon -- Changelog
 
+## [v6.1.0] - 2026-04-04 00:20 -- Bug fixes + polish: kill attribution, pickup spam, blueprint unlocks, combo hint, settings, crafting armor/shields
+
+### Varfor
+7 bugs och polish-items: DOT-kills utan kill source gav console.warn-spam, pickup-log overfloedade,
+pickup-etiketter var for stora, blueprints visade inte vilka fallor de laser upp, combo-tutorial
+saknades, settings-panelen hade inga volymsreglage, och ingen kunde crafta armor/shields.
+
+### Andrat
+
+- **Bug 1 (NightScene.ts):** zombie-killed med null _currentKillSource attributeras nu korrekt.
+  Ny hjalp-metod `findDotTrapAtPosition()` kollar om zombien stod i en DOT-zon (Glass Shards,
+  Fire Pit, Tar Pit) och attributerar till trap om sa ar fallet. Annars weapon. Ingen console.warn.
+- **Bug 2 (NightScene.ts):** pickup-spawned loggar max 3 meddelanden per natt. Kamera-flash och ljud
+  spelar fortfarande for varje pickup (obegransat). Raknar i `_pickupLogCount`, nollstalls i create().
+- **Bug 3 (NightPickupManager.ts):** Pickup-etikett fontSize 6px -> 7px, color #FFFFFF -> #888888,
+  strokeThickness 2 -> 1. Mindre, nedtonad etikett som inte tar fokus fran spelet.
+- **Polish 4 (LootRunPanel.ts):** Blueprint-fynd visar nu blueprint-namn fran blueprints.json samt
+  "Unlocks: [trap1], [trap2]" fran `unlocks`-faeltet. Blueprintbox hoejd oekad till 72px.
+  blueprintsJson importerat och indexerat i blueprintMap vid modulinitiering.
+- **Polish 5 (NightScene.ts):** Forsta gangen en combo triggar (per session) visas en GameLog-hint:
+  "TRAP COMBO! Place different traps near each other for +50% damage!". Flagga lagras i static
+  `_comboTutorialShown` (nollstalls bara vid page reload, inte per natt).
+- **Polish 6 (AudioManager.ts, MenuScene.ts):** Settings-panelen har nu Master Volume, SFX Volume
+  och Music Volume med [-]/[+]-knappar, samt SFX Enabled, Music Enabled och Mute All-toggles.
+  Instaellningar sparas automatiskt till localStorage (nyckel: dead-horizon-audio-settings) och
+  laddas vid initOnInteraction(). Nya AudioManager-funktioner: setMasterVolume, getMasterVolume,
+  setSfxVolume, getSfxVolume, setMusicVolume, getMusicVolume, loadSettings, saveSettings.
+- **Polish 7 (recipes.json, CraftingManager.ts, CraftingPanel.ts, types.ts):** Tva nya recept:
+  "Improvised Plate" (5 scrap + 2 parts + 2 AP) -> armor improvised_plate,
+  "Trash Can Lid" (3 scrap + 1 AP) -> shield trash_can_lid.
+  CraftingManager hanterar craft_armor och craft_shield result-typer.
+  RecipeData.result far valfritt faelt `itemId?: string`.
+  CraftingPanel visar "Craft: Improvised Plate" resp. "Craft: Trash Can Lid" som result-beskrivning.
+- **constants.ts:** GAME_VERSION 6.0.0 -> 6.1.0
+
+### Versioner
+- `src/config/constants.ts`: GAME_VERSION 6.0.0 -> 6.1.0
+
 ## [v5.8.0] - 2026-04-04 14:40 -- Redesigned toolbar icons + upgrade path visualization in EquipmentPanel
 
 ### Varfor

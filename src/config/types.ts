@@ -84,7 +84,7 @@ export interface RecipeData {
   id: string;
   name: string;
   ingredients: Partial<Record<ResourceType, number>>;
-  result: { type: string; amount: number };
+  result: { type: string; amount: number; itemId?: string };
   apCost: number;
 }
 

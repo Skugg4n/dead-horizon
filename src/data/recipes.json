@@ -34,6 +34,20 @@
       "ingredients": { "meds": 2, "food": 1 },
       "result": { "type": "heal_refugee", "amount": 1 },
       "apCost": 1
+    },
+    {
+      "id": "improvised_plate",
+      "name": "Improvised Plate",
+      "ingredients": { "scrap": 5, "parts": 2 },
+      "result": { "type": "craft_armor", "itemId": "improvised_plate", "amount": 1 },
+      "apCost": 2
+    },
+    {
+      "id": "trash_can_lid",
+      "name": "Trash Can Lid",
+      "ingredients": { "scrap": 3 },
+      "result": { "type": "craft_shield", "itemId": "trash_can_lid", "amount": 1 },
+      "apCost": 1
     }
   ]
 }

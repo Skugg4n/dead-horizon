@@ -1003,7 +1003,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // Settings panel (unchanged functionality)
+  // Settings panel -- volume sliders + mute toggles, persisted to localStorage
   // ---------------------------------------------------------------------------
 
   private toggleSettingsPanel(): void {
@@ -1015,20 +1015,20 @@ export class MenuScene extends Phaser.Scene {
 
     const centerX = GAME_WIDTH / 2;
     const centerY = GAME_HEIGHT / 2;
-    const panelW = 300;
-    const panelH = 220;
+    const panelW = 340;
+    const panelH = 320;
 
     this.settingsContainer = this.add.container(centerX - panelW / 2, centerY - panelH / 2);
     this.settingsContainer.setDepth(150);
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x1A1A2E, 0.95);
+    bg.fillStyle(0x1A1A2E, 0.97);
     bg.fillRoundedRect(0, 0, panelW, panelH, 8);
     bg.lineStyle(2, 0xD4620B);
     bg.strokeRoundedRect(0, 0, panelW, panelH, 8);
     this.settingsContainer.add(bg);
 
-    const title = this.add.text(panelW / 2, 16, 'SETTINGS', {
+    const title = this.add.text(panelW / 2, 14, 'SETTINGS', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '12px',
       color: '#D4620B',
@@ -1043,18 +1043,80 @@ export class MenuScene extends Phaser.Scene {
     closeBtn.on('pointerdown', () => this.toggleSettingsPanel());
     this.settingsContainer.add(closeBtn);
 
-    // Toggle helper
-    const createToggle = (label: string, y: number, isOn: () => boolean, toggle: () => void): void => {
-      const text = this.add.text(20, y, label, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '10px',
-        color: '#E8DCC8',
-      });
-      this.settingsContainer?.add(text);
+    const sc = this.settingsContainer;
+    let yPos = 42;
+    const STEP = 0.1;
 
-      const stateText = this.add.text(panelW - 20, y, isOn() ? 'ON' : 'OFF', {
+    // Helper: create a labelled +/- volume row.
+    // Returns the value display text so callers can cross-update if needed.
+    const createVolumeRow = (
+      label: string,
+      y: number,
+      getVal: () => number,
+      setVal: (v: number) => void,
+    ): Phaser.GameObjects.Text => {
+      const labelText = this.add.text(16, y, label, {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: '10px',
+        fontSize: '9px',
+        color: '#B0A090',
+      });
+      sc.add(labelText);
+
+      const valText = this.add.text(panelW / 2, y, `${Math.round(getVal() * 100)}%`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#E8DCC8',
+      }).setOrigin(0.5, 0);
+      sc.add(valText);
+
+      const btnMinus = this.add.text(panelW - 64, y, '[-]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#D4620B',
+      }).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      btnMinus.on('pointerover', () => btnMinus.setColor('#FFD700'));
+      btnMinus.on('pointerout', () => btnMinus.setColor('#D4620B'));
+      btnMinus.on('pointerdown', () => {
+        setVal(Math.max(0, getVal() - STEP));
+        valText.setText(`${Math.round(getVal() * 100)}%`);
+        AudioManager.play('ui_click');
+      });
+      sc.add(btnMinus);
+
+      const btnPlus = this.add.text(panelW - 20, y, '[+]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#D4620B',
+      }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+      btnPlus.on('pointerover', () => btnPlus.setColor('#FFD700'));
+      btnPlus.on('pointerout', () => btnPlus.setColor('#D4620B'));
+      btnPlus.on('pointerdown', () => {
+        setVal(Math.min(1, getVal() + STEP));
+        valText.setText(`${Math.round(getVal() * 100)}%`);
+        AudioManager.play('ui_click');
+      });
+      sc.add(btnPlus);
+
+      return valText;
+    };
+
+    // Helper: toggle row (ON/OFF)
+    const createToggleRow = (
+      label: string,
+      y: number,
+      isOn: () => boolean,
+      toggle: () => void,
+    ): void => {
+      const labelText = this.add.text(16, y, label, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#B0A090',
+      });
+      sc.add(labelText);
+
+      const stateText = this.add.text(panelW - 16, y, isOn() ? 'ON' : 'OFF', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
         color: isOn() ? '#4CAF50' : '#F44336',
       }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
 
@@ -1064,60 +1126,74 @@ export class MenuScene extends Phaser.Scene {
         toggle();
         stateText.setText(isOn() ? 'ON' : 'OFF');
         stateText.setColor(isOn() ? '#4CAF50' : '#F44336');
+        AudioManager.play('ui_click');
       });
-      this.settingsContainer?.add(stateText);
+      sc.add(stateText);
     };
 
-    createToggle('Sound Effects', 55,
+    // Divider helper
+    const addDivider = (y: number): void => {
+      const div = this.add.graphics();
+      div.lineStyle(1, 0x3A3A3A);
+      div.lineBetween(12, y, panelW - 12, y);
+      sc.add(div);
+    };
+
+    // Master Volume
+    createVolumeRow('Master Volume', yPos,
+      () => AudioManager.getMasterVolume(),
+      v => AudioManager.setMasterVolume(v),
+    );
+    yPos += 24;
+
+    // SFX Volume
+    createVolumeRow('SFX Volume', yPos,
+      () => AudioManager.getSfxVolume(),
+      v => AudioManager.setSfxVolume(v),
+    );
+    yPos += 24;
+
+    // Music Volume
+    createVolumeRow('Music Volume', yPos,
+      () => AudioManager.getMusicVolume(),
+      v => AudioManager.setMusicVolume(v),
+    );
+    yPos += 28;
+
+    addDivider(yPos);
+    yPos += 10;
+
+    // Mute SFX toggle
+    createToggleRow('SFX Enabled', yPos,
       () => !AudioManager.isSfxMuted(),
       () => AudioManager.setSfxMuted(!AudioManager.isSfxMuted()),
     );
+    yPos += 24;
 
-    createToggle('Ambient / Music', 85,
+    // Mute Music toggle
+    createToggleRow('Music Enabled', yPos,
       () => !AudioManager.isAmbientMuted(),
       () => AudioManager.setAmbientMuted(!AudioManager.isAmbientMuted()),
     );
+    yPos += 24;
 
-    createToggle('All Audio', 115,
-      () => !AudioManager.isMuted(),
+    addDivider(yPos);
+    yPos += 10;
+
+    // Mute All toggle
+    createToggleRow('Mute All', yPos,
+      () => AudioManager.isMuted(),
       () => AudioManager.setMuted(!AudioManager.isMuted()),
     );
+    yPos += 32;
 
-    const div = this.add.graphics();
-    div.lineStyle(1, 0x3A3A3A);
-    div.lineBetween(20, 148, panelW - 20, 148);
-    this.settingsContainer.add(div);
-
-    const volText = this.add.text(panelW / 2, 165, `Volume: ${Math.round(AudioManager.getVolume() * 100)}%`, {
+    // Settings persist note
+    const noteText = this.add.text(panelW / 2, yPos, 'Settings saved automatically', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#6B6B6B',
-    }).setOrigin(0.5);
-    this.settingsContainer.add(volText);
-
-    const volDown = this.add.text(panelW / 2 - 80, 190, '[ - ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#6B6B6B',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    volDown.on('pointerdown', () => {
-      AudioManager.setVolume(AudioManager.getVolume() - 0.1);
-      volText.setText(`Volume: ${Math.round(AudioManager.getVolume() * 100)}%`);
-      AudioManager.play('ui_click');
-    });
-    this.settingsContainer.add(volDown);
-
-    const volUp = this.add.text(panelW / 2 + 80, 190, '[ + ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#6B6B6B',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    volUp.on('pointerdown', () => {
-      AudioManager.setVolume(AudioManager.getVolume() + 0.1);
-      volText.setText(`Volume: ${Math.round(AudioManager.getVolume() * 100)}%`);
-      AudioManager.play('ui_click');
-    });
-    this.settingsContainer.add(volUp);
+      fontSize: '6px',
+      color: '#555555',
+    }).setOrigin(0.5, 0);
+    sc.add(noteText);
   }
 
   // ---------------------------------------------------------------------------
