@@ -347,6 +347,8 @@ export class NightScene extends Phaser.Scene {
 
     this.createTerrain();
 
+    // createGroups MUST come before createStructures -- structures add to wallBodies
+    this.createGroups();
     this.createStructures();
     // Build path grid after structures are placed so walls are registered
     this.pathGrid = new PathGrid();
@@ -355,7 +357,6 @@ export class NightScene extends Phaser.Scene {
     this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
     this.createFogOfWar();
     this.createPlayer();
-    this.createGroups();
     this.setupWaveManager();
     // Apply horde multiplier from day events
     if (data?.hordeMultiplier && data.hordeMultiplier > 1.0) {
