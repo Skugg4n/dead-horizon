@@ -27,7 +27,6 @@ import type { EventChoice } from '../ui/EventDialog';
 import structuresJson from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
-import { createUIButton } from '../ui/UIButton';
 import { CLOSE_ALL_PANELS } from '../ui/UIPanel';
 import { BuildMenu } from '../ui/BuildMenu';
 import { AudioManager } from '../systems/AudioManager';
@@ -934,7 +933,20 @@ export class DayScene extends Phaser.Scene {
   private createZoneSelector(): void {
     const zones = this.zoneManager.getAllZones();
     const current = this.zoneManager.getCurrentZone();
-    let yPos = 54;
+
+    // Bug 8: ZONE label placed at y=22 (below base name at y=6, no UPGRADE button overlap).
+    // Zone list starts at y=36 so items don't overlap with the top bar area.
+    const ZONE_LABEL_Y = 22;
+    const ZONE_LIST_START_Y = 36;
+
+    const label = this.add.text(GAME_WIDTH - 16, ZONE_LABEL_Y, 'ZONE:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#6B6B6B',
+    }).setOrigin(1, 0).setDepth(100);
+    this.addToUI(label);
+
+    let yPos = ZONE_LIST_START_Y;
 
     for (const zone of zones) {
       const unlocked = this.zoneManager.isUnlocked(zone.id);
@@ -963,13 +975,6 @@ export class DayScene extends Phaser.Scene {
       this.addToUI(text);
       yPos += 14;
     }
-
-    const label = this.add.text(GAME_WIDTH - 16, 42, 'ZONE:', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#6B6B6B',
-    }).setOrigin(1, 0).setDepth(100);
-    this.addToUI(label);
   }
 
   private createBuildMenu(): void {
@@ -1117,6 +1122,20 @@ export class DayScene extends Phaser.Scene {
           return;
         }
         this.placeStructure(this.placementStructureId, gridX, gridY);
+        return;
+      }
+
+      // Check if clicking the base center (Bug 9: base click shows upgrade popup)
+      const mapPixW = MAP_WIDTH * TILE_SIZE;
+      const mapPixH = MAP_HEIGHT * TILE_SIZE;
+      const baseLd = this.getBaseLevelData();
+      const baseHalfSize = baseLd.visual.size / 2;
+      const baseCx = mapPixW / 2;
+      const baseCy = mapPixH / 2;
+      const distToBase = Math.abs(worldPoint.x - baseCx) <= baseHalfSize + 8
+        && Math.abs(worldPoint.y - baseCy) <= baseHalfSize + 8;
+      if (distToBase) {
+        this.showBaseUpgradePopup();
         return;
       }
 
@@ -1454,6 +1473,104 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Bug 9: Show a base upgrade popup when the player clicks the base structure.
+   * Same pattern as showStructurePopup() but shows upgrade cost + confirm button.
+   * Uses structurePopup container so it is automatically cleaned up by closeStructurePopup().
+   */
+  private showBaseUpgradePopup(): void {
+    this.closeStructurePopup();
+
+    const levelData = this.getBaseLevelData();
+    const next = this.getNextBaseLevelData();
+
+    this.structurePopup = this.add.container(GAME_WIDTH - 192, 46);
+    const popupW = 180;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1A1A1A, 0.95);
+    bg.fillRect(0, 0, popupW, 110);
+    bg.lineStyle(1, 0x333333);
+    bg.strokeRect(0, 0, popupW, 110);
+    this.structurePopup.add(bg);
+
+    // Current base level name
+    this.structurePopup.add(this.add.text(8, 8, levelData.name, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#C5A030',
+    }));
+
+    if (!next || !next.cost) {
+      // Already at max level
+      this.structurePopup.add(this.add.text(8, 26, 'MAX LEVEL', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '8px',
+        color: '#6B6B6B',
+      }));
+    } else {
+      const costStr = Object.entries(next.cost).map(([r, n]) => `${n} ${r}`).join(', ');
+      const apCost = (next.apCost ?? 0);
+
+      this.structurePopup.add(this.add.text(8, 26, `Upgrade to: ${next.name}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#E8DCC8',
+        wordWrap: { width: popupW - 16 },
+      }));
+      this.structurePopup.add(this.add.text(8, 44, `Cost: ${costStr}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#AAAAAA',
+        wordWrap: { width: popupW - 16 },
+      }));
+      if (apCost > 0) {
+        this.structurePopup.add(this.add.text(8, 60, `AP: ${apCost}`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: '#AAAAAA',
+        }));
+      }
+
+      // Check affordability
+      let canAfford = this.currentAP >= apCost;
+      for (const [resource, amount] of Object.entries(next.cost)) {
+        if ((this.gameState.inventory.resources[resource as ResourceType] ?? 0) < (amount as number)) {
+          canAfford = false;
+        }
+      }
+
+      const upgradeBtn = this.add.text(8, apCost > 0 ? 78 : 62, '[ UPGRADE ]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '11px',
+        color: canAfford ? '#4CAF50' : '#6B6B6B',
+      });
+      if (canAfford) {
+        upgradeBtn.setInteractive({ useHandCursor: true });
+        upgradeBtn.on('pointerover', () => upgradeBtn.setColor('#FFD700'));
+        upgradeBtn.on('pointerout', () => upgradeBtn.setColor('#4CAF50'));
+        upgradeBtn.on('pointerdown', () => {
+          this.upgradeBase();
+          this.closeStructurePopup();
+        });
+      }
+      this.structurePopup.add(upgradeBtn);
+    }
+
+    // Close button
+    const closeBtn = this.add.text(popupW - 8, 8, '[X]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#666666',
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this.closeStructurePopup());
+    closeBtn.on('pointerover', () => closeBtn.setColor('#FFD700'));
+    closeBtn.on('pointerout', () => closeBtn.setColor('#666666'));
+    this.structurePopup.add(closeBtn);
+
+    this.structurePopup.setDepth(101);
+    this.addToUI(this.structurePopup);
+  }
+
   /** Draw the base tent/building visual based on current level */
   private drawBaseTent(graphics: Phaser.GameObjects.Graphics, centerX: number, centerY: number): void {
     const levelData = this.getBaseLevelData();
@@ -1497,12 +1614,13 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
-  /** Create the base level and upgrade UI in the top bar (right side) */
+  /** Create the base level UI in the top bar (right side).
+   * Bug 9: UPGRADE button removed -- clicking the base on the map opens an upgrade popup instead.
+   */
   private createBaseUpgradeUI(): void {
     const levelData = this.getBaseLevelData();
-    const next = this.getNextBaseLevelData();
 
-    // Base name label
+    // Base name label only -- no upgrade button here to avoid top-bar overlap (Bug 7/9)
     const baseLabel = this.add.text(GAME_WIDTH - 16, 6, levelData.name, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
@@ -1510,31 +1628,9 @@ export class DayScene extends Phaser.Scene {
     }).setOrigin(1, 0).setDepth(100);
     this.addToUI(baseLabel);
 
-    // Upgrade button below the label (or MAX indicator)
-    if (next && next.cost) {
-      const costStr = Object.entries(next.cost).map(([r, n]) => `${n} ${r}`).join(', ');
-      this.baseUpgradeBtn = createUIButton(
-        this,
-        GAME_WIDTH - 16,
-        20,
-        `UPGRADE (${costStr})`,
-        '#4CAF50',
-        () => this.upgradeBase(),
-        1,
-      );
-      this.baseUpgradeBtn.setDepth(100);
-      this.addToUI(this.baseUpgradeBtn);
-    } else {
-      const maxText = this.add.text(GAME_WIDTH - 16, 20, 'MAX', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: '#6B6B6B',
-      }).setOrigin(1, 0).setDepth(100);
-      this.addToUI(maxText);
-      // Assign a dummy container so updateBaseUpgradeUI can destroy it
-      this.baseUpgradeBtn = this.add.container(0, 0);
-      this.addToUI(this.baseUpgradeBtn);
-    }
+    // Assign a dummy container so updateBaseUpgradeUI can destroy it without crashing
+    this.baseUpgradeBtn = this.add.container(0, 0);
+    this.addToUI(this.baseUpgradeBtn);
   }
 
   /** Refresh the base upgrade UI after an upgrade */

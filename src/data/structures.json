@@ -164,7 +164,7 @@
       "id": "pillbox",
       "name": "Pillbox",
       "category": "special",
-      "description": "Refugee shooting position. 100 HP",
+      "description": "Auto-assigns 1 refugee to shoot zombies. 100 HP",
       "hp": 100,
       "cost": { "scrap": 20, "parts": 2 },
       "apCost": 2,
@@ -286,7 +286,7 @@
       "apCost": 1,
       "maxLevel": 1,
       "effect": "continuousDamageZone",
-      "damagePerSecond": 5,
+      "damagePerSecond": 2,
       "zoneRadius": 96
     },
     {
@@ -699,7 +699,7 @@
       "id": "dumpster_fortress",
       "name": "Dumpster Fortress",
       "category": "primitive",
-      "description": "Blocks zombies. 150 HP. Shooting positions inside",
+      "description": "Strong blocker. 150 HP. Protects nearby traps",
       "hp": 150,
       "cost": { "scrap": 6, "parts": 1 },
       "apCost": 2,

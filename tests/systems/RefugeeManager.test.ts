@@ -418,7 +418,9 @@ describe('RefugeeManager', () => {
   });
 
   describe('getPillboxRefugees', () => {
-    it('returns only healthy refugees with pillbox job', () => {
+    it('returns all healthy refugees (Camp Crew: no job assignment needed)', () => {
+      // v5.3+ Camp Crew change: any healthy refugee auto-mans pillboxes.
+      // Job assignment is no longer required for pillbox duty.
       gameState.refugees = [
         createTestRefugee({ id: 'r1', status: 'healthy', job: 'pillbox' }),
         createTestRefugee({ id: 'r2', name: 'Raven', status: 'injured', job: 'pillbox' }),
@@ -427,8 +429,10 @@ describe('RefugeeManager', () => {
       manager = new RefugeeManager(mockScene as never, gameState);
 
       const pillbox = manager.getPillboxRefugees();
-      expect(pillbox).toHaveLength(1);
-      expect(pillbox[0].id).toBe('r1');
+      // r1 and r3 are healthy (r2 is injured and excluded)
+      expect(pillbox).toHaveLength(2);
+      expect(pillbox.map(r => r.id)).toContain('r1');
+      expect(pillbox.map(r => r.id)).toContain('r3');
     });
   });
 });

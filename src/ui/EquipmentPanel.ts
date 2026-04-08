@@ -249,8 +249,14 @@ export class EquipmentPanel {
 
     // Listen for close-all-panels event
     scene.events.on(CLOSE_ALL_PANELS, this.handleCloseAll, this);
+
+    // Bug 11+12: Rebuild panel when inventory changes (e.g. after a loot run finds a weapon).
+    // Without this, newly found weapons only show after closing and reopening the panel.
+    scene.events.on('inventory-changed', this.handleInventoryChanged, this);
+
     scene.events.once('shutdown', () => {
       scene.events.off(CLOSE_ALL_PANELS, this.handleCloseAll, this);
+      scene.events.off('inventory-changed', this.handleInventoryChanged, this);
       this.backdrop.destroy();
       this.container.destroy();
     });
@@ -336,6 +342,13 @@ export class EquipmentPanel {
       this.container.setVisible(false);
       this.backdrop.setVisible(false);
       this.visible = false;
+    }
+  };
+
+  /** Bug 11+12: Rebuild the panel whenever inventory changes (e.g. loot run weapon drop). */
+  private handleInventoryChanged = (): void => {
+    if (this.visible) {
+      this.rebuild();
     }
   };
 
@@ -507,14 +520,20 @@ export class EquipmentPanel {
       const equippedMark = isEquipped
         ? (weapon.id === primaryWeaponId ? ' [1]' : ' [2]')
         : '';
+      // Bug 13: reserve 20px on right for [S] scrap button on non-equipped rows
+      const scrapBtnW = isEquipped ? 0 : 20;
+      const textAreaW = w - scrapBtnW - 8;
       const rowLabel = `${name} [${rar}] D:${stats.damage}${equippedMark}`;
       const rowText = this.scene.add.text(4, y + 4, rowLabel, {
         fontFamily: FONT, fontSize: '7px', color,
+        // Truncate label to fit within the row text area
+        fixedWidth: textAreaW > 0 ? textAreaW : undefined,
       });
       c.add(rowText);
 
-      // Chevron on right
-      const arrowText = this.scene.add.text(w - 4, y + 4, '>', {
+      // Chevron on right (shifted left when scrap button is present)
+      const arrowX = isEquipped ? w - 4 : w - scrapBtnW - 8;
+      const arrowText = this.scene.add.text(arrowX, y + 4, '>', {
         fontFamily: FONT, fontSize: '7px', color: '#4A90D9',
       }).setOrigin(1, 0);
       c.add(arrowText);
@@ -526,8 +545,33 @@ export class EquipmentPanel {
       const capturedColor = color;
       const capturedIsBroken = isBroken;
 
+      // Bug 13: [S] scrap button for non-equipped weapons only
+      if (!isEquipped) {
+        const sv = SCRAP_VALUES[weapon.rarity] ?? { scrap: 2, parts: 1 };
+        const scrapBtn = this.scene.add.text(w - 2, y + 4, '[S]', {
+          fontFamily: FONT, fontSize: '7px', color: '#AA4433',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        scrapBtn.on('pointerover', () => scrapBtn.setColor('#FF6655'));
+        scrapBtn.on('pointerout', () => scrapBtn.setColor('#AA4433'));
+        scrapBtn.on('pointerdown', () => {
+          const idx = this.gameState.inventory.weapons.indexOf(capturedWeapon);
+          if (idx >= 0) {
+            this.gameState.inventory.weapons.splice(idx, 1);
+            this.gameState.inventory.resources.scrap += sv.scrap;
+            this.gameState.inventory.resources.parts += sv.parts;
+            this.onResourceChange();
+            // Stay on same page (or go back one if it was the last item on this page)
+            const remaining = this.gameState.inventory.weapons.length;
+            const maxPage = Math.max(0, Math.ceil(remaining / PAGE_SIZE) - 1);
+            if (this.weaponPage > maxPage) this.weaponPage = maxPage;
+            this.rebuild();
+          }
+        });
+        c.add(scrapBtn);
+      }
+
       rowBg.setInteractive(
-        new Phaser.Geom.Rectangle(0, y, w, rowH),
+        new Phaser.Geom.Rectangle(0, y, w - scrapBtnW, rowH),
         Phaser.Geom.Rectangle.Contains,
       );
       if (rowBg.input) rowBg.input.cursor = 'pointer';
@@ -537,11 +581,11 @@ export class EquipmentPanel {
         rowBg.fillStyle(0x3A3A3A, 1);
         rowBg.fillRect(0, capturedY, w, rowH);
         rowText.setColor('#FFD700');
-        // Show hover comparison against primary weapon
+        // Show hover comparison ABOVE the hovered row (Bug 14: avoid overlapping next row)
         const primaryWeapon = this.gameState.equipped.primaryWeaponId
           ? this.gameState.inventory.weapons.find(ww => ww.id === this.gameState.equipped.primaryWeaponId) ?? null
           : null;
-        this.showWeaponComparison(capturedWeapon, primaryWeapon, capturedY + rowH);
+        this.showWeaponComparison(capturedWeapon, primaryWeapon, capturedY);
       });
       rowBg.on('pointerout', () => {
         rowBg.clear();
@@ -989,14 +1033,16 @@ export class EquipmentPanel {
     const color = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
     const isBroken = this.weaponManager.isBroken(weapon);
 
-    // Name + rarity line
+    // Name + rarity line -- Bug 15: clamp to right panel width with wordWrap
     c.add(this.scene.add.text(0, y, `${name} [${weapon.rarity}]`, {
       fontFamily: FONT, fontSize: '7px',
       color: isBroken ? '#F44336' : color,
+      wordWrap: { width: w },
     }));
     y += 11;
 
     // Stats line: DMG and RNG on left, DUR on right
+    // Bug 15: ensure right-aligned DUR text stays within w
     const durColor = weapon.durability < weapon.maxDurability * 0.3 ? '#F44336'
       : weapon.durability < weapon.maxDurability * 0.6 ? '#FFD700' : '#8A8A8A';
     c.add(this.scene.add.text(0, y, `DMG:${stats.damage} RNG:${stats.range}`, {
@@ -1004,6 +1050,7 @@ export class EquipmentPanel {
     }));
     c.add(this.scene.add.text(w - 2, y, `DUR:${weapon.durability}/${weapon.maxDurability}`, {
       fontFamily: FONT, fontSize: '7px', color: durColor,
+      fixedWidth: w / 2,
     }).setOrigin(1, 0));
     y += 11;
 
@@ -1259,22 +1306,20 @@ export class EquipmentPanel {
   // ---------------------------------------------------------------------------
 
   /**
-   * Show a compact stat comparison overlay below a hovered inventory item.
+   * Show a compact stat comparison overlay ABOVE the hovered inventory item (Bug 14).
+   * Previously rendered below the row, overlapping the next row.
+   * Now rendered above so it never covers adjacent list items.
    * Compares the hovered weapon against the currently equipped primary weapon.
    * Green = better stat, red = worse stat.
    */
   private showWeaponComparison(
     hovered: WeaponInstance,
     equipped: WeaponInstance | null,
-    tooltipLocalY: number,
+    rowLocalY: number,
   ): void {
     this.tooltipContainer.removeAll(true);
 
     const hovStats = this.weaponManager.getWeaponStats(hovered);
-
-    // Position within left panel coordinate space
-    const tx = CONTENT_PAD;
-    const ty = HEADER_H + CONTENT_PAD + tooltipLocalY;
 
     const lines: Array<{ text: string; color: string }> = [];
 
@@ -1304,6 +1349,15 @@ export class EquipmentPanel {
 
     const ttH = lines.length * 12 + 8;
     const ttW = 200;
+
+    // Bug 14: Position tooltip ABOVE the hovered row (not below) to avoid overlapping next row.
+    // rowLocalY is the row's y within leftContent. Convert to panel-relative coords, then
+    // shift upward by ttH so the tooltip box ends exactly at the row's top edge.
+    const tx = CONTENT_PAD;
+    const rowPanelY = HEADER_H + CONTENT_PAD + rowLocalY;
+    // Clamp so tooltip never goes above panel header
+    const ty = Math.max(HEADER_H + 4, rowPanelY - ttH);
+
     const ttBg = this.scene.add.graphics();
     ttBg.fillStyle(0x000000, 0.9);
     ttBg.fillRect(tx, ty, ttW, ttH);

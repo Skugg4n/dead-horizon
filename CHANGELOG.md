@@ -1,5 +1,52 @@
 # Dead Horizon -- Changelog
 
+## [v5.4.0] - 2026-04-04 -- Bugfixar: boss/wall collision, top-bar overlap, inventory refresh, scrap, tooltip, right panel
+
+### Varfor
+11 buggar fixade i NightScene (boss vagger), DayScene (top-bar overlap, base-upgrade popup),
+EquipmentPanel (inventory stale data, per-weapon scrap-knapp, tooltip over row-overlap, right panel texttruncation).
+
+### Andrat
+
+**Bug 5 -- Boss vs walls: cap structure damage per hit (src/scenes/NightScene.ts)**
+- Lade till `cappedDamage = Math.min(zombie.structureDamage, 15)` i wall-collision callback
+- Lade till `wallRef.active`-guard innan takeDamage() for att undvika double-destroy
+- Militar-tank (20 dmg) och forest_boss (12 dmg) behovde nu minst 10 resp. 15 sekunders konstant tryck for att forstaraga en ny vagg (150 HP)
+
+**Bug 7+8+10 -- DayScene top-right text overlap (src/scenes/DayScene.ts)**
+- `createBaseUpgradeUI()`: tog bort UPGRADE-knapp fran top bar (Bug 9)
+- `createZoneSelector()`: ZONE-label flyttad till y=22, zon-lista borjar vid y=36 (fran y=42/54)
+- Dubbel base-level-text i top bar borttagen (knappen visades som text bredvid basnamnet)
+
+**Bug 9 -- UPGRADE via base click (src/scenes/DayScene.ts)**
+- Lade till `showBaseUpgradePopup()` -- visar upgrade-cost och confirm-knapp i popup-container
+- `setupInput()`: detekterar klick pa bas-omradet (basHalfSize + 8px hotspot) och anropar showBaseUpgradePopup()
+- Samma monster som showStructurePopup() -- anvander structurePopup-containern
+
+**Bug 11+12 -- Inventory stale data (src/ui/LootRunPanel.ts + src/ui/EquipmentPanel.ts)**
+- LootRunPanel emittar `inventory-changed` event efter loot run avslutas
+- EquipmentPanel lyssnar pa `inventory-changed` och anropar rebuild() nar panelen ar synlig
+- Cleanup av event-lyssnaren registreras i shutdown-handlern
+
+**Bug 13 -- Per-weapon [S] scrap-knapp (src/ui/EquipmentPanel.ts)**
+- Varje icke-utrustad vapen-rad har nu en [S]-knapp langst till hoger
+- Klick skrotar vapnet och ger scrap/parts baserat pa raritet (SCRAP_VALUES)
+- rowBg interactive-area minskas med scrapBtnW (20px) sa klick pa [S] ej triggar equip
+
+**Bug 14 -- Hover comparison ovanfor raden (src/ui/EquipmentPanel.ts)**
+- `showWeaponComparison()` beraknar nu `ty = rowPanelY - ttH` (ovanfor) istallet for nedanfor
+- Klamras till HEADER_H + 4 sa tooltip aldrig hamnar ovanfor panelen
+
+**Bug 15 -- Right panel text truncation (src/ui/EquipmentPanel.ts)**
+- Vapennamn + raritet: lade till `wordWrap: { width: w }` i buildEquippedWeaponSlot()
+- DUR-text: `fixedWidth: w / 2` for att begranasa hoger-alignerad text
+
+**Test -- RefugeeManager.test.ts**
+- Uppdaterade `getPillboxRefugees`-testet for att matcha v5.3+ Camp Crew-beteende
+  (alla friska refugees kan bema pillboxar, inte bara de med job='pillbox')
+
+---
+
 ## [v5.3.0] - 2026-04-04 -- Bugfixar: armor/shield drops, secondary weapon equip, HUD layout
 
 ### Varfor

@@ -242,7 +242,8 @@ export class RefugeeManager {
 
   // Get refugees assigned to pillbox duty (job === 'pillbox' and healthy)
   getPillboxRefugees(): RefugeeInstance[] {
-    return this.refugees.filter(r => r.job === 'pillbox' && r.status === 'healthy');
+    // Camp Crew: any healthy refugee can man a pillbox (no job assignment needed)
+    return this.refugees.filter(r => r.status === 'healthy');
   }
 
   syncToState(): void {

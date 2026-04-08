@@ -768,6 +768,9 @@ export class LootRunPanel {
 
     this.lootManager.awardLootingXP();
     this.onResourceChange();
+    // Bug 11+12: Notify EquipmentPanel (and any other listeners) that inventory changed.
+    // Without this, newly found weapons only appear after closing and reopening the panel.
+    this.scene.events.emit('inventory-changed');
     this.scene.events.emit('loot-run-finished', result);
   }
 }

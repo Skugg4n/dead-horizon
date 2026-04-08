@@ -1780,12 +1780,16 @@ export class NightScene extends Phaser.Scene {
         const wallBody = _wallBody as Phaser.Physics.Arcade.Sprite;
         if (!zombie.active) return;
 
-        // Brutes damage walls on collision
+        // Brutes damage walls on collision -- rate-limited by structureAttackCooldown (1 hit/s).
+        // Cap damage per hit to prevent very high-damage bosses from bypassing the wall
+        // in a single frame (Bug 5): max 15 damage per hit regardless of zombie.structureDamage.
         if (zombie.canAttackStructure()) {
           const wallData = wallBody.getData('wallRef');
           const wallRef = wallData instanceof Wall ? wallData : undefined;
-          if (wallRef) {
-            const destroyed = wallRef.takeDamage(zombie.structureDamage);
+          if (wallRef && wallRef.active) {
+            // Cap per-hit wall damage to 15 so even the military_tank (20 dmg) needs multiple hits
+            const cappedDamage = Math.min(zombie.structureDamage, 15);
+            const destroyed = wallRef.takeDamage(cappedDamage);
             zombie.resetStructureAttackCooldown();
             if (destroyed) {
               AudioManager.play('structure_break');
