@@ -52,6 +52,7 @@ export class EquipmentPanel {
   private panel: UIPanel;
   private viewState: ViewState = { mode: 'default' };
   private storageScrollOffset: number = 0;
+  private pickerPage: number = 0;
   private currentAP: () => number;
   private spendAP: (cost: number) => void;
   private onResourceChange: () => void;
@@ -392,6 +393,7 @@ export class EquipmentPanel {
     });
     btnBg.on('pointerdown', () => {
       this.viewState = { mode: 'picker', slot };
+      this.pickerPage = 0;
       this.rebuild();
     });
 
@@ -566,8 +568,77 @@ export class EquipmentPanel {
     y = this.renderPickerEntry(content, null, slot, otherSlotId, y);
     y += 4;
 
-    for (const w of weapons) {
-      y = this.renderPickerEntry(content, w, slot, otherSlotId, y);
+    // Sort weapons: highest damage first, then by rarity
+    const rarityOrder: Record<string, number> = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
+    const sorted = [...weapons].sort((a, b) => {
+      const aDmg = this.weaponManager.getWeaponStats(a).damage;
+      const bDmg = this.weaponManager.getWeaponStats(b).damage;
+      if (bDmg !== aDmg) return bDmg - aDmg;
+      return (rarityOrder[a.rarity] ?? 4) - (rarityOrder[b.rarity] ?? 4);
+    });
+
+    // Paginate: show 8 weapons per page
+    const PAGE_SIZE = 8;
+    const totalWeapons = sorted.length;
+    const totalPages = Math.ceil(totalWeapons / PAGE_SIZE);
+    const currentPage = Math.min(this.pickerPage, totalPages - 1);
+    const startIdx = currentPage * PAGE_SIZE;
+    const endIdx = Math.min(startIdx + PAGE_SIZE, totalWeapons);
+
+    // Page indicator
+    if (totalPages > 1) {
+      const pageText = this.scene.add.text(0, y, `Page ${currentPage + 1}/${totalPages}  (${totalWeapons} weapons)`, {
+        fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#6B6B6B',
+      });
+      content.add(pageText);
+      y += 12;
+    }
+
+    // Previous page button
+    if (currentPage > 0) {
+      const prevBtn = this.scene.add.text(0, y, '[ << PREV PAGE ]', {
+        fontFamily: '"Press Start 2P", monospace', fontSize: '8px', color: '#FFD700',
+      }).setInteractive({ useHandCursor: true });
+      prevBtn.on('pointerdown', () => { this.pickerPage = currentPage - 1; this.rebuild(); });
+      content.add(prevBtn);
+      y += 14;
+    }
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const w = sorted[i];
+      if (w) y = this.renderPickerEntry(content, w, slot, otherSlotId, y);
+    }
+
+    // Next page button
+    if (endIdx < totalWeapons) {
+      const nextBtn = this.scene.add.text(0, y, `[ NEXT PAGE >> ] (${totalWeapons - endIdx} more)`, {
+        fontFamily: '"Press Start 2P", monospace', fontSize: '8px', color: '#FFD700',
+      }).setInteractive({ useHandCursor: true });
+      nextBtn.on('pointerdown', () => { this.pickerPage = currentPage + 1; this.rebuild(); });
+      content.add(nextBtn);
+      y += 14;
+    }
+
+    // Scrap all common button (bulk cleanup)
+    const commonCount = weapons.filter(w => w.rarity === 'common' && w.id !== this.gameState.equipped.primaryWeaponId && w.id !== this.gameState.equipped.secondaryWeaponId).length;
+    if (commonCount > 2) {
+      y += 4;
+      const scrapAllBtn = this.scene.add.text(0, y, `[ SCRAP ALL COMMON (${commonCount}) +${commonCount * 2}S +${commonCount}P ]`, {
+        fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#AA4433',
+      }).setInteractive({ useHandCursor: true });
+      scrapAllBtn.on('pointerdown', () => {
+        const toScrap = weapons.filter(w => w.rarity === 'common' && w.id !== this.gameState.equipped.primaryWeaponId && w.id !== this.gameState.equipped.secondaryWeaponId);
+        for (const w of toScrap) {
+          const idx = this.gameState.inventory.weapons.indexOf(w);
+          if (idx >= 0) this.gameState.inventory.weapons.splice(idx, 1);
+          this.gameState.inventory.resources.scrap += 2;
+          this.gameState.inventory.resources.parts += 1;
+        }
+        this.onResourceChange();
+        this.rebuild();
+      });
+      content.add(scrapAllBtn);
+      y += 14;
     }
 
     y += 8;
@@ -612,7 +683,10 @@ export class EquipmentPanel {
       const stats = this.weaponManager.getWeaponStats(weapon);
       const data = WeaponManager.getWeaponData(weapon.weaponId);
       const name = data?.name ?? weapon.weaponId;
-      rowText = `  ${name} [${weapon.rarity}] DMG:${stats.damage}`;
+      const cls = stats.weaponClass === 'melee' ? 'M' : 'R';
+      const dur = `${weapon.durability}/${weapon.maxDurability}`;
+      const spec = stats.specialEffect ? ` ${stats.specialEffect.type}` : '';
+      rowText = `  ${name} [${weapon.rarity[0]?.toUpperCase() ?? ''}] ${cls} D:${stats.damage} RNG:${stats.range} DUR:${dur}${spec}`;
       rowColor = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
     }
 
