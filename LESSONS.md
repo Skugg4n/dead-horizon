@@ -294,3 +294,7 @@ Om nagon failar, fixa INNAN push. GitHub Pages visar senaste LYCKADE deploy, sa 
 ### Verbose console.log i hot path skadar performance
 **Problem:** NightScene.createStructures() loggade varje struktur vid nattstart (`[NightScene] createStructures: barricade at (x, y)`). Med 20+ strukturer = 20+ konsolrader per nattstart, och dev-tools slow-down vid stora saves.
 **Losning:** Ta bort console.log i slingor som kors per struktur/entitet. Anvand kommentarer istallet. Behall loggar bara for fel (console.error/warn) eller engangshandelseser.
+
+### createGroups() MASTE koras FORE createStructures() (KRITISKT)
+**Problem:** NightScene.create() anropade createStructures() FORE createGroups(). createStructures() forsaker lagga till wall-bodies i this.wallBodies (Phaser StaticGroup), men wallBodies skapas forst i createGroups(). Resultatet: ALLA vaggar/barrikader saknade physics-kroppar. Zombies gick rakt igenom allt. Kill corridors, PathGrid-steering -- allt fungerade visuellt men physics var trasig.
+**Losning:** Flytta createGroups() FORE createStructures() i create()-floden. Ordning spelar roll -- physics-grupper maste existera innan objekt laggs till i dem. Generell regel: skapa CONTAINERS/GROUPS forst, fyll dem SEDAN.
