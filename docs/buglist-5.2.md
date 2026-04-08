@@ -28,6 +28,9 @@
 ## INVENTORY:
 - [ ] Weapons found on loot runs don't appear in Equipment panel (panel shows stale data, needs rebuild on inventory change)
 - [ ] Frying Pan and other new weapons confirmed in loot-tables.json but not showing
+- [ ] No SCRAP button per weapon in inventory left panel (can only scrap common bulk)
+- [ ] Hover comparison overlay covers the next weapon row (needs offset or transparent bg)
+- [ ] Right panel text cut off at edge (visible in screenshot -- stats truncated)
 
 ## BEKRAFTADE FIXADE:
 - [x] Traps do no damage (SpatialGrid instanceof bug) -- v5.0.1
