@@ -1541,7 +1541,7 @@ export class DayScene extends Phaser.Scene {
         wordWrap: { width: popupW - 16 },
       }));
       if (apCost > 0) {
-        this.structurePopup.add(this.add.text(8, 60, `AP: ${apCost}`, {
+        this.structurePopup.add(this.add.text(8, 60, `Time: ${apCost}h`, {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '7px',
           color: '#AAAAAA',
