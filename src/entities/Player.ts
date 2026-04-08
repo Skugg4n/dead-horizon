@@ -23,6 +23,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   speedBuff: number = 1;
   damageBuff: number = 1;
 
+  // Armor: fraction of incoming damage absorbed (0 = none, 0.45 = 45% reduction)
+  armorReduction: number = 0;
+  // Speed penalty from equipped armor + shield (stacked, e.g. -0.10 + -0.05 = -0.15)
+  armorSpeedPenalty: number = 0;
+
+  // Shield: how many hits remain before cooldown triggers
+  shieldBlocksLeft: number = 0;
+  // Shield cooldown remaining in ms (0 = shield is ready)
+  shieldCooldown: number = 0;
+  // Shield cooldown total ms (set when shield activates)
+  private _shieldCooldownMax: number = 0;
+
   // Current zone -- set by NightScene after player creation, used for zone-specific footsteps
   zone: ZoneId = 'forest';
 
@@ -77,9 +89,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   update(delta: number): void {
     const dt = delta / 1000;
+
+    // Tick shield cooldown (recovers one block charge when cooldown expires)
+    if (this.shieldCooldown > 0) {
+      this.shieldCooldown -= delta;
+      if (this.shieldCooldown <= 0) {
+        this.shieldCooldown = 0;
+        // Restore one block charge (up to the configured max -- tracked via _shieldCooldownMax)
+        this.shieldBlocksLeft = Math.max(this.shieldBlocksLeft, 1);
+      }
+    }
+
     const isSprinting = this.shiftKey?.isDown && this.stamina > 0;
-    // Apply adrenaline speed buff multiplier (1.0 normally, 1.5 during buff)
-    const speed = (isSprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED) * this.speedBuff;
+    // Apply adrenaline speed buff AND armor/shield speed penalty.
+    // armorSpeedPenalty is negative (e.g. -0.15), so (1 + penalty) < 1.
+    const speedMultiplier = this.speedBuff * (1 + this.armorSpeedPenalty);
+    const speed = (isSprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED) * speedMultiplier;
 
     // Movement
     let vx = 0;
@@ -168,8 +193,43 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
+  /**
+   * Configure shield parameters. Called by NightScene after equipping a shield.
+   * @param blockHits    Max hits before cooldown triggers.
+   * @param cooldownMs   Cooldown duration in ms.
+   */
+  equip(armorReduction: number, armorSpeedPenalty: number, shieldBlockHits: number, shieldCooldownMs: number): void {
+    this.armorReduction = armorReduction;
+    // Stack armor + shield speed penalties
+    this.armorSpeedPenalty = armorSpeedPenalty;
+    this.shieldBlocksLeft = shieldBlockHits;
+    this._shieldCooldownMax = shieldCooldownMs;
+    this.shieldCooldown = 0;
+  }
+
   takeDamage(amount: number): void {
-    this.hp -= amount;
+    // Apply armor reduction first -- clamp so damage never goes negative
+    let finalAmount = amount * (1 - this.armorReduction);
+    finalAmount = Math.max(0, finalAmount);
+
+    // Shield block: if a block charge is available, absorb this hit entirely
+    if (this.shieldBlocksLeft > 0 && this.shieldCooldown <= 0) {
+      this.shieldBlocksLeft--;
+      // Trigger cooldown when charges run out
+      if (this.shieldBlocksLeft <= 0) {
+        this.shieldCooldown = this._shieldCooldownMax;
+      }
+      // Brief blue flash to signal the block
+      this.setTint(0x4488FF);
+      this.scene.time.delayedCall(120, () => {
+        if (!this.active) return;
+        this.clearTint();
+      });
+      // Block absorbed -- skip damage
+      return;
+    }
+
+    this.hp -= finalAmount;
     this.scene.events.emit('player-damaged', this.hp, this.maxHp);
 
     // Flash red

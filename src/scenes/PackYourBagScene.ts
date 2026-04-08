@@ -998,6 +998,8 @@ export class PackYourBagScene extends Phaser.Scene {
       equipped: {
         primaryWeaponId: null,
         secondaryWeaponId: null,
+        equippedArmor: null,
+        equippedShield: null,
       },
       // Wave resets to 1 in the new zone
       progress: {

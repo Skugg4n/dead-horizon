@@ -1,0 +1,21 @@
+{
+  "armor": [
+    { "id": "leather_jacket", "name": "Leather Jacket", "reduction": 0.10, "durabilityNights": 3, "rarity": "common", "speedPenalty": 0, "description": "Old biker jacket. Better than nothing." },
+    { "id": "thick_hoodie", "name": "Thick Hoodie", "reduction": 0.08, "durabilityNights": 4, "rarity": "common", "speedPenalty": 0, "description": "Layered cotton. Surprisingly tough." },
+    { "id": "car_tire_pads", "name": "Car Tire Shoulderpads", "reduction": 0.15, "durabilityNights": 5, "rarity": "common", "speedPenalty": -0.05, "description": "Rubber strips strapped to shoulders." },
+    { "id": "bucket_helmet", "name": "Bucket Helmet", "reduction": 0.12, "durabilityNights": 3, "rarity": "common", "speedPenalty": -0.03, "description": "Metal bucket with eye holes cut out." },
+    { "id": "improvised_plate", "name": "Improvised Plate", "reduction": 0.20, "durabilityNights": 2, "rarity": "uncommon", "speedPenalty": -0.08, "description": "Sheet metal bent into a chest plate." },
+    { "id": "riot_vest", "name": "Riot Vest", "reduction": 0.25, "durabilityNights": 5, "rarity": "uncommon", "speedPenalty": -0.05, "description": "Police surplus. Stab-resistant." },
+    { "id": "football_pads", "name": "Football Pads", "reduction": 0.18, "durabilityNights": 4, "rarity": "uncommon", "speedPenalty": -0.03, "description": "Found in a school gym." },
+    { "id": "kevlar_vest", "name": "Kevlar Vest", "reduction": 0.35, "durabilityNights": 4, "rarity": "rare", "speedPenalty": -0.10, "description": "Military grade. Stops most bites." },
+    { "id": "fireman_suit", "name": "Fireman Suit", "reduction": 0.30, "durabilityNights": 6, "rarity": "rare", "speedPenalty": -0.12, "description": "Heat-resistant. Zombie-resistant too." },
+    { "id": "military_armor", "name": "Military Armor", "reduction": 0.45, "durabilityNights": 6, "rarity": "legendary", "speedPenalty": -0.15, "description": "Full tactical gear. Top tier protection." }
+  ],
+  "shields": [
+    { "id": "trash_can_lid", "name": "Trash Can Lid", "blockHits": 1, "cooldownMs": 5000, "speedPenalty": -0.05, "rarity": "common", "description": "Dented but functional." },
+    { "id": "cutting_board", "name": "Cutting Board", "blockHits": 1, "cooldownMs": 4000, "speedPenalty": -0.03, "rarity": "common", "description": "Thick oak. Surprisingly sturdy." },
+    { "id": "car_door", "name": "Car Door", "blockHits": 2, "cooldownMs": 8000, "speedPenalty": -0.12, "rarity": "uncommon", "description": "Ripped off a wreck. Heavy but solid." },
+    { "id": "riot_shield", "name": "Riot Shield", "blockHits": 3, "cooldownMs": 10000, "speedPenalty": -0.15, "rarity": "rare", "description": "Polycarbonate. Professional grade." },
+    { "id": "manhole_cover", "name": "Manhole Cover", "blockHits": 4, "cooldownMs": 12000, "speedPenalty": -0.20, "rarity": "rare", "description": "Cast iron. Nothing gets through." }
+  ]
+}

@@ -7,7 +7,8 @@ import Phaser from 'phaser';
 import { UIPanel } from './UIPanel';
 import { WeaponManager } from '../systems/WeaponManager';
 import { renderResourceCosts } from './resourceIcons';
-import type { GameState, WeaponInstance, WeaponUpgradeType, UpgradeDefinition, WeaponUltimate } from '../config/types';
+import type { GameState, WeaponInstance, WeaponUpgradeType, UpgradeDefinition, WeaponUltimate, ArmorData, ShieldData, ArmorInstance, ShieldInstance } from '../config/types';
+import armorDataJson from '../data/armor.json';
 
 const PANEL_WIDTH = 360; // must match UIPanel max width
 
@@ -236,6 +237,17 @@ export class EquipmentPanel {
       }
     }
 
+    // ---- Divider before armor section ----
+    y += 8;
+    const armorDivider = this.scene.add.graphics();
+    armorDivider.lineStyle(1, 0x444444, 1);
+    armorDivider.lineBetween(0, y, PANEL_WIDTH - 24, y);
+    content.add(armorDivider);
+    y += 8;
+
+    // ---- ARMOR section ----
+    y = this.buildArmorSection(content, y);
+
     // ---- Stats footer ----
     y += 8;
     const ammoInfo = this.scene.add.text(0, y, `AMMO: ${this.gameState.inventory.resources.ammo}`, {
@@ -245,6 +257,211 @@ export class EquipmentPanel {
       wordWrap: { width: PANEL_WIDTH - 24 },
     });
     content.add(ammoInfo);
+  }
+
+  /**
+   * Render the ARMOR + SHIELD equipment section.
+   * Shows equipped items and a compact inventory list.
+   * Returns the new y offset after the section.
+   */
+  private buildArmorSection(content: Phaser.GameObjects.Container, y: number): number {
+    const contentWidth = PANEL_WIDTH - 24;
+    const { equippedArmor, equippedShield } = this.gameState.equipped;
+    const armorInventory: ArmorInstance[] = this.gameState.inventory.armorInventory ?? [];
+    const shieldInventory: ShieldInstance[] = this.gameState.inventory.shieldInventory ?? [];
+
+    // Section header
+    const header = this.scene.add.text(0, y, 'ARMOR & SHIELD', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#6B6B6B',
+    });
+    content.add(header);
+    y += 14;
+
+    // ---- Equipped armor row ----
+    const armorLabelText = this.scene.add.text(0, y, 'ARMOR:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#8A8A8A',
+    });
+    content.add(armorLabelText);
+    y += 12;
+
+    const equippedArmorInst = equippedArmor
+      ? armorInventory.find(a => a.id === equippedArmor) ?? null
+      : null;
+    const equippedArmorDef = equippedArmorInst
+      ? (armorDataJson.armor as ArmorData[]).find(a => a.id === equippedArmorInst.armorId) ?? null
+      : null;
+
+    if (equippedArmorInst && equippedArmorDef) {
+      const isDepleted = equippedArmorInst.nightsRemaining <= 0;
+      const armorColor = isDepleted ? '#F44336' : '#4CAF50';
+      const armorRow = this.scene.add.text(4, y,
+        `${equippedArmorDef.name} [${Math.round(equippedArmorDef.reduction * 100)}%] ${equippedArmorInst.nightsRemaining}N`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: armorColor,
+        wordWrap: { width: contentWidth - 8 },
+      });
+      content.add(armorRow);
+      y += 12;
+      // Unequip button
+      const unequipArmorBtn = this.scene.add.text(4, y, '[UNEQUIP]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#888888',
+      }).setInteractive({ useHandCursor: true });
+      unequipArmorBtn.on('pointerover', () => unequipArmorBtn.setColor('#FFD700'));
+      unequipArmorBtn.on('pointerout', () => unequipArmorBtn.setColor('#888888'));
+      unequipArmorBtn.on('pointerdown', () => {
+        this.gameState.equipped.equippedArmor = null;
+        this.rebuild();
+      });
+      content.add(unequipArmorBtn);
+      y += 14;
+    } else {
+      const emptyArmorText = this.scene.add.text(4, y, '(none equipped)', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#555555',
+      });
+      content.add(emptyArmorText);
+      y += 12;
+    }
+
+    // ---- Equipped shield row ----
+    const shieldLabelText = this.scene.add.text(0, y, 'SHIELD:', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: '#8A8A8A',
+    });
+    content.add(shieldLabelText);
+    y += 12;
+
+    const equippedShieldInst = equippedShield
+      ? shieldInventory.find(s => s.id === equippedShield) ?? null
+      : null;
+    const equippedShieldDef = equippedShieldInst
+      ? (armorDataJson.shields as ShieldData[]).find(s => s.id === equippedShieldInst.shieldId) ?? null
+      : null;
+
+    if (equippedShieldInst && equippedShieldDef) {
+      const shieldRow = this.scene.add.text(4, y,
+        `${equippedShieldDef.name} [${equippedShieldDef.blockHits}x]`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#4A90D9',
+        wordWrap: { width: contentWidth - 8 },
+      });
+      content.add(shieldRow);
+      y += 12;
+      // Unequip button
+      const unequipShieldBtn = this.scene.add.text(4, y, '[UNEQUIP]', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#888888',
+      }).setInteractive({ useHandCursor: true });
+      unequipShieldBtn.on('pointerover', () => unequipShieldBtn.setColor('#FFD700'));
+      unequipShieldBtn.on('pointerout', () => unequipShieldBtn.setColor('#888888'));
+      unequipShieldBtn.on('pointerdown', () => {
+        this.gameState.equipped.equippedShield = null;
+        this.rebuild();
+      });
+      content.add(unequipShieldBtn);
+      y += 14;
+    } else {
+      const emptyShieldText = this.scene.add.text(4, y, '(none equipped)', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#555555',
+      });
+      content.add(emptyShieldText);
+      y += 12;
+    }
+
+    // ---- Armor inventory (unequipped) ----
+    const unequippedArmor = armorInventory.filter(a => a.id !== equippedArmor);
+    if (unequippedArmor.length > 0) {
+      const invHeader = this.scene.add.text(0, y, 'ARMOR STORAGE:', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#555555',
+      });
+      content.add(invHeader);
+      y += 12;
+
+      for (const inst of unequippedArmor) {
+        const def = (armorDataJson.armor as ArmorData[]).find(a => a.id === inst.armorId);
+        if (!def) continue;
+        const isDepleted = inst.nightsRemaining <= 0;
+        const rowColor = isDepleted ? '#F44336' : '#E8DCC8';
+        const instText = this.scene.add.text(0, y,
+          `  ${def.name} ${Math.round(def.reduction * 100)}% [${inst.nightsRemaining}N]`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: rowColor,
+          wordWrap: { width: contentWidth - 32 },
+        });
+        content.add(instText);
+        // Equip button
+        const equipBtn = this.scene.add.text(contentWidth - 28, y, '[=]', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: '#4CAF50',
+        }).setInteractive({ useHandCursor: true });
+        equipBtn.on('pointerover', () => equipBtn.setColor('#FFD700'));
+        equipBtn.on('pointerout', () => equipBtn.setColor('#4CAF50'));
+        equipBtn.on('pointerdown', () => {
+          this.gameState.equipped.equippedArmor = inst.id;
+          this.rebuild();
+        });
+        content.add(equipBtn);
+        y += 12;
+      }
+    }
+
+    // ---- Shield inventory (unequipped) ----
+    const unequippedShields = shieldInventory.filter(s => s.id !== equippedShield);
+    if (unequippedShields.length > 0) {
+      const shieldInvHeader = this.scene.add.text(0, y, 'SHIELD STORAGE:', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#555555',
+      });
+      content.add(shieldInvHeader);
+      y += 12;
+
+      for (const inst of unequippedShields) {
+        const def = (armorDataJson.shields as ShieldData[]).find(s => s.id === inst.shieldId);
+        if (!def) continue;
+        const instText = this.scene.add.text(0, y,
+          `  ${def.name} [${def.blockHits}x block]`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: '#4A90D9',
+          wordWrap: { width: contentWidth - 32 },
+        });
+        content.add(instText);
+        // Equip button
+        const equipBtn = this.scene.add.text(contentWidth - 28, y, '[=]', {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: '7px',
+          color: '#4CAF50',
+        }).setInteractive({ useHandCursor: true });
+        equipBtn.on('pointerover', () => equipBtn.setColor('#FFD700'));
+        equipBtn.on('pointerout', () => equipBtn.setColor('#4CAF50'));
+        equipBtn.on('pointerdown', () => {
+          this.gameState.equipped.equippedShield = inst.id;
+          this.rebuild();
+        });
+        content.add(equipBtn);
+        y += 12;
+      }
+    }
+
+    return y;
   }
 
   /**

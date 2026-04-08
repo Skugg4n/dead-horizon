@@ -77,12 +77,13 @@ import { NightPickupManager } from '../systems/NightPickupManager';
 import { distanceBetween, angleBetween } from '../utils/math';
 import { AudioManager } from '../systems/AudioManager';
 import { SpatialBucketGrid } from '../systems/SpatialGrid';
-import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect, WeaponUltimateType } from '../config/types';
+import type { ResourceType, SkillType, WeaponClass, StructureInstance, RefugeeInstance, WeaponSpecialEffect, WeaponUltimateType, ArmorData, ShieldData } from '../config/types';
 import type { ZombieConfig } from '../entities/Zombie';
 // zombie-loot.json replaced by per-enemy dropTable in enemies.json (v1.9.1)
 import structuresData from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import enemiesData from '../data/enemies.json';
+import armorData from '../data/armor.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 import { generateTerrain, drawZoneBackground } from '../systems/TerrainGenerator';
 import { PathGrid } from '../systems/PathGrid';
@@ -297,6 +298,9 @@ export class NightScene extends Phaser.Scene {
   private nightPickupManager!: NightPickupManager;
   // Adrenaline buff timer (ms remaining, 0 = no buff)
   private _adrenalineTimer: number = 0;
+  // Floating damage number count cap (max 20 active at once for performance)
+  private _activeDamageNumbers: number = 0;
+  private static readonly MAX_DAMAGE_NUMBERS = 20;
   // Glow graphics drawn around the player during adrenaline buff
   private _adrenalineGlow: Phaser.GameObjects.Graphics | null = null;
 
@@ -1584,6 +1588,47 @@ export class NightScene extends Phaser.Scene {
     this.player.zone = this.gameState.zone ?? 'forest';
     this.lastPlayerX = this.player.x;
     this.lastPlayerY = this.player.y;
+
+    // Apply equipped armor and shield stats to the player
+    this.applyArmorEquipment();
+  }
+
+  /**
+   * Read equipped armor/shield from gameState and apply stats to the player.
+   * Called once at night start. Stacks speed penalties from both slots.
+   */
+  private applyArmorEquipment(): void {
+    const { equippedArmor, equippedShield } = this.gameState.equipped;
+
+    let armorReduction = 0;
+    let totalSpeedPenalty = 0;
+    let shieldBlockHits = 0;
+    let shieldCooldownMs = 0;
+
+    if (equippedArmor) {
+      const inst = (this.gameState.inventory.armorInventory ?? []).find(a => a.id === equippedArmor);
+      if (inst) {
+        const def = (armorData.armor as ArmorData[]).find(a => a.id === inst.armorId);
+        if (def && inst.nightsRemaining > 0) {
+          armorReduction = def.reduction;
+          totalSpeedPenalty += def.speedPenalty;
+        }
+      }
+    }
+
+    if (equippedShield) {
+      const inst = (this.gameState.inventory.shieldInventory ?? []).find(s => s.id === equippedShield);
+      if (inst) {
+        const def = (armorData.shields as ShieldData[]).find(s => s.id === inst.shieldId);
+        if (def) {
+          shieldBlockHits = def.blockHits;
+          shieldCooldownMs = def.cooldownMs;
+          totalSpeedPenalty += def.speedPenalty;
+        }
+      }
+    }
+
+    this.player.equip(armorReduction, totalSpeedPenalty, shieldBlockHits, shieldCooldownMs);
   }
 
   private createGroups(): void {
@@ -1672,6 +1717,8 @@ export class NightScene extends Phaser.Scene {
         // Apply ranged special effects before damage to allow crit/headshot multiplier
         const finalDamage = this.calcRangedDamage(proj);
         zombie.takeDamage(finalDamage);
+        // White floating number for ranged hits
+        this.showDamageNumber(zombie.x, zombie.y, finalDamage, '#FFFFFF');
 
         // Piercing Shot ultimate: projectile passes through ONE zombie then deactivates
         // Also handles the legacy specialEffect piercing type (silenced_pistol etc.)
@@ -1710,6 +1757,8 @@ export class NightScene extends Phaser.Scene {
         if (!zombie.active || !zombie.canAttack() || !this.player.active) return;
 
         this.player.takeDamage(zombie.damage);
+        // Red floating damage number at player position (shows effective damage after armor)
+        this.showDamageNumber(this.player.x, this.player.y, zombie.damage, '#FF4444');
         zombie.resetAttackCooldown();
         zombie.playAttackPulse();
         this.flashDamageOverlay();
@@ -2067,6 +2116,7 @@ export class NightScene extends Phaser.Scene {
       this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
       this.gameState.inventory.loadedAmmo = this.loadedAmmo;
       this.decreaseUsedWeaponDurability();
+      this.decreaseArmorDurability();
       this.skillManager.syncToState(this.gameState);
       this.resourceManager.syncToState(this.gameState);
       this.refugeeManager.syncToState();
@@ -2206,6 +2256,7 @@ export class NightScene extends Phaser.Scene {
       this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
       this.gameState.inventory.loadedAmmo = this.loadedAmmo;
       this.decreaseUsedWeaponDurability();
+      this.decreaseArmorDurability();
       this.skillManager.syncToState(this.gameState);
       this.resourceManager.syncToState(this.gameState);
       this.refugeeManager.syncToState();
@@ -2959,6 +3010,8 @@ export class NightScene extends Phaser.Scene {
 
       // Default melee: single target hit
       target.takeDamage(stats.damage);
+      // Orange floating number for melee hits
+      this.showDamageNumber(target.x, target.y, stats.damage, '#FF8C00');
       AudioManager.play('melee_hit');
       this.bloodEmitter.emitParticleAt(target.x, target.y, 6);
 
@@ -3188,15 +3241,18 @@ export class NightScene extends Phaser.Scene {
   private applyTrapDamage(zombie: Zombie, trapType: string, baseDamage: number): void {
     const now = this.time.now;
     let finalDamage = baseDamage;
+    let isCombo = false;
 
     // Combo check: O(1) -- just reads two zombie fields
     const timeSinceLast = now - zombie.lastTrapHitTime;
     const isDifferentTrap = zombie.lastTrapType !== trapType && zombie.lastTrapType !== '';
     if (timeSinceLast < NightScene.COMBO_WINDOW_MS && isDifferentTrap) {
       finalDamage = baseDamage * 1.5;
+      isCombo = true;
       this._comboCount++;
       zombie.comboActive = true;
-      this.showComboFloater(zombie.x, zombie.y);
+      // Gold combo floater replaces the regular damage number for this hit
+      this.showComboFloater(zombie.x, zombie.y, finalDamage);
     }
 
     // Update combo tracking on the zombie
@@ -3208,14 +3264,25 @@ export class NightScene extends Phaser.Scene {
     zombie.takeDamage(finalDamage);
     this._currentKillSource = null;
     this._currentKillTrapName = null;
+
+    // Floating damage number: only show red number when it's NOT a combo
+    // (combo hits already got a gold "COMBO -N!" floater above)
+    if (!isCombo) {
+      this.showDamageNumber(zombie.x, zombie.y, finalDamage, '#FF4444');
+    }
   }
 
   /**
-   * Show a small yellow "COMBO!" text that rises and fades at the given world position.
+   * Show a gold "COMBO -N!" text that rises and fades at the given world position.
+   * Replaces the old plain "COMBO!" floater -- now shows the combo damage too.
    * Depth 20 so it appears above zombies and most UI.
    */
-  private showComboFloater(x: number, y: number): void {
-    const text = this.add.text(x, y - 10, 'COMBO!', {
+  private showComboFloater(x: number, y: number, comboDamage?: number): void {
+    const label = comboDamage !== undefined
+      ? `COMBO -${Math.round(comboDamage)}!`
+      : 'COMBO!';
+
+    const text = this.add.text(x, y - 10, label, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '9px',
       color: '#FFD700',
@@ -3223,14 +3290,49 @@ export class NightScene extends Phaser.Scene {
       strokeThickness: 2,
     }).setOrigin(0.5, 1).setDepth(20);
 
-    // Rise upward and fade out over 500ms
+    // Rise upward and fade out over 600ms
     this.tweens.add({
       targets: text,
-      y: y - 36,
+      y: y - 40,
       alpha: 0,
-      duration: 500,
+      duration: 600,
       ease: 'Quad.easeOut',
       onComplete: () => { text.destroy(); },
+    });
+  }
+
+  /**
+   * Show a small floating damage number that rises and fades.
+   * Called from hit callbacks and takeDamage wrappers.
+   * Capped at MAX_DAMAGE_NUMBERS active texts for performance.
+   *
+   * @param x      World-space X coordinate to spawn at.
+   * @param y      World-space Y coordinate to spawn at.
+   * @param damage Damage value (rounded to nearest integer for display).
+   * @param color  CSS hex color string (default red).
+   */
+  private showDamageNumber(x: number, y: number, damage: number, color: string = '#FF4444'): void {
+    if (this._activeDamageNumbers >= NightScene.MAX_DAMAGE_NUMBERS) return;
+    this._activeDamageNumbers++;
+
+    const text = this.add.text(x, y - 8, `-${Math.round(damage)}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color,
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(15);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 30,
+      alpha: 0,
+      duration: 600,
+      ease: 'Power2',
+      onComplete: () => {
+        text.destroy();
+        this._activeDamageNumbers = Math.max(0, this._activeDamageNumbers - 1);
+      },
     });
   }
 
@@ -3388,6 +3490,20 @@ export class NightScene extends Phaser.Scene {
   private decreaseUsedWeaponDurability(): void {
     for (const weaponId of this.weaponUsedThisNight) {
       this.weaponManager.decreaseDurability(weaponId);
+    }
+  }
+
+  /**
+   * Decrease nightsRemaining on the equipped armor by 1 after each survived night.
+   * If nightsRemaining reaches 0 the armor is NOT auto-removed -- the player can
+   * still see it in EquipmentPanel and choose to discard or keep it (at 0 it gives no bonus).
+   */
+  private decreaseArmorDurability(): void {
+    const { equippedArmor } = this.gameState.equipped;
+    if (!equippedArmor) return;
+    const inst = (this.gameState.inventory.armorInventory ?? []).find(a => a.id === equippedArmor);
+    if (inst && inst.nightsRemaining > 0) {
+      inst.nightsRemaining--;
     }
   }
 

@@ -1,5 +1,39 @@
 # Dead Horizon -- Changelog
 
+## [v5.1.0] - 2026-04-04 -- Armor/Shield system + Floating damage numbers
+
+### Varfor
+Spelet saknade ett utrustningssystem for skydd utover vapen. Spelaren hade ingen visuell feedback pa skada i realtid. Bada systemen laggs till nu.
+
+### Andrat
+- **DEL 1: Armor System**
+  - Ny datafil: src/data/armor.json med 10 armor + 5 shields (common/uncommon/rare/legendary)
+  - GameState.inventory.armorInventory + shieldInventory lagts till (ArmorInstance[], ShieldInstance[])
+  - GameState.equipped.equippedArmor + equippedShield lagts till (string | null)
+  - Player.ts: nya fields armorReduction, armorSpeedPenalty, shieldBlocksLeft, shieldCooldown
+  - Player.takeDamage(): armor reduction appliceras forst, sedan shield block (blatt blixt-flash)
+  - Player.equip(): NightScene anropar denna vid nattstart for att applicera utrustningens stats
+  - Player.update(): shield cooldown tickar ner, laddar om block-charge nar cooldown noll
+  - Speed: multipliceras med (1 + armorSpeedPenalty) som stackar armor + shield
+  - NightScene: applyArmorEquipment() laser equippedArmor/equippedShield fran gameState
+  - NightScene: decreaseArmorDurability() minskar nightsRemaining pa equipped armor vid nattslut
+  - EquipmentPanel: ny ARMOR & SHIELD-sektion under storage-listan med equip/unequip-knappar
+  - loot-tables.json: armor och shield drops tillagda med destinations per destination-id
+  - SaveManager: migration for armorInventory, shieldInventory, equippedArmor, equippedShield
+  - PackYourBagScene: equipped-objektet uppdaterat med armor/shield falt
+
+- **DEL 2: Floating Damage Numbers**
+  - NightScene.showDamageNumber(): liten 8px text som flyr uppat och tonar ut (600ms, Power2)
+  - Max 20 aktiva damage numbers samtidigt (_activeDamageNumbers counter + MAX_DAMAGE_NUMBERS=20)
+  - Rod text (-N) for trap-treffar (applyTrapDamage)
+  - Orange text (-N) for melee-treffar (shootAt default melee)
+  - Vit text (-N) for ranged-treffar (projectil-zombie overlap)
+  - Rod text (-N) for zombie-attack pa spelaren (zombieGroup overlap)
+  - Guld "COMBO -N!" floater ersatter det gamla enkla "COMBO!"-floatern (showComboFloater)
+  - Combo-flagga isCombo forebygger dubbla floaters per combo-treff
+
+- GAME_VERSION: 5.1.0
+
 ## [v4.9.1] - 2026-04-04 -- Kod-audit runda 2: tab-sortering, endless-HUD, kod-rensning
 
 ### Varfor

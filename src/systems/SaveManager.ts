@@ -1,4 +1,4 @@
-import type { GameState, CharacterType, SkillType, ResourceType, ZoneId, WeaponUpgrade, WeaponUpgradeType } from '../config/types';
+import type { GameState, CharacterType, SkillType, ResourceType, ZoneId, WeaponUpgrade, WeaponUpgradeType, ArmorInstance, ShieldInstance } from '../config/types';
 import { GAME_VERSION, PLAYER_MAX_HP, BASE_MAX_HP } from '../config/constants';
 
 const SAVE_KEY = 'dead-horizon-save';
@@ -78,6 +78,8 @@ function createDefaultState(): GameState {
         meds: 2,
       } as Record<ResourceType, number>,
       loadedAmmo: 0,
+      armorInventory: [] as ArmorInstance[],
+      shieldInventory: [] as ShieldInstance[],
     },
     base: {
       structures: [],
@@ -105,6 +107,8 @@ function createDefaultState(): GameState {
     equipped: {
       primaryWeaponId: null,
       secondaryWeaponId: null,
+      equippedArmor: null,
+      equippedShield: null,
     },
     map: {
       fogOfWar: [],
@@ -159,6 +163,9 @@ function load(): GameState {
             upgrades: migrateUpgrades(w.upgrades ?? []),
           })),
           loadedAmmo: saved.inventory?.loadedAmmo ?? defaults.inventory.loadedAmmo,
+          // Migration: armor/shield inventories added in v5.1.0
+          armorInventory: (saved.inventory as Partial<GameState['inventory']>)?.armorInventory ?? [],
+          shieldInventory: (saved.inventory as Partial<GameState['inventory']>)?.shieldInventory ?? [],
         },
         base: {
           ...defaults.base,
@@ -187,6 +194,9 @@ function load(): GameState {
         equipped: {
           primaryWeaponId: (saved as Partial<GameState>).equipped?.primaryWeaponId ?? null,
           secondaryWeaponId: (saved as Partial<GameState>).equipped?.secondaryWeaponId ?? null,
+          // Migration: armor/shield equip slots added in v5.1.0
+          equippedArmor: (saved as Partial<GameState>).equipped?.equippedArmor ?? null,
+          equippedShield: (saved as Partial<GameState>).equipped?.equippedShield ?? null,
         },
         // Migration: old saves lack unlockedBlueprints -- default to empty array
         unlockedBlueprints: saved.unlockedBlueprints ?? defaults.unlockedBlueprints,

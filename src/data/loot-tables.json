@@ -1,4 +1,23 @@
 {
+  "armorDrops": [
+    { "armorId": "leather_jacket",    "chance": 0.20, "destinations": ["nearby_houses", "abandoned_store", "city_ruins", "ranger_station"] },
+    { "armorId": "thick_hoodie",      "chance": 0.20, "destinations": ["nearby_houses", "abandoned_store", "ranger_station"] },
+    { "armorId": "car_tire_pads",     "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "armorId": "bucket_helmet",     "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins", "ranger_station"] },
+    { "armorId": "improvised_plate",  "chance": 0.10, "destinations": ["city_ruins", "ranger_station", "abandoned_store"] },
+    { "armorId": "riot_vest",         "chance": 0.08, "destinations": ["police_station", "city_ruins", "ranger_station"] },
+    { "armorId": "football_pads",     "chance": 0.10, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "armorId": "kevlar_vest",       "chance": 0.05, "destinations": ["police_station", "military_outpost", "armory"] },
+    { "armorId": "fireman_suit",      "chance": 0.05, "destinations": ["city_ruins", "police_station", "military_outpost"] },
+    { "armorId": "military_armor",    "chance": 0.02, "destinations": ["armory", "military_outpost"] }
+  ],
+  "shieldDrops": [
+    { "shieldId": "trash_can_lid",   "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "city_ruins"] },
+    { "shieldId": "cutting_board",   "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station"] },
+    { "shieldId": "car_door",        "chance": 0.10, "destinations": ["city_ruins", "abandoned_store", "ranger_station"] },
+    { "shieldId": "riot_shield",     "chance": 0.05, "destinations": ["police_station", "military_outpost", "armory"] },
+    { "shieldId": "manhole_cover",   "chance": 0.03, "destinations": ["city_ruins", "military_outpost", "armory"] }
+  ],
   "weaponDrops": [
     { "weaponId": "rusty_knife",      "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "city_ruins"] },
     { "weaponId": "hunting_knife",    "chance": 0.15, "destinations": ["nearby_houses", "abandoned_store", "ranger_station", "military_outpost", "armory"] },

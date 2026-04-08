@@ -288,6 +288,43 @@ export interface BlueprintData {
   dropChance: number;
 }
 
+// Armor data loaded from armor.json
+export interface ArmorData {
+  id: string;
+  name: string;
+  reduction: number;       // 0-1 fraction of damage absorbed
+  durabilityNights: number;
+  rarity: Rarity;
+  speedPenalty: number;    // negative = slower (e.g. -0.10 = 10% slower)
+  description: string;
+}
+
+// Shield data loaded from armor.json
+export interface ShieldData {
+  id: string;
+  name: string;
+  blockHits: number;       // how many hits the shield can block before cooldown
+  cooldownMs: number;
+  speedPenalty: number;    // negative = slower
+  rarity: Rarity;
+  description: string;
+}
+
+// Per-run armor instance (tracks remaining durability in nights)
+export interface ArmorInstance {
+  id: string;          // unique instance id
+  armorId: string;     // references ArmorData.id
+  rarity: Rarity;
+  nightsRemaining: number;
+}
+
+// Per-run shield instance
+export interface ShieldInstance {
+  id: string;          // unique instance id
+  shieldId: string;    // references ShieldData.id
+  rarity: Rarity;
+}
+
 export interface GameState {
   version: string;
   player: {
@@ -300,12 +337,17 @@ export interface GameState {
     weapons: WeaponInstance[];
     resources: Record<ResourceType, number>;
     loadedAmmo: number;
+    armorInventory: ArmorInstance[];
+    shieldInventory: ShieldInstance[];
   };
   // Which weapon instances are carried into the night (primary = key 1, secondary = key 2).
   // null means the slot is empty. Populated by EquipmentPanel or auto-equip logic.
   equipped: {
     primaryWeaponId: string | null;
     secondaryWeaponId: string | null;
+    // Equipped armor/shield IDs (null = bare)
+    equippedArmor: string | null;
+    equippedShield: string | null;
   };
   base: {
     structures: StructureInstance[];
