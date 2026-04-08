@@ -298,3 +298,19 @@ Om nagon failar, fixa INNAN push. GitHub Pages visar senaste LYCKADE deploy, sa 
 ### createGroups() MASTE koras FORE createStructures() (KRITISKT)
 **Problem:** NightScene.create() anropade createStructures() FORE createGroups(). createStructures() forsaker lagga till wall-bodies i this.wallBodies (Phaser StaticGroup), men wallBodies skapas forst i createGroups(). Resultatet: ALLA vaggar/barrikader saknade physics-kroppar. Zombies gick rakt igenom allt. Kill corridors, PathGrid-steering -- allt fungerade visuellt men physics var trasig.
 **Losning:** Flytta createGroups() FORE createStructures() i create()-floden. Ordning spelar roll -- physics-grupper maste existera innan objekt laggs till i dem. Generell regel: skapa CONTAINERS/GROUPS forst, fyll dem SEDAN.
+
+---
+
+## Inventory och UI-synkronisering
+
+### EquipmentPanel visar inte nya vapen efter loot run
+**Problem:** LootRunPanel lagg till weapon i gameState.inventory.weapons men EquipmentPanel visade inte det forran panelen stangdes och oppnades igen. Rebuilds sker bara vid toggle() eller explicit anrop.
+**Losning:** Emittar ett `inventory-changed`-event fran LootRunPanel efter loot run avslutas. EquipmentPanel lyssnar pa eventet och anropar rebuild() om panelen ar synlig. Event-lyssnaren maste avregistreras i shutdown-handlern.
+
+### Physics-collider och wallRef.active-guard
+**Problem:** Nar en vagg tas skada av en zombie och forstors anropar Wall.destroy() pa sig sjalv (Graphics). Phaser-collider kan triggas flera ganger per frame for samma par (zombie, wallBody). Om wallRef.active-check saknas anropas takeDamage() pa ett redan-forstort objekt.
+**Losning:** Lagg till `if (wallRef && wallRef.active)` innan takeDamage() i wall-collision callback. Phaser.GameObjects.Graphics arver active-propertyn fran GameObject och satter den till false vid destroy().
+
+### Cap boss-damage per struktur-hit
+**Problem:** Zombies med hog structureDamage (military_tank: 20, forest_boss: 12) kan forstaraga vaggar (150 HP) pa 8-13 sekunders konstant kontakt. Spelaren upplevde det som att bossar gick igenom vaggar.
+**Losning:** Cappade per-hit strukturskada till max 15 i NightScene wall-collision callback: `Math.min(zombie.structureDamage, 15)`. Modifierar inte enemies.json (inga biverk pa zombie-DPS mot spelare).

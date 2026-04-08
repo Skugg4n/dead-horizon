@@ -359,6 +359,9 @@ export class NightScene extends Phaser.Scene {
     this.pathGrid.updateFromStructures(this.gameState.base.structures);
     // Also register natural terrain blockers (building ruins / bunkers) so zombies route around them
     this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
+    // Compute BFS flowfield from the base center -- zombies use this to navigate around walls.
+    // baseCenterX/Y are set inside createTerrain() which runs before this block.
+    this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
     this.createFogOfWar();
     this.createPlayer();
     this.setupWaveManager();
@@ -1800,6 +1803,12 @@ export class NightScene extends Phaser.Scene {
                 y: wallRef.structureInstance.y,
               });
               wallBody.destroy();
+              // Rebuild BFS flowfield: a blocking cell was removed, so zombie paths change.
+              // updateFromStructures re-reads the live structures array; addNaturalBlockers
+              // re-marks terrain. Then recompute from the current base center.
+              this.pathGrid.updateFromStructures(this.gameState.base.structures);
+              this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
+              this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
             } else {
               // F4: Structure creak/crack on damage
               AudioManager.play('structure_damage');

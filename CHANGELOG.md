@@ -1,5 +1,38 @@
 # Dead Horizon -- Changelog
 
+## [v5.5.0] - 2026-04-04 16:00 -- BFS flowfield zombie-navigation + glass_shards zone nerf
+
+### Varfor
+Zombies fastnade mot vaggar eftersom den lokala probe-algoritmen bara sag 2-3 tiles bort
+och missade oppningar langre bort. Ersatt med BFS flowfield som ger varje cell en
+exakt riktning mot basen langs kortaste vagen.
+
+### Andrat
+
+**BFS flowfield (src/systems/PathGrid.ts)**
+- Ny metod `computeFlowfield(targetX, targetY)`: BFS fran basens centrum utåt
+- Varje cell i gridet (40x30 = 1200 celler) far en riktningsvektor (dx, dy) mot narmaste vag till basen
+- Blockerade celler (vaggar) hoppas over -- BFS gar naturligt runt hinder
+- Resultat: `Float32Array` med 2 floats per cell, O(1200) per BFS-kor, ca 0.1ms
+- Ny metod `rebuildFlowfield(baseCenterX, baseCenterY)`: anropas fran NightScene vid strukturandring
+- `getSteeringDirection()` slar nu upp zombiens cell i flowfieldet (O(1)) istallet for att proba 9 riktningar
+- Fallback till lokal probe-algoritm om flowfield saknar data for cellen (zombie inuti vagg, omringad)
+- Gamla `getSteeringDirection()` API behollet -- Zombie.ts andrades inte
+
+**NightScene.ts -- flowfield rebuild triggers**
+- Anropar `pathGrid.rebuildFlowfield()` direkt efter `updateFromStructures()` + `addNaturalBlockers()` i create()
+- Anropar `updateFromStructures()` + `addNaturalBlockers()` + `rebuildFlowfield()` nar en vagg forstors
+  (i wall-collider callback, direkt efter `wallBody.destroy()`)
+
+**Glass Shards nerf (src/data/structures.json)**
+- `zoneRadius`: 96 -> 64 (ca 2 tiles istallet for 3)
+- Description uppdaterad: "5 dmg/s in zone (~96px)" -> "5 dmg/s in zone (~64px)"
+
+### Version
+- GAME_VERSION: 5.4.0 -> 5.5.0 (src/config/constants.ts)
+
+---
+
 ## [v5.4.0] - 2026-04-04 -- Bugfixar: boss/wall collision, top-bar overlap, inventory refresh, scrap, tooltip, right panel
 
 ### Varfor
