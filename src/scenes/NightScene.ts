@@ -1524,60 +1524,37 @@ export class NightScene extends Phaser.Scene {
   private _rebuildStructureGrid(): void {
     this.structureGrid.clear();
 
-    // Helper: insert tile-based structures as StructureGridEntry data objects.
-    const insertTile = <S extends { structureInstance: StructureInstance; active: boolean }>(
-      arr: S[],
-      structureType: string,
-    ): void => {
+    // Insert ACTUAL trap instances (not plain objects) so instanceof works in query results
+    const insertAll = <S extends { structureInstance: StructureInstance; active: boolean }>(arr: S[]): void => {
       for (const s of arr) {
         if (!s.active) continue;
         const si = s.structureInstance;
-        this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2, {
-          structureType,
-          x: si.x,
-          y: si.y,
-          active: true,
-        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2, s as any);
+      }
+    };
+    // Zone traps use isAlive() instead of active
+    const insertAlive = <S extends { structureInstance: StructureInstance; isAlive: () => boolean }>(arr: S[]): void => {
+      for (const s of arr) {
+        if (!s.isAlive()) continue;
+        const si = s.structureInstance;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2, s as any);
       }
     };
 
-    // Tile-based passive structures (structureInstance.x/y = top-left of tile)
-    insertTile(this.barricades, 'barricade');
-    insertTile(this._sandbags, 'sandbags');
-    insertTile(this.traps, 'trap');
-    insertTile(this._spikeStrips, 'spike_strip');
-    insertTile(this._bearTraps, 'bear_trap');
-    insertTile(this._landmines, 'landmine');
-    insertTile(this._nailBoards, 'nail_board');
-    insertTile(this._tripWires, 'trip_wire');
-
-    // Zone-based structures (GlassShards, TarPit, OilSlick, GlueFloor): their
-    // interaction zone extends beyond one tile. We insert at the tile centre;
-    // the 96px query radius in checkZombieStructureInteractions() covers the zone.
-    for (const s of this._glassShards) {
-      if (!s.isAlive()) continue;
-      const si = s.structureInstance;
-      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
-        { structureType: 'glass_shards', x: si.x, y: si.y, active: true });
-    }
-    for (const s of this._tarPits) {
-      if (!s.isAlive()) continue;
-      const si = s.structureInstance;
-      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
-        { structureType: 'tar_pit', x: si.x, y: si.y, active: true });
-    }
-    for (const s of this._oilSlicks) {
-      if (!s.active) continue;
-      const si = s.structureInstance;
-      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
-        { structureType: 'oil_slick', x: si.x, y: si.y, active: true });
-    }
-    for (const s of this._glueFloors) {
-      if (!s.isAlive()) continue;
-      const si = s.structureInstance;
-      this.structureGrid.insert(si.x + TILE_SIZE / 2, si.y + TILE_SIZE / 2,
-        { structureType: 'glue_floor', x: si.x, y: si.y, active: true });
-    }
+    insertAll(this.barricades);
+    insertAll(this._sandbags);
+    insertAll(this.traps);
+    insertAll(this._spikeStrips);
+    insertAll(this._bearTraps);
+    insertAll(this._landmines);
+    insertAll(this._oilSlicks);
+    insertAlive(this._nailBoards);
+    insertAlive(this._tripWires);
+    insertAlive(this._glassShards);
+    insertAlive(this._tarPits);
+    insertAlive(this._glueFloors);
   }
 
   private createFogOfWar(): void {
