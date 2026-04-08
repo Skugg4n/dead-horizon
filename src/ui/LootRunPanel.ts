@@ -71,9 +71,13 @@ export class LootRunPanel {
     } else {
       this.panelState = 'destinations';
       this.selectedDestination = null;
-      // Keep last companion selection as default (filter out dead/missing refugees)
-      const validIds = new Set(this.gameState.refugees.filter(r => r.status === 'healthy').map(r => r.id));
+      // Default: keep last selection, or ALL healthy if none selected
+      const healthy = this.gameState.refugees.filter(r => r.status === 'healthy');
+      const validIds = new Set(healthy.map(r => r.id));
       this.selectedCompanions = this.selectedCompanions.filter(c => validIds.has(c.id));
+      if (this.selectedCompanions.length === 0 && healthy.length > 0) {
+        this.selectedCompanions = [...healthy];
+      }
       this.panel.show();
       this.rebuild();
     }
