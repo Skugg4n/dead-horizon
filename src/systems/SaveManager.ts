@@ -130,7 +130,10 @@ function createDefaultState(): GameState {
 
 function save(state: GameState): void {
   try {
-    console.log(`[SaveManager] save mapSeed=${state.mapSeed}`);
+    // Debug: show call stack to find WHO triggers save
+    const stack = new Error().stack ?? '';
+    const caller = stack.split('\n')[2]?.trim() ?? 'unknown';
+    console.log(`[SaveManager] save mapSeed=${state.mapSeed} zone=${state.zone} wave=${state.progress.currentWave} | from: ${caller}`);
     const json = JSON.stringify(state);
     localStorage.setItem(SAVE_KEY, json);
   } catch (e) {
@@ -143,6 +146,7 @@ function load(): GameState {
     const json = localStorage.getItem(SAVE_KEY);
     if (json) {
       const saved = JSON.parse(json) as Partial<GameState>;
+      console.log(`[SaveManager] load raw: mapSeed=${saved.mapSeed} zone=${saved.zone} wave=${saved.progress?.currentWave}`);
       console.log(`[SaveManager] load saved.mapSeed=${saved.mapSeed}`);
       // Merge with defaults to handle missing fields from older saves
       const defaults = createDefaultState();
@@ -265,6 +269,8 @@ function load(): GameState {
       console.error('[SaveManager] Recovery failed, using defaults');
     }
   }
+  console.warn('[SaveManager] RETURNING DEFAULTS -- this will create a fresh game state!');
+  console.warn('[SaveManager] If save existed, it may be overwritten if DayScene saves this state.');
   return createDefaultState();
 }
 
