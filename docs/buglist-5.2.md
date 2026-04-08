@@ -25,6 +25,10 @@
 - [ ] Barricade slow effect not noticeable
 - [ ] Zombies still can't pathfind around walls effectively
 
+## INVENTORY:
+- [ ] Weapons found on loot runs don't appear in Equipment panel (panel shows stale data, needs rebuild on inventory change)
+- [ ] Frying Pan and other new weapons confirmed in loot-tables.json but not showing
+
 ## BEKRAFTADE FIXADE:
 - [x] Traps do no damage (SpatialGrid instanceof bug) -- v5.0.1
 - [x] Walls don't block zombies (createGroups order) -- v4.9.2
