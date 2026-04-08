@@ -286,8 +286,8 @@
       "apCost": 1,
       "maxLevel": 1,
       "effect": "continuousDamageZone",
-      "damagePerSecond": 2,
-      "zoneRadius": 64
+      "damagePerSecond": 1,
+      "zoneRadius": 48
     },
     {
       "id": "tar_pit",
