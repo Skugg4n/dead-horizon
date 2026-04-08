@@ -71,7 +71,9 @@ export class LootRunPanel {
     } else {
       this.panelState = 'destinations';
       this.selectedDestination = null;
-      this.selectedCompanions = [];
+      // Keep last companion selection as default (filter out dead/missing refugees)
+      const validIds = new Set(this.gameState.refugees.filter(r => r.status === 'healthy').map(r => r.id));
+      this.selectedCompanions = this.selectedCompanions.filter(c => validIds.has(c.id));
       this.panel.show();
       this.rebuild();
     }
@@ -318,7 +320,16 @@ export class LootRunPanel {
       color: '#C5A030',
     });
     content.add(companionLabel);
-    yOffset += 18;
+    yOffset += 14;
+
+    // Risk warning
+    const riskText = this.scene.add.text(0, yOffset, 'Risk: companions may be injured if you lose a fight', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '7px',
+      color: '#AA6633',
+    });
+    content.add(riskText);
+    yOffset += 14;
 
     const healthyRefugees = this.gameState.refugees.filter(
       r => r.status === 'healthy' && r.hp > 0 && r.job !== 'loot_run',
