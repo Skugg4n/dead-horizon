@@ -174,24 +174,15 @@ export class HUD {
     }).setOrigin(0.5, 0.5);
     this.container.add(this.waveSubText);
 
-    // ---- Base HP section (right side, with larger margin) ---------------
-    const baseBarW = 110;
-    const baseBarX = GAME_WIDTH - 16 - baseBarW;
-    const baseLabelX = baseBarX - 4;
+    // ---- Base HP section (right side) ------------------------------------
+    const baseBarW = 120;
+    const baseBarX = GAME_WIDTH - 12 - baseBarW;
 
-    const houseGfx = scene.add.graphics();
-    houseGfx.fillStyle(0x9A9A9A, 1);
-    const houseX = baseLabelX - 18;
-    const houseY = BAR_Y;
-    houseGfx.fillTriangle(houseX + 6, houseY, houseX, houseY + 6, houseX + 12, houseY + 6);
-    houseGfx.fillRect(houseX + 2, houseY + 6, 8, 8);
-    this.container.add(houseGfx);
-
-    this.baseHpLabel = scene.add.text(baseLabelX, BAR_Y + BAR_H / 2, 'BASE', {
+    this.baseHpLabel = scene.add.text(baseBarX + baseBarW / 2, BAR_Y - 2, 'BASE', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#9A9A9A',
-    }).setOrigin(1, 0.5);
+      fontSize: '7px',
+      color: '#6B6B6B',
+    }).setOrigin(0.5, 1);
     this.container.add(this.baseHpLabel);
 
     this.baseHpBarBg = scene.add.graphics();
