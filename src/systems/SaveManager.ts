@@ -222,11 +222,32 @@ function load(): GameState {
       return state;
     }
   } catch (e) {
-    // Save load failed -- log the error but DO NOT clear the save.
-    // The save might be valid but have missing fields from a newer version.
-    // Returning defaults lets the player start fresh THIS session without
-    // destroying their saved progress permanently.
-    console.error('[SaveManager] Failed to load save (keeping it intact):', e);
+    // Save load failed -- try a minimal recovery: parse raw JSON and merge
+    // with bare-minimum fields so the player doesn't lose zone/wave progress.
+    console.error('[SaveManager] Failed to load save, attempting minimal recovery:', e);
+    try {
+      const rawJson = localStorage.getItem(SAVE_KEY);
+      if (rawJson) {
+        const raw = JSON.parse(rawJson) as Partial<GameState>;
+        const defaults = createDefaultState();
+        // Preserve the most critical fields from the raw save
+        return {
+          ...defaults,
+          ...raw,
+          zone: raw.zone ?? defaults.zone,
+          progress: { ...defaults.progress, ...(raw.progress ?? {}) },
+          inventory: { ...defaults.inventory, ...(raw.inventory ?? {}),
+            weapons: raw.inventory?.weapons ?? defaults.inventory.weapons,
+            resources: { ...defaults.inventory.resources, ...(raw.inventory?.resources ?? {}) },
+          },
+          base: { ...defaults.base, ...(raw.base ?? {}) },
+          mapSeed: raw.mapSeed ?? defaults.mapSeed,
+        } as GameState;
+      }
+    } catch {
+      // Recovery also failed -- truly corrupted
+      console.error('[SaveManager] Recovery failed, using defaults');
+    }
   }
   return createDefaultState();
 }
