@@ -1,5 +1,39 @@
 # Dead Horizon -- Changelog
 
+## [v5.3.0] - 2026-04-04 -- Bugfixar: armor/shield drops, secondary weapon equip, HUD layout
+
+### Varfor
+Fyra buggar fixade: LootManager saknade armor/shield-drops trots att data fanns i loot-tables.json,
+EquipmentPanel equipade alltid till primary-slot, HUD hade overlappande element och minimap satt for hogt,
+barricade slow verifierades som korrekt implementerad.
+
+### Andrat
+
+**Bug 1 -- LootManager: armor/shield drops (src/systems/LootManager.ts)**
+- Lade till `foundArmorId: string | null` och `foundShieldId: string | null` i `LootResult` interface
+- Lade till `ArmorDropEntry` och `ShieldDropEntry` interface-typer
+- Importerade armor.json och laddade `armorDataList` / `shieldDataList`
+- Implementerade `rollArmorDrop(destinationId)` och `rollShieldDrop(destinationId)` -- samma monster som `rollWeaponDrop`
+- I `executeLootRun()`: anropar bada roll-metoderna, skapar `ArmorInstance` / `ShieldInstance` och laggar till i `gameState.inventory.armorInventory` / `shieldInventory`
+- `LootRunPanel.ts`: visar "Armor found:" och "Shield found:" i resultatskarm
+
+**Bug 2 -- EquipmentPanel: secondary weapon equip (src/ui/EquipmentPanel.ts)**
+- Lade till `selectedSlot: Slot = 'primary'` state pa klassen
+- Vapenslot-labels i hoger panel ar nu klickbara -- klick valjer vilken slot som ar aktiv
+- Aktiv slot markeras med orange farg och "[ACTIVE]" indikator
+- Vapenklick i vanster lista equipar nu till `selectedSlot` (primary eller secondary)
+- "Equipping to: PRIMARY [1]" / "SECONDARY [2]" text visas ovanfor vapenlistan
+
+**Bug 3 -- HUD layout (src/ui/HUD.ts, src/ui/MiniMap.ts)**
+- Stamina-bar: gjord smalare (70px istallet for 100px), `STAMINA_H` reducerad till 6px
+- Wave panel: breddad till 160px (fran 140px) och positionerad striktare centralt
+- BASE-sektion: marginal okad till 16px fran kartanten (fran 8px), bar-bredd 110px
+- Minimap: flyttad till y=48 (fran y=40) sa den hamnar under top bar utan overlap
+
+**Bug 4 -- Barricade slow (verifierad, ingen andring behovdes)**
+- `checkZombieStructureInteractions()` tillampjar `body.velocity.x *= factor` varje frame
+- Fungerar korrekt eftersom zombie-AI satter sin velocity varje frame, och barricade-faktorn (0.5) sedan appliceras -- effektiv hastighet halveras medan zombien ar inuti en barricade
+
 ## [v5.2.0] - 2026-04-04 -- EquipmentPanel fullstandig omskrivning: dual-panel inventory
 
 ### Varfor

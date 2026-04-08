@@ -20,7 +20,8 @@ import {
 import lootTablesJson from '../data/loot-tables.json';
 import blueprintsJson from '../data/blueprints.json';
 import weaponsJson from '../data/weapons.json';
-import type { BlueprintData } from '../config/types';
+import armorJson from '../data/armor.json';
+import type { BlueprintData, ArmorData, ShieldData, ArmorInstance, ShieldInstance } from '../config/types';
 
 export interface LootDestination {
   id: string;
@@ -37,6 +38,18 @@ interface WeaponDropEntry {
   destinations: string[];
 }
 
+interface ArmorDropEntry {
+  armorId: string;
+  chance: number;
+  destinations: string[];
+}
+
+interface ShieldDropEntry {
+  shieldId: string;
+  chance: number;
+  destinations: string[];
+}
+
 interface LootEntry {
   resource: ResourceType;
   min: number;
@@ -49,6 +62,10 @@ export interface LootResult {
   loot: Partial<Record<ResourceType, number>>;
   // weaponDropId is set if a weapon was found during this loot run (null otherwise)
   weaponDropId: string | null;
+  // armorId found during this run (null if none)
+  foundArmorId: string | null;
+  // shieldId found during this run (null if none)
+  foundShieldId: string | null;
   encounter: boolean;
   encounterResolved: boolean;
   encounterOutcome: 'none' | 'win' | 'lose' | 'flee';
@@ -60,7 +77,11 @@ export interface LootResult {
 
 const destinations = lootTablesJson.destinations as unknown as LootDestination[];
 const weaponDropEntries = lootTablesJson.weaponDrops as unknown as WeaponDropEntry[];
+const armorDropEntries = lootTablesJson.armorDrops as unknown as ArmorDropEntry[];
+const shieldDropEntries = lootTablesJson.shieldDrops as unknown as ShieldDropEntry[];
 const weaponDataList = weaponsJson.weapons as WeaponData[];
+const armorDataList = (armorJson as { armor: ArmorData[]; shields: ShieldData[] }).armor;
+const shieldDataList = (armorJson as { armor: ArmorData[]; shields: ShieldData[] }).shields;
 const allBlueprints = blueprintsJson.blueprints as BlueprintData[];
 
 // Build weapon damage lookup
@@ -123,6 +144,34 @@ export class LootManager {
     return null;
   }
 
+  /**
+   * Roll for an armor drop at a given destination.
+   * Returns the armorId of the first successful roll, or null.
+   */
+  private rollArmorDrop(destinationId: string): string | null {
+    const eligible = armorDropEntries.filter(e => e.destinations.includes(destinationId));
+    for (const entry of eligible) {
+      if (Math.random() < entry.chance) {
+        return entry.armorId;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Roll for a shield drop at a given destination.
+   * Returns the shieldId of the first successful roll, or null.
+   */
+  private rollShieldDrop(destinationId: string): string | null {
+    const eligible = shieldDropEntries.filter(e => e.destinations.includes(destinationId));
+    for (const entry of eligible) {
+      if (Math.random() < entry.chance) {
+        return entry.shieldId;
+      }
+    }
+    return null;
+  }
+
   /** Roll loot from a destination's loot table */
   private rollLoot(destination: LootDestination): Partial<Record<ResourceType, number>> {
     const loot: Partial<Record<ResourceType, number>> = {};
@@ -165,6 +214,39 @@ export class LootManager {
     // Roll for weapon drop (independent of resource loot)
     const weaponDropId = this.rollWeaponDrop(destinationId);
 
+    // Roll for armor drop
+    const foundArmorId = this.rollArmorDrop(destinationId);
+    // If armor found, create an ArmorInstance and add to inventory
+    if (foundArmorId !== null) {
+      const armorData = armorDataList.find(a => a.id === foundArmorId);
+      if (armorData) {
+        const armorInstance: ArmorInstance = {
+          id: `${armorData.id}_${Date.now()}`,
+          armorId: armorData.id,
+          rarity: armorData.rarity,
+          nightsRemaining: armorData.durabilityNights,
+        };
+        (this.gameState.inventory.armorInventory ??= []).push(armorInstance);
+        console.log(`[LootManager] Armor found: ${armorData.name}`);
+      }
+    }
+
+    // Roll for shield drop
+    const foundShieldId = this.rollShieldDrop(destinationId);
+    // If shield found, create a ShieldInstance and add to inventory
+    if (foundShieldId !== null) {
+      const shieldData = shieldDataList.find(s => s.id === foundShieldId);
+      if (shieldData) {
+        const shieldInstance: ShieldInstance = {
+          id: `${shieldData.id}_${Date.now()}`,
+          shieldId: shieldData.id,
+          rarity: shieldData.rarity,
+        };
+        (this.gameState.inventory.shieldInventory ??= []).push(shieldInstance);
+        console.log(`[LootManager] Shield found: ${shieldData.name}`);
+      }
+    }
+
     // Roll for blueprint drop (only if not already unlocked)
     const foundBlueprintId = this.rollBlueprintDrop(destinationId);
     // If a blueprint was found, unlock it immediately in the game state
@@ -180,6 +262,8 @@ export class LootManager {
       destination,
       loot,
       weaponDropId,
+      foundArmorId,
+      foundShieldId,
       foundBlueprintId,
       encounter,
       encounterResolved: !encounter,

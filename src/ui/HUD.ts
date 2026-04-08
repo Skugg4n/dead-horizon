@@ -7,8 +7,9 @@ const TOP_H = 44;         // height of top HUD bar
 const BOTTOM_H = 48;      // height of bottom HUD bar (increased for 2 weapons)
 const BAR_Y = 9;          // y of HP/base bars inside top bar
 const BAR_H = 14;         // height of HP/base bar fill
-const STAMINA_Y = 27;     // y of stamina bar inside top bar
-const STAMINA_H = 7;      // height of stamina bar
+const STAMINA_Y = 26;     // y of stamina bar inside top bar (under HP bar)
+const STAMINA_H = 6;      // height of stamina bar (narrower than HP)
+const STAMINA_BAR_W = 70; // stamina bar width (narrower than HP bar)
 const ICON_SIZE = 14;     // display size for sprite icons
 const PANEL_ALPHA = 0.62; // background panel alpha
 const PANEL_COLOR = 0x0a0a0a;
@@ -116,21 +117,21 @@ export class HUD {
     }).setOrigin(0, 0.5);
     this.container.add(this.hpText);
 
-    // ---- Stamina section -----------------------------------------------
+    // ---- Stamina section (under HP bar, same left-align) ---------------
     const staminaSectionX = hpSectionX;
     const staminaBarX = staminaSectionX + ICON_SIZE + 4;
-    const staminaBarW = 100;
 
+    // Small bolt icon to the left of stamina bar
     const boltGfx = scene.add.graphics();
     boltGfx.fillStyle(0x4A90D9, 1);
     boltGfx.fillTriangle(
-      staminaSectionX + 8, STAMINA_Y,
+      staminaSectionX + 7, STAMINA_Y,
       staminaSectionX + 3, STAMINA_Y + STAMINA_H,
-      staminaSectionX + 6, STAMINA_Y + STAMINA_H
+      staminaSectionX + 5, STAMINA_Y + STAMINA_H
     );
     boltGfx.fillTriangle(
       staminaSectionX + 5, STAMINA_Y + STAMINA_H,
-      staminaSectionX + 10, STAMINA_Y + STAMINA_H,
+      staminaSectionX + 9, STAMINA_Y + STAMINA_H,
       staminaSectionX + 5, STAMINA_Y + STAMINA_H * 2
     );
     this.container.add(boltGfx);
@@ -138,44 +139,44 @@ export class HUD {
     this.staminaBarBg = scene.add.graphics();
     this.staminaBarBg.lineStyle(1, 0x444444, 1);
     this.staminaBarBg.fillStyle(0x1a1a1a);
-    this.staminaBarBg.fillRect(staminaBarX, STAMINA_Y, staminaBarW, STAMINA_H);
-    this.staminaBarBg.strokeRect(staminaBarX, STAMINA_Y, staminaBarW, STAMINA_H);
+    this.staminaBarBg.fillRect(staminaBarX, STAMINA_Y, STAMINA_BAR_W, STAMINA_H);
+    this.staminaBarBg.strokeRect(staminaBarX, STAMINA_Y, STAMINA_BAR_W, STAMINA_H);
     this.container.add(this.staminaBarBg);
 
     this.staminaBar = scene.add.graphics();
     this.container.add(this.staminaBar);
     this.updateStaminaBar(100, 100);
 
-    // ---- Wave panel (centered) -----------------------------------------
-    const wavePanelW = 140;
-    const wavePanelH = TOP_H - 8;
-    const wavePanelX = (GAME_WIDTH - wavePanelW) / 2;
+    // ---- Wave panel (centered, constrained width) -----------------------
+    const wavePanelW = 160;
+    const wavePanelH = TOP_H - 6;
+    const wavePanelX = Math.floor((GAME_WIDTH - wavePanelW) / 2);
 
     this.wavePanel = scene.add.graphics();
     this.wavePanel.fillStyle(0x111111, 0.75);
     this.wavePanel.lineStyle(1, 0x555555, 1);
-    this.wavePanel.fillRoundedRect(wavePanelX, 4, wavePanelW, wavePanelH, 6);
-    this.wavePanel.strokeRoundedRect(wavePanelX, 4, wavePanelW, wavePanelH, 6);
+    this.wavePanel.fillRoundedRect(wavePanelX, 3, wavePanelW, wavePanelH, 6);
+    this.wavePanel.strokeRoundedRect(wavePanelX, 3, wavePanelW, wavePanelH, 6);
     this.container.add(this.wavePanel);
 
-    this.waveText = scene.add.text(GAME_WIDTH / 2, TOP_H / 2 - 6, 'Night 1/5', {
+    this.waveText = scene.add.text(GAME_WIDTH / 2, 14, 'Night 1/5', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
+      fontSize: '9px',
       color: '#FFFFFF',
     }).setOrigin(0.5, 0.5);
     this.container.add(this.waveText);
 
     // Sub-line: wave + enemy count
-    this.waveSubText = scene.add.text(GAME_WIDTH / 2, TOP_H / 2 + 8, 'Wave 1/1  --  0 enemies', {
+    this.waveSubText = scene.add.text(GAME_WIDTH / 2, 28, 'Wave 1/1  --  0 enemies', {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '7px',
       color: '#9A9A9A',
     }).setOrigin(0.5, 0.5);
     this.container.add(this.waveSubText);
 
-    // ---- Base HP section (right side) ----------------------------------
-    const baseBarW = 120;
-    const baseBarX = GAME_WIDTH - 8 - baseBarW;
+    // ---- Base HP section (right side, with larger margin) ---------------
+    const baseBarW = 110;
+    const baseBarX = GAME_WIDTH - 16 - baseBarW;
     const baseLabelX = baseBarX - 4;
 
     const houseGfx = scene.add.graphics();
@@ -396,8 +397,8 @@ export class HUD {
   }
 
   updateBaseHpBar(hp: number, maxHp: number): void {
-    const baseBarW = 120;
-    const baseBarX = GAME_WIDTH - 8 - baseBarW;
+    const baseBarW = 110;
+    const baseBarX = GAME_WIDTH - 16 - baseBarW;
 
     this.baseHpBar.clear();
     const ratio = maxHp > 0 ? hp / maxHp : 0;
@@ -411,7 +412,7 @@ export class HUD {
     const ratio = maxStamina > 0 ? stamina / maxStamina : 0;
     this.staminaBar.fillStyle(0x4A90D9);
     const staminaBarX = 8 + ICON_SIZE + 4;
-    this.staminaBar.fillRect(staminaBarX, STAMINA_Y, 100 * ratio, STAMINA_H);
+    this.staminaBar.fillRect(staminaBarX, STAMINA_Y, STAMINA_BAR_W * ratio, STAMINA_H);
   }
 
   /** Set the night number displayed in the main header. */

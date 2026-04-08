@@ -537,6 +537,46 @@ export class LootRunPanel {
       yOffset += 16;
     }
 
+    // Show armor drop if one was found
+    if (result.foundArmorId) {
+      yOffset += 4;
+      const armorLabel = this.scene.add.text(0, yOffset, 'Armor found:', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '10px',
+        color: '#C5A030',
+      });
+      content.add(armorLabel);
+      yOffset += 16;
+      const displayName = result.foundArmorId.replace(/_/g, ' ').toUpperCase();
+      const armorLine = this.scene.add.text(8, yOffset, `+ ${displayName}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#4A90D9',
+      });
+      content.add(armorLine);
+      yOffset += 16;
+    }
+
+    // Show shield drop if one was found
+    if (result.foundShieldId) {
+      yOffset += 4;
+      const shieldLabel = this.scene.add.text(0, yOffset, 'Shield found:', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '10px',
+        color: '#C5A030',
+      });
+      content.add(shieldLabel);
+      yOffset += 16;
+      const displayName = result.foundShieldId.replace(/_/g, ' ').toUpperCase();
+      const shieldLine = this.scene.add.text(8, yOffset, `+ ${displayName}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '9px',
+        color: '#4CAF50',
+      });
+      content.add(shieldLine);
+      yOffset += 16;
+    }
+
     // Show blueprint find if one was found -- special highlighted block
     if (result.foundBlueprintId) {
       yOffset += 8;

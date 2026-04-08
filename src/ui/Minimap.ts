@@ -6,7 +6,7 @@ const MINIMAP_W = 120;
 const MINIMAP_H = 90;
 // Position: top-right corner, below wave panel
 const MINIMAP_X = GAME_WIDTH - 130;
-const MINIMAP_Y = 40;
+const MINIMAP_Y = 48;
 
 // Update interval in milliseconds -- not every frame, only twice per second
 const UPDATE_INTERVAL_MS = 500;

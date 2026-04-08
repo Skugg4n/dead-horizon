@@ -152,6 +152,8 @@ export class EquipmentPanel {
   private weaponPage: number = 0;
   private armorPage: number = 0;
   private shieldPage: number = 0;
+  // Which weapon slot will receive the next equip click from the left panel
+  private selectedSlot: Slot = 'primary';
 
   private currentAP: () => number;
   private spendAP: (cost: number) => void;
@@ -462,6 +464,14 @@ export class EquipmentPanel {
     c.add(header);
     y += 14;
 
+    // Show which slot is currently targeted by equip clicks
+    const slotNum = this.selectedSlot === 'primary' ? '1' : '2';
+    const equipHint = this.scene.add.text(0, y, `Equipping to: ${this.selectedSlot.toUpperCase()} [${slotNum}]`, {
+      fontFamily: FONT, fontSize: '7px', color: '#E07030',
+    });
+    c.add(equipHint);
+    y += 14;
+
     if (total === 0) {
       c.add(this.scene.add.text(0, y, 'No weapons', {
         fontFamily: FONT, fontSize: '7px', color: '#444444',
@@ -546,14 +556,18 @@ export class EquipmentPanel {
           this.viewState = { mode: 'upgrade', weaponId: capturedWeapon.id };
           this.rebuild();
         } else if (!capturedIsBroken) {
-          // Equip: fill primary first, then secondary
-          const { primaryWeaponId: pid, secondaryWeaponId: sid } = this.gameState.equipped;
-          if (!pid) {
-            this.gameState.equipped.primaryWeaponId = capturedWeapon.id;
-          } else if (!sid) {
+          // Equip to the currently selected slot (primary or secondary)
+          if (this.selectedSlot === 'secondary') {
+            // If this weapon is currently in the primary slot, swap it out
+            if (this.gameState.equipped.primaryWeaponId === capturedWeapon.id) {
+              this.gameState.equipped.primaryWeaponId = null;
+            }
             this.gameState.equipped.secondaryWeaponId = capturedWeapon.id;
           } else {
-            // Replace primary by default
+            // If this weapon is currently in the secondary slot, swap it out
+            if (this.gameState.equipped.secondaryWeaponId === capturedWeapon.id) {
+              this.gameState.equipped.secondaryWeaponId = null;
+            }
             this.gameState.equipped.primaryWeaponId = capturedWeapon.id;
           }
           this.rebuild();
@@ -935,19 +949,36 @@ export class EquipmentPanel {
     weapon: WeaponInstance | null,
     slot: Slot,
   ): number {
-    // Slot label
-    c.add(this.scene.add.text(0, y, `${label}:`, {
-      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
-    }));
+    // Slot label -- clicking it selects this slot as the equip target
+    const isThisSlotSelected = this.selectedSlot === slot;
+    const slotLabelColor = isThisSlotSelected ? '#E07030' : '#6B6B6B';
+    const slotLabel = this.scene.add.text(0, y, `${label}:`, {
+      fontFamily: FONT, fontSize: '8px', color: slotLabelColor,
+    }).setInteractive({ useHandCursor: true });
+    slotLabel.on('pointerdown', () => {
+      this.selectedSlot = slot;
+      this.rebuild();
+    });
+    slotLabel.on('pointerover', () => slotLabel.setColor('#FFD700'));
+    slotLabel.on('pointerout', () => slotLabel.setColor(slotLabelColor));
+    c.add(slotLabel);
+
+    // Show active-slot indicator so player knows which slot receives equip clicks
+    if (isThisSlotSelected) {
+      const activeIndicator = this.scene.add.text(slotLabel.width + 6, y, '[ACTIVE]', {
+        fontFamily: FONT, fontSize: '6px', color: '#E07030',
+      });
+      c.add(activeIndicator);
+    }
     y += 12;
 
     if (!weapon) {
       const emptyBg = this.scene.add.graphics();
-      emptyBg.lineStyle(1, 0x333333, 1);
+      emptyBg.lineStyle(1, isThisSlotSelected ? 0xE07030 : 0x333333, 1);
       emptyBg.strokeRect(0, y, w, 22);
       c.add(emptyBg);
-      c.add(this.scene.add.text(4, y + 7, '(empty -- click weapon to equip)', {
-        fontFamily: FONT, fontSize: '6px', color: '#444444',
+      c.add(this.scene.add.text(4, y + 7, '(empty -- click slot label to select, then weapon)', {
+        fontFamily: FONT, fontSize: '6px', color: isThisSlotSelected ? '#E07030' : '#444444',
       }));
       return y + 24;
     }
