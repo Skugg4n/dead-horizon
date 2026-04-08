@@ -36,9 +36,10 @@
       "name": "Desperate Refugee",
       "description": "A refugee wants to leave with some food. They look desperate and afraid.",
       "type": "moral",
+      "minRefugees": 2,
       "choices": [
-        { "text": "Let them go (lose 1 refugee + 3 food)", "effect": { "food": -3, "lose_refugee": true } },
-        { "text": "Force them to stay", "effect": {} }
+        { "text": "Let them go with supplies (-1 refugee, -3 food)", "effect": { "food": -3, "lose_refugee": true } },
+        { "text": "Force them to stay (crew morale drops, -2 food/day for 2 days)", "effect": { "food": -2 } }
       ]
     },
     {

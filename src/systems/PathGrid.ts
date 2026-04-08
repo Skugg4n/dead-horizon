@@ -136,13 +136,17 @@ export class PathGrid {
     visited[startIdx] = 1;
     // Target cell direction: no movement needed (0, 0) -- already initialized to 0
 
-    // Cardinal directions only: up, down, left, right
-    // BFS with 4-connectivity gives shortest-path navigation around walls
+    // 8-connectivity: cardinals + diagonals
+    // Diagonals help zombies navigate corners smoothly instead of getting stuck
     const dirs: Array<[number, number]> = [
       [0, -1],  // up
       [0,  1],  // down
       [-1, 0],  // left
       [1,  0],  // right
+      [-1, -1], // up-left
+      [1, -1],  // up-right
+      [-1, 1],  // down-left
+      [1,  1],  // down-right
     ];
 
     while (head < tail) {
@@ -164,13 +168,21 @@ export class PathGrid {
         // Skip if already visited or blocked
         if (visited[nIdx] || this.grid[nIdx] === 1) continue;
 
+        // Diagonal: both adjacent cardinal cells must be clear (no corner-cutting)
+        if (ddx !== 0 && ddy !== 0) {
+          const adj1 = cy * this.gridWidth + nx; // horizontal neighbor
+          const adj2 = ny * this.gridWidth + cx; // vertical neighbor
+          if (this.grid[adj1] === 1 || this.grid[adj2] === 1) continue;
+        }
+
         visited[nIdx] = 1;
 
-        // The neighbor's direction points BACK toward the current cell (which is
-        // one step closer to the target). Negate ddx/ddy because the neighbor
-        // needs to move toward the current cell, not away.
-        this.flowfield[nIdx * 2]     = -ddx;
-        this.flowfield[nIdx * 2 + 1] = -ddy;
+        // The neighbor's direction points BACK toward the current cell.
+        // Normalize diagonals to unit length (cardinal = 1, diagonal = 0.707)
+        const isDiag = ddx !== 0 && ddy !== 0;
+        const norm = isDiag ? 0.7071 : 1;
+        this.flowfield[nIdx * 2]     = -ddx * norm;
+        this.flowfield[nIdx * 2 + 1] = -ddy * norm;
 
         queue[tail++] = nIdx;
       }

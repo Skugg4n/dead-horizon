@@ -5,7 +5,7 @@
       "name": "Tent",
       "baseHp": 200,
       "cost": null,
-      "unlockedStructures": ["barricade", "wall", "trap", "spike_strip", "sandbags", "cart_wall", "pit_trap", "nail_board", "trip_wire", "glass_shards", "tar_pit"],
+      "unlockedStructures": ["barricade", "wall", "sandbags", "nail_board", "trip_wire"],
       "fogRadius": 3,
       "visual": {
         "size": 48,

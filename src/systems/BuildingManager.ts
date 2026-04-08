@@ -244,10 +244,10 @@ export class BuildingManager {
     if (!instance) return false;
     const data = this.structureDataMap.get(instance.structureId);
 
-    // Refund 50% of base cost
+    // Refund 75% of base cost (selling loses only 25%)
     if (data) {
       for (const [resource, amount] of Object.entries(data.cost)) {
-        const refund = Math.floor(amount * 0.5);
+        const refund = Math.ceil(amount * 0.75);
         this.gameState.inventory.resources[resource as ResourceType] += refund;
       }
     }

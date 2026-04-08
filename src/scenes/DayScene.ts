@@ -1459,7 +1459,11 @@ export class DayScene extends Phaser.Scene {
 
     // Sell button -- placed below upgrade row when present, otherwise at same y as before
     const sellY = hasUpgradeSlot ? 90 : 68;
-    const sellBtn = this.add.text(8, sellY, '[ SELL ]', {
+    // Calculate sell yield (75% of build cost)
+    const sellYield = Object.entries(data.cost)
+      .map(([res, amt]) => `+${Math.ceil((amt as number) * 0.75)}${res[0]?.toUpperCase() ?? ''}`)
+      .join(' ');
+    const sellBtn = this.add.text(8, sellY, `[ SCRAP ${sellYield} ]`, {
       fontFamily: '"Press Start 2P", monospace',
       fontSize: '11px',
       color: '#F44336',
