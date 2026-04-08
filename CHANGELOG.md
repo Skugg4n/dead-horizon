@@ -1,5 +1,37 @@
 # Dead Horizon -- Changelog
 
+## [v5.6.0] - 2026-04-04 -- Sprites for all 43 missing structures
+
+### Varfor
+DayScene renderade fargar+initaler for alla strukturer som saknade sprites. Nu har samtliga
+43 strukturer/fallor i structures.json egna 32x32 pixel art-sprites i post-apokalyptisk stil.
+
+### Andrat
+
+**Nya sprite-filer (public/assets/sprites/)**
+Primitive: struct_cart_wall, struct_nail_board, struct_trip_wire, struct_glass_shards,
+struct_tar_pit, struct_glue_floor, struct_shopping_cart_wall, struct_car_wreck_barrier,
+struct_dumpster_fortress.
+Machine: struct_blade_spinner, struct_fire_pit, struct_propane_geyser, struct_washing_cannon,
+struct_shock_wire, struct_spring_launcher, struct_chain_wall, struct_circle_saw_trap,
+struct_razor_wire_carousel, struct_lawnmower_lane, struct_treadmill_of_doom, struct_pendulum_axe,
+struct_garage_door_smasher, struct_bug_zapper_xl, struct_car_battery_grid, struct_electric_fence,
+struct_net_launcher, struct_meat_grinder, struct_belt_sander_gauntlet, struct_power_drill_press,
+struct_piano_wire_web, struct_combine_harvester, struct_car_bomb, struct_napalm_sprinkler,
+struct_gas_main_igniter, struct_flamethrower_post.
+Heavy/Combo: struct_tractor_wheel_roller, struct_wrecking_ball, struct_log_avalanche,
+struct_falling_car, struct_treadmill_blades, struct_fan_glass, struct_elevator_shaft,
+struct_rube_goldberg.
+
+**src/scenes/BootScene.ts**
+- Rattade 6 befintliga trap-laddningar (fel stig nail_board.png -> struct_nail_board.png etc)
+- Lade till 43 nya this.load.image()-anrop for alla nygenererade sprites
+
+**src/config/constants.ts**
+- GAME_VERSION bumpad till 5.6.0
+
+---
+
 ## [v5.5.0] - 2026-04-04 16:00 -- BFS flowfield zombie-navigation + glass_shards zone nerf
 
 ### Varfor

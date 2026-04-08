@@ -27,14 +27,54 @@ export class BootScene extends Phaser.Scene {
     this.load.image('struct_shelter', 'assets/sprites/struct_shelter.png');
     this.load.image('struct_farm', 'assets/sprites/struct_farm.png');
 
-    // New trap sprites (Tier 1 + Tier 2)
-    this.load.image('struct_nail_board', 'assets/sprites/nail_board.png');
-    this.load.image('struct_trip_wire', 'assets/sprites/trip_wire.png');
-    this.load.image('struct_glass_shards', 'assets/sprites/glass_shards.png');
-    this.load.image('struct_tar_pit', 'assets/sprites/tar_pit.png');
-    this.load.image('struct_shock_wire', 'assets/sprites/shock_wire.png');
-    this.load.image('struct_spring_launcher', 'assets/sprites/spring_launcher.png');
-    this.load.image('struct_chain_wall', 'assets/sprites/chain_wall.png');
+    // Primitive trap sprites
+    this.load.image('struct_nail_board',       'assets/sprites/struct_nail_board.png');
+    this.load.image('struct_trip_wire',        'assets/sprites/struct_trip_wire.png');
+    this.load.image('struct_glass_shards',     'assets/sprites/struct_glass_shards.png');
+    this.load.image('struct_tar_pit',          'assets/sprites/struct_tar_pit.png');
+    this.load.image('struct_glue_floor',       'assets/sprites/struct_glue_floor.png');
+    this.load.image('struct_cart_wall',        'assets/sprites/struct_cart_wall.png');
+    this.load.image('struct_shopping_cart_wall', 'assets/sprites/struct_shopping_cart_wall.png');
+    this.load.image('struct_car_wreck_barrier','assets/sprites/struct_car_wreck_barrier.png');
+    this.load.image('struct_dumpster_fortress','assets/sprites/struct_dumpster_fortress.png');
+
+    // Machine trap sprites
+    this.load.image('struct_shock_wire',       'assets/sprites/struct_shock_wire.png');
+    this.load.image('struct_spring_launcher',  'assets/sprites/struct_spring_launcher.png');
+    this.load.image('struct_chain_wall',       'assets/sprites/struct_chain_wall.png');
+    this.load.image('struct_blade_spinner',    'assets/sprites/struct_blade_spinner.png');
+    this.load.image('struct_fire_pit',         'assets/sprites/struct_fire_pit.png');
+    this.load.image('struct_propane_geyser',   'assets/sprites/struct_propane_geyser.png');
+    this.load.image('struct_washing_cannon',   'assets/sprites/struct_washing_cannon.png');
+    this.load.image('struct_circle_saw_trap',  'assets/sprites/struct_circle_saw_trap.png');
+    this.load.image('struct_razor_wire_carousel', 'assets/sprites/struct_razor_wire_carousel.png');
+    this.load.image('struct_lawnmower_lane',   'assets/sprites/struct_lawnmower_lane.png');
+    this.load.image('struct_treadmill_of_doom','assets/sprites/struct_treadmill_of_doom.png');
+    this.load.image('struct_pendulum_axe',     'assets/sprites/struct_pendulum_axe.png');
+    this.load.image('struct_garage_door_smasher', 'assets/sprites/struct_garage_door_smasher.png');
+    this.load.image('struct_bug_zapper_xl',    'assets/sprites/struct_bug_zapper_xl.png');
+    this.load.image('struct_car_battery_grid', 'assets/sprites/struct_car_battery_grid.png');
+    this.load.image('struct_electric_fence',   'assets/sprites/struct_electric_fence.png');
+    this.load.image('struct_net_launcher',     'assets/sprites/struct_net_launcher.png');
+    this.load.image('struct_meat_grinder',     'assets/sprites/struct_meat_grinder.png');
+    this.load.image('struct_belt_sander_gauntlet', 'assets/sprites/struct_belt_sander_gauntlet.png');
+    this.load.image('struct_power_drill_press','assets/sprites/struct_power_drill_press.png');
+    this.load.image('struct_piano_wire_web',   'assets/sprites/struct_piano_wire_web.png');
+    this.load.image('struct_combine_harvester','assets/sprites/struct_combine_harvester.png');
+    this.load.image('struct_car_bomb',         'assets/sprites/struct_car_bomb.png');
+    this.load.image('struct_napalm_sprinkler', 'assets/sprites/struct_napalm_sprinkler.png');
+    this.load.image('struct_gas_main_igniter', 'assets/sprites/struct_gas_main_igniter.png');
+    this.load.image('struct_flamethrower_post','assets/sprites/struct_flamethrower_post.png');
+
+    // Heavy and combo trap sprites
+    this.load.image('struct_tractor_wheel_roller', 'assets/sprites/struct_tractor_wheel_roller.png');
+    this.load.image('struct_wrecking_ball',    'assets/sprites/struct_wrecking_ball.png');
+    this.load.image('struct_log_avalanche',    'assets/sprites/struct_log_avalanche.png');
+    this.load.image('struct_falling_car',      'assets/sprites/struct_falling_car.png');
+    this.load.image('struct_treadmill_blades', 'assets/sprites/struct_treadmill_blades.png');
+    this.load.image('struct_fan_glass',        'assets/sprites/struct_fan_glass.png');
+    this.load.image('struct_elevator_shaft',   'assets/sprites/struct_elevator_shaft.png');
+    this.load.image('struct_rube_goldberg',    'assets/sprites/struct_rube_goldberg.png');
 
     // Boss sprites
     this.load.image('brute_boss', 'assets/sprites/brute_boss.png');
