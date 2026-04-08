@@ -699,21 +699,9 @@ export class LootRunPanel {
 
     this.panel.show();
 
-    // Auto-close after RESULTS_AUTO_CLOSE_MS with a live countdown
-    let remaining = 3;
-    this.resultsTimer = this.scene.time.addEvent({
-      delay: 1000,
-      repeat: 2,
-      callback: () => {
-        remaining--;
-        if (remaining > 0) {
-          countdownText.setText(`Closing in ${remaining}...`);
-        } else {
-          this.cancelResultsTimer();
-          this.panel.hide();
-        }
-      },
-    });
+    // No auto-close -- player reads results at their own pace
+    // Close hint shown via countdownText (repurposed)
+    countdownText.setText('Press ESC or click to close');
 
     // Ensure the result panel shows (may have been hidden during encounter dialog)
     this.panel.getContainer().setVisible(true);

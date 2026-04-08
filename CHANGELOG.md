@@ -1,5 +1,26 @@
 # Dead Horizon -- Changelog
 
+## [v5.7.0] - 2026-04-04 14:22 -- 8 UX improvements: scrap buttons, weapon tiers, hover comparison, toolbar labels, shelter/refugee clarity
+
+### Varfor
+Feedback-driven UX-polish: armor och shields saknade [S]-knappar, vapenniver visades inte i listan,
+upgradenamn var generiska, armor/shield-hover saknade jamforelse, toolbar-knappar hade inga labels,
+shelter-beskrivningen var oklar, rescue failure visades inte, och hogerpanelen trunkerade text.
+
+### Andrat
+
+- **Fix 1 (EquipmentPanel):** [S] scrap button lagd till armor- och shield-rader i ARMOR/SHIELDS-tabbar (samma varden som vapen: common +2S+1P, uncommon +3S+2P, rare +5S+3P).
+- **Fix 2 (EquipmentPanel):** Vapenniva visas nu i inventarielistan: "Name [R] Lv3 D:25". Lv1-2 vit, Lv3-4 gul, Lv5 guldstjarnan.
+- **Fix 3 (EquipmentPanel):** Tier-namn i hogerpanelen: Stock/Modified/Enhanced/Superior/ULTIMATE. Visar aven "Next: Enhanced (needs 25 XP)" eller "ULTIMATE available! (15P 5S)" vid Lv4.
+- **Fix 4 (EquipmentPanel):** Hover-jamforelse for armor (Reduction %, Speed %) och shield (Block hits, Cooldown, Speed). Gront = battre, rott = samre.
+- **Fix 5 (DayScene):** Textlabels under toolbar-ikoner: "BUILD", "EQUIP" osv. 5px font, muted farg (#555555), depth 100.
+- **Fix 6 (structures.json, RefugeePanel):** Shelter-beskrivning uppdaterad: "Houses 2 refugees. Build to rescue more." Camp Crew-panel visar nu kapacitetskalla: "Capacity: 2 shelters x2 = 4 max".
+- **Fix 7 (DayScene):** Nar rescue-event sker men lager ar fullt: "No room! Build more shelters." i GameLog (rod farg).
+- **Fix 8 (EquipmentPanel):** All text i hogerpanelens vapendisplay anvander wordWrap eller fixedWidth for att undvika trunkering.
+
+### Versioner
+- `src/config/constants.ts`: GAME_VERSION 5.6.2 -> 5.7.0
+
 ## [v5.6.0] - 2026-04-04 -- Sprites for all 43 missing structures
 
 ### Varfor

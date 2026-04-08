@@ -175,7 +175,7 @@
       "id": "shelter",
       "name": "Shelter",
       "category": "special",
-      "description": "Houses refugees. 80 HP",
+      "description": "Houses 2 refugees. Build to rescue more.",
       "hp": 80,
       "cost": { "scrap": 12 },
       "apCost": 2,

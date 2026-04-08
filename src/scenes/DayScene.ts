@@ -243,6 +243,9 @@ export class DayScene extends Phaser.Scene {
       if (newRefugee) {
         this.showInfo(`Rescued ${newRefugee.name} during loot run!`);
         this.gameLog.addMessage(`Rescued ${newRefugee.name}!`, '#88FF88');
+      } else {
+        // Fix 7: No room at camp -- tell player to build more shelters
+        this.gameLog.addMessage('No room! Build more shelters.', '#F44336');
       }
     });
 
@@ -729,6 +732,15 @@ export class DayScene extends Phaser.Scene {
     for (const entry of buttons) {
       const shortcutHint = entry.shortcut ? ` [${entry.shortcut}]` : '';
       this.createIconButton(entry.iconKey, entry.label + shortcutHint, entry.color, curX, TOOLBAR_Y + 6, BUTTON_SIZE, entry.onClick, tooltip);
+
+      // Fix 5: Small text label under each icon (6px, muted color)
+      const btnLabel = this.add.text(curX + BUTTON_SIZE / 2, TOOLBAR_Y + 6 + BUTTON_SIZE + 2, entry.label, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '5px',
+        color: '#555555',
+      }).setOrigin(0.5, 0).setDepth(100).setScrollFactor(0);
+      this.addToUI(btnLabel);
+
       curX += BUTTON_SIZE + 16;
     }
   }

@@ -54,13 +54,35 @@ const RARITY_COLORS: Record<string, string> = {
   legendary: '#FFD700',
 };
 
-// Scrap yield per rarity
+// Scrap yield per rarity (shared for weapons, armor and shields)
 const SCRAP_VALUES: Record<string, { scrap: number; parts: number }> = {
   common:    { scrap: 2, parts: 1 },
   uncommon:  { scrap: 3, parts: 2 },
   rare:      { scrap: 5, parts: 3 },
   legendary: { scrap: 8, parts: 5 },
 };
+
+// Weapon tier names by level
+const TIER_NAMES: Record<number, string> = {
+  1: 'Stock',
+  2: 'Modified',
+  3: 'Enhanced',
+  4: 'Superior',
+  5: 'ULTIMATE',
+};
+
+/** Return display label for weapon level including star for Lv5. */
+function weaponTierLabel(level: number): string {
+  if (level >= 5) return '★ ULTIMATE';
+  return TIER_NAMES[level] ?? `Lv${level}`;
+}
+
+/** Return color for weapon level indicator in list rows. */
+function weaponLevelColor(level: number): string {
+  if (level >= 5) return '#FFD700'; // gold
+  if (level >= 3) return '#FFD700'; // yellow
+  return '#E8DCC8'; // white
+}
 
 // Left panel tabs
 type InventoryTab = 'WEAPONS' | 'ARMOR' | 'SHIELDS';
@@ -520,16 +542,36 @@ export class EquipmentPanel {
       const equippedMark = isEquipped
         ? (weapon.id === primaryWeaponId ? ' [1]' : ' [2]')
         : '';
-      // Bug 13: reserve 20px on right for [S] scrap button on non-equipped rows
+      // Reserve 20px on right for [S] scrap button on non-equipped rows
       const scrapBtnW = isEquipped ? 0 : 20;
       const textAreaW = w - scrapBtnW - 8;
-      const rowLabel = `${name} [${rar}] D:${stats.damage}${equippedMark}`;
+      // Fix 2: Show weapon level in list ("Lv3" with level colored)
+      const lvLabel = weapon.level >= 5 ? '★' : `Lv${weapon.level}`;
+      const rowLabel = `${name} [${rar}] ${lvLabel} D:${stats.damage}${equippedMark}`;
       const rowText = this.scene.add.text(4, y + 4, rowLabel, {
         fontFamily: FONT, fontSize: '7px', color,
         // Truncate label to fit within the row text area
         fixedWidth: textAreaW > 0 ? textAreaW : undefined,
       });
       c.add(rowText);
+
+      // Fix 2: Level color overlay -- draw a separate colored text just for the level part
+      // placed right after "name [R] "
+      const lvColor = weaponLevelColor(weapon.level);
+      if (lvColor !== color) {
+        // Calculate x offset to the level label within the row text (approximate)
+        // We position a separate text object for the level tag with its own color
+        const prefixLabel = `${name} [${rar}] `;
+        const prefixText = this.scene.add.text(4, y + 4, prefixLabel, {
+          fontFamily: FONT, fontSize: '7px', color: 'rgba(0,0,0,0)',
+        });
+        const lvX = 4 + prefixText.width;
+        prefixText.destroy();
+        const lvText = this.scene.add.text(lvX, y + 4, lvLabel, {
+          fontFamily: FONT, fontSize: '7px', color: lvColor,
+        });
+        c.add(lvText);
+      }
 
       // Chevron on right (shifted left when scrap button is present)
       const arrowX = isEquipped ? w - 4 : w - scrapBtnW - 8;
@@ -722,10 +764,14 @@ export class EquipmentPanel {
       rowBg.fillRect(0, y, w, rowH);
       c.add(rowBg);
 
+      // Fix 1: reserve 20px for [S] scrap button on non-equipped rows
+      const armorScrapBtnW = isEquipped ? 0 : 20;
+      const armorTextAreaW = w - armorScrapBtnW - 8;
       const mark = isEquipped ? ' [E]' : '';
       const rowLabel = `${name} [${rar}] ${reductionPct}%${mark}`;
       const rowText = this.scene.add.text(4, y + 4, rowLabel, {
         fontFamily: FONT, fontSize: '7px', color,
+        fixedWidth: armorTextAreaW > 0 ? armorTextAreaW : undefined,
       });
       c.add(rowText);
 
@@ -733,9 +779,34 @@ export class EquipmentPanel {
       const capturedIsEquipped = isEquipped;
       const capturedY = y;
       const capturedColor = color;
+      const capturedData = data;
+
+      // Fix 1: [S] scrap button for non-equipped armor
+      if (!isEquipped) {
+        const sv = SCRAP_VALUES[inst.rarity] ?? { scrap: 2, parts: 1 };
+        const armorScrapBtn = this.scene.add.text(w - 2, y + 4, '[S]', {
+          fontFamily: FONT, fontSize: '7px', color: '#AA4433',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        armorScrapBtn.on('pointerover', () => armorScrapBtn.setColor('#FF6655'));
+        armorScrapBtn.on('pointerout', () => armorScrapBtn.setColor('#AA4433'));
+        armorScrapBtn.on('pointerdown', () => {
+          const idx = (this.gameState.inventory.armorInventory ?? []).indexOf(capturedInst);
+          if (idx >= 0) {
+            (this.gameState.inventory.armorInventory ?? []).splice(idx, 1);
+            this.gameState.inventory.resources.scrap += sv.scrap;
+            this.gameState.inventory.resources.parts += sv.parts;
+            this.onResourceChange();
+            const remaining = (this.gameState.inventory.armorInventory ?? []).length;
+            const maxPage = Math.max(0, Math.ceil(remaining / PAGE_SIZE) - 1);
+            if (this.armorPage > maxPage) this.armorPage = maxPage;
+            this.rebuild();
+          }
+        });
+        c.add(armorScrapBtn);
+      }
 
       rowBg.setInteractive(
-        new Phaser.Geom.Rectangle(0, y, w, rowH),
+        new Phaser.Geom.Rectangle(0, y, w - armorScrapBtnW, rowH),
         Phaser.Geom.Rectangle.Contains,
       );
       if (rowBg.input) rowBg.input.cursor = 'pointer';
@@ -744,12 +815,21 @@ export class EquipmentPanel {
         rowBg.fillStyle(0x3A3A3A, 1);
         rowBg.fillRect(0, capturedY, w, rowH);
         rowText.setColor('#FFD700');
+        // Fix 4: Show armor comparison on hover
+        const equippedArmorId = this.gameState.equipped.equippedArmor ?? null;
+        const armorInvList: ArmorInstance[] = this.gameState.inventory.armorInventory ?? [];
+        const equippedArmorInst = equippedArmorId
+          ? armorInvList.find(a => a.id === equippedArmorId) ?? null
+          : null;
+        const equippedArmorData = equippedArmorInst ? getArmorData(equippedArmorInst.armorId) ?? null : null;
+        this.showArmorComparison(capturedData ?? null, equippedArmorData, capturedY);
       });
       rowBg.on('pointerout', () => {
         rowBg.clear();
         rowBg.fillStyle(capturedIsEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
         rowBg.fillRect(0, capturedY, w, rowH);
         rowText.setColor(capturedColor);
+        this.hideTooltip();
       });
       rowBg.on('pointerdown', () => {
         // Toggle equip on click
@@ -831,10 +911,14 @@ export class EquipmentPanel {
       rowBg.fillRect(0, y, w, rowH);
       c.add(rowBg);
 
+      // Fix 1: reserve 20px for [S] scrap button on non-equipped rows
+      const shieldScrapBtnW = isEquipped ? 0 : 20;
+      const shieldTextAreaW = w - shieldScrapBtnW - 8;
       const mark = isEquipped ? ' [E]' : '';
       const rowLabel = `${name} [${rar}] ${blocks}blk${mark}`;
       const rowText = this.scene.add.text(4, y + 4, rowLabel, {
         fontFamily: FONT, fontSize: '7px', color,
+        fixedWidth: shieldTextAreaW > 0 ? shieldTextAreaW : undefined,
       });
       c.add(rowText);
 
@@ -842,9 +926,34 @@ export class EquipmentPanel {
       const capturedIsEquipped = isEquipped;
       const capturedY = y;
       const capturedColor = color;
+      const capturedShieldData = data;
+
+      // Fix 1: [S] scrap button for non-equipped shields
+      if (!isEquipped) {
+        const sv = SCRAP_VALUES[inst.rarity] ?? { scrap: 2, parts: 1 };
+        const shieldScrapBtn = this.scene.add.text(w - 2, y + 4, '[S]', {
+          fontFamily: FONT, fontSize: '7px', color: '#AA4433',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        shieldScrapBtn.on('pointerover', () => shieldScrapBtn.setColor('#FF6655'));
+        shieldScrapBtn.on('pointerout', () => shieldScrapBtn.setColor('#AA4433'));
+        shieldScrapBtn.on('pointerdown', () => {
+          const idx = (this.gameState.inventory.shieldInventory ?? []).indexOf(capturedInst);
+          if (idx >= 0) {
+            (this.gameState.inventory.shieldInventory ?? []).splice(idx, 1);
+            this.gameState.inventory.resources.scrap += sv.scrap;
+            this.gameState.inventory.resources.parts += sv.parts;
+            this.onResourceChange();
+            const remaining = (this.gameState.inventory.shieldInventory ?? []).length;
+            const maxPage = Math.max(0, Math.ceil(remaining / PAGE_SIZE) - 1);
+            if (this.shieldPage > maxPage) this.shieldPage = maxPage;
+            this.rebuild();
+          }
+        });
+        c.add(shieldScrapBtn);
+      }
 
       rowBg.setInteractive(
-        new Phaser.Geom.Rectangle(0, y, w, rowH),
+        new Phaser.Geom.Rectangle(0, y, w - shieldScrapBtnW, rowH),
         Phaser.Geom.Rectangle.Contains,
       );
       if (rowBg.input) rowBg.input.cursor = 'pointer';
@@ -853,12 +962,21 @@ export class EquipmentPanel {
         rowBg.fillStyle(0x3A3A3A, 1);
         rowBg.fillRect(0, capturedY, w, rowH);
         rowText.setColor('#FFD700');
+        // Fix 4: Show shield comparison on hover
+        const equippedShieldId = this.gameState.equipped.equippedShield ?? null;
+        const shieldInvList: ShieldInstance[] = this.gameState.inventory.shieldInventory ?? [];
+        const equippedShieldInst = equippedShieldId
+          ? shieldInvList.find(s => s.id === equippedShieldId) ?? null
+          : null;
+        const equippedShieldData = equippedShieldInst ? getShieldData(equippedShieldInst.shieldId) ?? null : null;
+        this.showShieldComparison(capturedShieldData ?? null, equippedShieldData, capturedY);
       });
       rowBg.on('pointerout', () => {
         rowBg.clear();
         rowBg.fillStyle(capturedIsEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
         rowBg.fillRect(0, capturedY, w, rowH);
         rowText.setColor(capturedColor);
+        this.hideTooltip();
       });
       rowBg.on('pointerdown', () => {
         // Toggle equip on click
@@ -1033,20 +1151,55 @@ export class EquipmentPanel {
     const color = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
     const isBroken = this.weaponManager.isBroken(weapon);
 
-    // Name + rarity line -- Bug 15: clamp to right panel width with wordWrap
+    // Fix 3: Show tier name instead of just level number
+    const tierName = weaponTierLabel(weapon.level);
+    const tierColor = weapon.level >= 5 ? '#FFD700' : weapon.level >= 3 ? '#FFD700' : '#E8DCC8';
+
+    // Name + rarity line -- clamped to right panel width with wordWrap (Fix 8)
     c.add(this.scene.add.text(0, y, `${name} [${weapon.rarity}]`, {
       fontFamily: FONT, fontSize: '7px',
       color: isBroken ? '#F44336' : color,
-      wordWrap: { width: w },
+      wordWrap: { width: w - 2 },
     }));
     y += 11;
 
+    // Fix 3: Tier line: "Enhanced (Lv3/5)" with appropriate color
+    c.add(this.scene.add.text(0, y, `Tier: ${tierName} (Lv${weapon.level}/5)`, {
+      fontFamily: FONT, fontSize: '6px', color: tierColor,
+      wordWrap: { width: w - 2 },
+    }));
+    y += 10;
+
+    // Fix 3: Show upgrade path hint
+    {
+      const xpNeeded = this.weaponManager.getXPForNextLevel(weapon);
+      const nextTier = TIER_NAMES[weapon.level + 1];
+      let upgradeHint = '';
+      if (weapon.level < 4 && nextTier) {
+        upgradeHint = `Next: ${nextTier} (needs ${xpNeeded} XP)`;
+      } else if (weapon.level === 4) {
+        const weaponData = WeaponManager.getWeaponData(weapon.weaponId);
+        if (weaponData?.ultimate) {
+          const { parts, scrap } = weaponData.ultimate.cost;
+          upgradeHint = `ULTIMATE available! (${parts}P ${scrap}S)`;
+        }
+      }
+      if (upgradeHint) {
+        c.add(this.scene.add.text(0, y, upgradeHint, {
+          fontFamily: FONT, fontSize: '6px',
+          color: weapon.level === 4 ? '#FFD700' : '#6B6B6B',
+          wordWrap: { width: w - 2 },
+        }));
+        y += 10;
+      }
+    }
+
     // Stats line: DMG and RNG on left, DUR on right
-    // Bug 15: ensure right-aligned DUR text stays within w
+    // Fix 8: ensure right-aligned DUR text stays within w
     const durColor = weapon.durability < weapon.maxDurability * 0.3 ? '#F44336'
       : weapon.durability < weapon.maxDurability * 0.6 ? '#FFD700' : '#8A8A8A';
     c.add(this.scene.add.text(0, y, `DMG:${stats.damage} RNG:${stats.range}`, {
-      fontFamily: FONT, fontSize: '7px', color: '#8A8A8A',
+      fontFamily: FONT, fontSize: '7px', color: '#8A8A8A', fixedWidth: Math.floor(w / 2),
     }));
     c.add(this.scene.add.text(w - 2, y, `DUR:${weapon.durability}/${weapon.maxDurability}`, {
       fontFamily: FONT, fontSize: '7px', color: durColor,
@@ -1375,6 +1528,123 @@ export class EquipmentPanel {
 
   private hideTooltip(): void {
     this.tooltipContainer.removeAll(true);
+  }
+
+  /**
+   * Fix 4: Show armor comparison tooltip ABOVE the hovered row.
+   * Compares hovered armor vs currently equipped armor.
+   * Green = better, red = worse.
+   */
+  private showArmorComparison(
+    hovered: ArmorData | null,
+    equipped: ArmorData | null,
+    rowLocalY: number,
+  ): void {
+    this.tooltipContainer.removeAll(true);
+
+    const lines: Array<{ text: string; color: string }> = [];
+
+    if (!hovered) return;
+
+    const hovReduction = Math.round(hovered.reduction * 100);
+    const hovSpeed = Math.round((hovered.speedPenalty ?? 0) * 100);
+
+    if (!equipped) {
+      lines.push({ text: `Reduction: ${hovReduction}%`, color: '#4CAF50' });
+      lines.push({ text: `Speed: ${hovSpeed}%`, color: hovSpeed < 0 ? '#F44336' : '#E8DCC8' });
+    } else {
+      const eqReduction = Math.round(equipped.reduction * 100);
+      const eqSpeed = Math.round((equipped.speedPenalty ?? 0) * 100);
+      const rdDiff = hovReduction - eqReduction;
+      const spDiff = hovSpeed - eqSpeed;
+
+      lines.push({
+        text: `Reduction: ${eqReduction}% -> ${hovReduction}% (${rdDiff >= 0 ? '+' : ''}${rdDiff}%)`,
+        color: rdDiff > 0 ? '#4CAF50' : rdDiff < 0 ? '#F44336' : '#E8DCC8',
+      });
+      lines.push({
+        text: `Speed: ${eqSpeed}% -> ${hovSpeed}% (${spDiff >= 0 ? '+' : ''}${spDiff}%)`,
+        // More negative speed penalty is WORSE
+        color: spDiff < 0 ? '#F44336' : spDiff > 0 ? '#4CAF50' : '#E8DCC8',
+      });
+    }
+
+    this.renderTooltipLines(lines, rowLocalY);
+  }
+
+  /**
+   * Fix 4: Show shield comparison tooltip ABOVE the hovered row.
+   * Compares hovered shield vs currently equipped shield.
+   */
+  private showShieldComparison(
+    hovered: ShieldData | null,
+    equipped: ShieldData | null,
+    rowLocalY: number,
+  ): void {
+    this.tooltipContainer.removeAll(true);
+
+    if (!hovered) return;
+
+    const lines: Array<{ text: string; color: string }> = [];
+
+    const hovBlocks = hovered.blockHits;
+    const hovCooldown = Math.round(hovered.cooldownMs / 100) / 10;
+    const hovSpeed = Math.round((hovered.speedPenalty ?? 0) * 100);
+
+    if (!equipped) {
+      lines.push({ text: `Block hits: ${hovBlocks}`, color: '#4CAF50' });
+      lines.push({ text: `Cooldown: ${hovCooldown}s`, color: '#E8DCC8' });
+      lines.push({ text: `Speed: ${hovSpeed}%`, color: hovSpeed < 0 ? '#F44336' : '#E8DCC8' });
+    } else {
+      const eqBlocks = equipped.blockHits;
+      const eqCooldown = Math.round(equipped.cooldownMs / 100) / 10;
+      const eqSpeed = Math.round((equipped.speedPenalty ?? 0) * 100);
+      const blkDiff = hovBlocks - eqBlocks;
+      const cdDiff = hovCooldown - eqCooldown;
+      const spDiff = hovSpeed - eqSpeed;
+
+      lines.push({
+        text: `Block hits: ${eqBlocks} -> ${hovBlocks} (${blkDiff >= 0 ? '+' : ''}${blkDiff})`,
+        color: blkDiff > 0 ? '#4CAF50' : blkDiff < 0 ? '#F44336' : '#E8DCC8',
+      });
+      lines.push({
+        text: `Cooldown: ${eqCooldown}s -> ${hovCooldown}s (${cdDiff >= 0 ? '+' : ''}${cdDiff}s)`,
+        // Lower cooldown is BETTER
+        color: cdDiff < 0 ? '#4CAF50' : cdDiff > 0 ? '#F44336' : '#E8DCC8',
+      });
+      lines.push({
+        text: `Speed: ${eqSpeed}% -> ${hovSpeed}% (${spDiff >= 0 ? '+' : ''}${spDiff}%)`,
+        color: spDiff < 0 ? '#F44336' : spDiff > 0 ? '#4CAF50' : '#E8DCC8',
+      });
+    }
+
+    this.renderTooltipLines(lines, rowLocalY);
+  }
+
+  /** Shared helper: render tooltip lines above a row (Fix 4 shared logic). */
+  private renderTooltipLines(
+    lines: Array<{ text: string; color: string }>,
+    rowLocalY: number,
+  ): void {
+    const ttH = lines.length * 12 + 8;
+    const ttW = 230;
+    const tx = CONTENT_PAD;
+    const rowPanelY = HEADER_H + CONTENT_PAD + rowLocalY;
+    const ty = Math.max(HEADER_H + 4, rowPanelY - ttH);
+
+    const ttBg = this.scene.add.graphics();
+    ttBg.fillStyle(0x000000, 0.9);
+    ttBg.fillRect(tx, ty, ttW, ttH);
+    ttBg.lineStyle(1, 0x555555, 1);
+    ttBg.strokeRect(tx, ty, ttW, ttH);
+    this.tooltipContainer.add(ttBg);
+
+    lines.forEach((line, idx) => {
+      const txt = this.scene.add.text(tx + 4, ty + 4 + idx * 12, line.text, {
+        fontFamily: FONT, fontSize: '7px', color: line.color,
+      });
+      this.tooltipContainer.add(txt);
+    });
   }
 
   // ---------------------------------------------------------------------------

@@ -45,10 +45,12 @@ export class RefugeeManager {
     return this.refugees.find(r => r.id === id);
   }
 
+  getShelterCount(): number {
+    return this.gameState.base.structures.filter(s => s.structureId === 'shelter').length;
+  }
+
   getMaxRefugees(): number {
-    const shelterCount = this.gameState.base.structures.filter(
-      s => s.structureId === 'shelter'
-    ).length;
+    const shelterCount = this.getShelterCount();
     return shelterCount === 0 ? 1 : shelterCount * REFUGEES_PER_SHELTER;
   }
 

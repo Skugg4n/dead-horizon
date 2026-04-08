@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser';
 import { RefugeeManager } from '../systems/RefugeeManager';
-import { REFUGEE_FOOD_PER_DAY, REFUGEE_HEAL_MEDS_COST } from '../config/constants';
+import { REFUGEE_FOOD_PER_DAY, REFUGEE_HEAL_MEDS_COST, REFUGEES_PER_SHELTER } from '../config/constants';
 import { UIPanel } from './UIPanel';
 import type { RefugeeInstance } from '../config/types';
 
@@ -86,7 +86,8 @@ export class RefugeePanel {
     const refugees = this.refugeeManager.getAll();
     const maxRefugees = this.refugeeManager.getMaxRefugees();
 
-    // Header summary
+    // Header summary -- Fix 6: show capacity source breakdown
+    const shelterCount = this.refugeeManager.getShelterCount();
     const foodNeeded = refugees.length * REFUGEE_FOOD_PER_DAY + 1;
     const summaryStr = `CAMP CREW (${refugees.length}/${maxRefugees})  |  Food: ${foodNeeded}/day`;
     content.add(
@@ -97,9 +98,22 @@ export class RefugeePanel {
       }),
     );
 
+    // Fix 6: Capacity source line e.g. "Capacity: 1 base + 2 shelters = 5 max"
+    const capacitySrc = shelterCount === 0
+      ? `Capacity: 1 base = ${maxRefugees} max`
+      : `Capacity: ${shelterCount} shelter${shelterCount !== 1 ? 's' : ''} x${REFUGEES_PER_SHELTER} = ${maxRefugees} max`;
+    content.add(
+      this.scene.add.text(0, 11, capacitySrc, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: '#444444',
+        wordWrap: { width: CONTENT_W },
+      }),
+    );
+
     if (refugees.length === 0) {
       content.add(
-        this.scene.add.text(0, 20, 'No crew yet. Rescue survivors on loot runs.', {
+        this.scene.add.text(0, 24, 'No crew yet. Rescue survivors on loot runs.', {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '8px',
           color: '#6B6B6B',
@@ -119,7 +133,7 @@ export class RefugeePanel {
     if (totalRepair > 0) bonusParts.push(`+${totalRepair} repair`);
     const bonusStr = bonusParts.length > 0 ? `Daily: ${bonusParts.join(', ')}` : 'No bonuses yet';
     content.add(
-      this.scene.add.text(0, 12, bonusStr, {
+      this.scene.add.text(0, 22, bonusStr, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: '#88FF88',
@@ -129,13 +143,13 @@ export class RefugeePanel {
     // Track injured index separately so heal buttons can show [1] [2] etc per-injured
     let injuredIndex = 0;
     refugees.forEach((refugee, i) => {
-      const rowY = 30 + i * ROW_HEIGHT;
+      const rowY = 40 + i * ROW_HEIGHT;
       const keyIndex = refugee.status === 'injured' ? injuredIndex++ : -1;
       this.buildCrewRow(content, refugee, rowY, i < refugees.length - 1, keyIndex);
     });
 
     // Help line at the bottom explaining refugee mechanics
-    const helpY = 30 + refugees.length * ROW_HEIGHT + 6;
+    const helpY = 40 + refugees.length * ROW_HEIGHT + 6;
     content.add(
       this.scene.add.text(0, helpY, 'Rescue survivors on loot runs. Max 5. Each gives +1 bonus/day.', {
         fontFamily: '"Press Start 2P", monospace',
