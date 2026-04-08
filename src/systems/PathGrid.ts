@@ -11,6 +11,10 @@ const BLOCKING_STRUCTURE_IDS: ReadonlySet<string> = new Set([
   'cart_wall',
   'chain_wall',
   'barricade',
+  'electric_fence',
+  'shopping_cart_wall',
+  'car_wreck_barrier',
+  'dumpster_fortress',
 ]);
 
 // A normalized 2D direction vector returned by getSteeringDirection
@@ -105,27 +109,49 @@ export class PathGrid {
 
     const idealAngle = Math.atan2(dy, dx);
 
-    // Probe distance: slightly more than one tile so zombies start turning before hitting the wall
-    const probeDistance = TILE_SIZE * 1.2;
+    // Probe TWO tiles ahead so zombies detect walls early and find gaps
+    const probeNear = TILE_SIZE * 1.2;
+    const probeFar = TILE_SIZE * 2.5;
 
-    // Candidate angles: ideal direction first, then rotate left/right by 45, 90, 135 degrees
-    // Alternating left/right gives unbiased turning
-    const offsets = [0, -Math.PI / 4, Math.PI / 4, -Math.PI / 2, Math.PI / 2, -(3 * Math.PI) / 4, (3 * Math.PI) / 4];
+    // Candidate angles: ideal first, then wider turns
+    // More angles = smoother wall-following (9 candidates)
+    const offsets = [
+      0,
+      -Math.PI / 6, Math.PI / 6,      // 30 deg
+      -Math.PI / 3, Math.PI / 3,      // 60 deg
+      -Math.PI / 2, Math.PI / 2,      // 90 deg (wall-following)
+      -(2 * Math.PI) / 3, (2 * Math.PI) / 3, // 120 deg
+    ];
 
     for (const offset of offsets) {
       const angle = idealAngle + offset;
-      const probeX = fromX + Math.cos(angle) * probeDistance;
-      const probeY = fromY + Math.sin(angle) * probeDistance;
+      const nearX = fromX + Math.cos(angle) * probeNear;
+      const nearY = fromY + Math.sin(angle) * probeNear;
+      const farX = fromX + Math.cos(angle) * probeFar;
+      const farY = fromY + Math.sin(angle) * probeFar;
 
-      const tileX = Math.floor(probeX / TILE_SIZE);
-      const tileY = Math.floor(probeY / TILE_SIZE);
+      const nearTX = Math.floor(nearX / TILE_SIZE);
+      const nearTY = Math.floor(nearY / TILE_SIZE);
+      const farTX = Math.floor(farX / TILE_SIZE);
+      const farTY = Math.floor(farY / TILE_SIZE);
 
-      if (!this.isCellBlocked(tileX, tileY)) {
-        // This direction is clear -- return it normalized
-        return {
-          x: Math.cos(angle),
-          y: Math.sin(angle),
-        };
+      // Both near and far cells must be clear for a good path
+      if (!this.isCellBlocked(nearTX, nearTY) && !this.isCellBlocked(farTX, farTY)) {
+        return { x: Math.cos(angle), y: Math.sin(angle) };
+      }
+    }
+
+    // Second pass: accept directions where just the near cell is clear
+    // (zombie is close to a wall but can still move along it)
+    for (const offset of offsets) {
+      const angle = idealAngle + offset;
+      const nearX = fromX + Math.cos(angle) * probeNear;
+      const nearY = fromY + Math.sin(angle) * probeNear;
+      const nearTX = Math.floor(nearX / TILE_SIZE);
+      const nearTY = Math.floor(nearY / TILE_SIZE);
+
+      if (!this.isCellBlocked(nearTX, nearTY)) {
+        return { x: Math.cos(angle), y: Math.sin(angle) };
       }
     }
 
