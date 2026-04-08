@@ -158,10 +158,19 @@ function load(): GameState {
           // Old saves (pre-v1.4) had no upgrades field at all.
           // Saves from v1.4-v1.9 stored upgrades as string[].
           // New saves (v2.0+) store upgrades as WeaponUpgrade[].
-          weapons: (saved.inventory?.weapons ?? defaults.inventory.weapons).map(w => ({
-            ...w,
-            upgrades: migrateUpgrades(w.upgrades ?? []),
-          })),
+          weapons: (() => {
+            try {
+              return (saved.inventory?.weapons ?? defaults.inventory.weapons).map(w => ({
+                ...w,
+                level: w.level ?? 1,
+                xp: w.xp ?? 0,
+                upgrades: migrateUpgrades(w.upgrades ?? []),
+              }));
+            } catch {
+              console.warn('[SaveManager] weapon migration failed, using saved weapons as-is');
+              return saved.inventory?.weapons ?? defaults.inventory.weapons;
+            }
+          })(),
           loadedAmmo: saved.inventory?.loadedAmmo ?? defaults.inventory.loadedAmmo,
           // Migration: armor/shield inventories added in v5.1.0
           armorInventory: (saved.inventory as Partial<GameState['inventory']>)?.armorInventory ?? [],
@@ -171,11 +180,18 @@ function load(): GameState {
           ...defaults.base,
           ...(saved.base ?? {}),
           // Ensure every structure has hp and maxHp -- old saves may lack these fields
-          structures: (saved.base?.structures ?? defaults.base.structures).map(s => ({
-            ...s,
+          structures: (() => {
+            try {
+              return (saved.base?.structures ?? defaults.base.structures).map(s => ({
+                ...s,
             hp: s.hp ?? s.maxHp ?? 100,
             maxHp: s.maxHp ?? s.hp ?? 100,
-          })),
+          }));
+            } catch {
+              console.warn('[SaveManager] structure migration failed, using saved structures as-is');
+              return saved.base?.structures ?? defaults.base.structures;
+            }
+          })(),
           // Migration: ensure base HP exists for saves before v1.7.0
           hp: (saved.base as { hp?: number } | undefined)?.hp ?? BASE_MAX_HP,
           maxHp: (saved.base as { maxHp?: number } | undefined)?.maxHp ?? BASE_MAX_HP,
