@@ -85,6 +85,9 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
 
   // Pathfinding throttle -- recalculate velocity on interval (150ms on-screen, 500ms off-screen)
   private pathfindTimer: number = 0;
+  private _stuckTime: number = 0;
+  private _lastStuckX: number = 0;
+  private _lastStuckY: number = 0;
   private static readonly PATHFIND_INTERVAL_OFFSCREEN = 500;
   private static readonly PATHFIND_INTERVAL_ONSCREEN = 150;
   offScreen: boolean = false;
@@ -583,6 +586,29 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     // Use PathGrid steering if available; otherwise fall back to direct movement
     if (this.pathGrid) {
       const dir = this.pathGrid.getSteeringDirection(this.x, this.y, targetX, targetY);
+
+      // Stuck detection: if zombie hasn't moved >4px in 600ms, nudge randomly
+      const moved = Math.abs(this.x - this._lastStuckX) + Math.abs(this.y - this._lastStuckY);
+      if (moved < 4) {
+        this._stuckTime += delta;
+        if (this._stuckTime > 600) {
+          // Random perpendicular nudge to break out of corner deadlock
+          const nudgeAngle = Math.random() * Math.PI * 2;
+          this.setVelocity(
+            Math.cos(nudgeAngle) * this.moveSpeed * 0.8,
+            Math.sin(nudgeAngle) * this.moveSpeed * 0.8
+          );
+          this._stuckTime = 0;
+          this._lastStuckX = this.x;
+          this._lastStuckY = this.y;
+          return;
+        }
+      } else {
+        this._stuckTime = 0;
+        this._lastStuckX = this.x;
+        this._lastStuckY = this.y;
+      }
+
       this.setVelocity(
         dir.x * this.moveSpeed * speedMult,
         dir.y * this.moveSpeed * speedMult
