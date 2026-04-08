@@ -1,5 +1,33 @@
 # Dead Horizon -- Changelog
 
+## [v5.2.0] - 2026-04-04 -- EquipmentPanel fullstandig omskrivning: dual-panel inventory
+
+### Varfor
+EquipmentPanel var en smal (360px) enkelpanelslista som inte utnyttjade skarmutrymmet och saknade armor/shield-tabs. Uppgiften var att skriva om den till ett brett dual-panel-system med tabbat inventory till vanster och utrustningsoversikt till hoger.
+
+### Andrat
+- **EquipmentPanel.ts fullstandig omskrivning**:
+  - Bredden okad till 700px (Math.min(GAME_WIDTH - 16, 720)) -- egen bakgrund, ej UIPanel
+  - Depth 250+ (ovanpa GameLog), centrerad pa skarm
+  - LEFT panel (320px): tabbat inventory WEAPONS | ARMOR | SHIELDS
+    - Varje tab visar kompakt lista (EN rad per item med rarity-farg)
+    - 8 items per sida med [<] [>] pagination
+    - Klick pa item = EQUIP direkt (ersatter nuvarande primary/secondary)
+    - Klick pa redan equipped item = oppnar upgrade-vy
+    - [SCRAP ALL COMMON] knapp nar common-vapen finns
+  - RIGHT panel: utrustningsoversikt
+    - Karaktarsportrait + namn
+    - PRIMARY / SECONDARY slot med fulla stats, DUR-fargar (rod/gul/gron)
+    - Special-effekt-rad och mod-sammanfattning per vapen
+    - ARMOR / SHIELD slot med unequip-knappar
+    - Stats-sektion: total DMG reduction, speed penalty, ammo
+    - UNEQUIP / REPAIR / UPGRADE / SCRAP knappar per slot
+  - Hover comparison: DMG/RNG/DUR jamfort mot equipped primary, gront = battre, rott = samre
+  - Upgrade-vy: hel bredd (kvar fran gamla panelen), [ BACK ] returnerar till dual view
+  - Backward compatibility: getContainer(), toggle(), getPanel().getBackdrop(), rebuild(), isVisible(), handleKey(), autoEquipIfNeeded() -- alla bevarade
+  - PanelShim-klass: DayScene.addToUI(panel.getPanel().getBackdrop()) fungerar utan andring
+- GAME_VERSION: 5.2.0
+
 ## [v5.1.0] - 2026-04-04 -- Armor/Shield system + Floating damage numbers
 
 ### Varfor

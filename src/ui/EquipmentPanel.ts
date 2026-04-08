@@ -1,31 +1,105 @@
-// EquipmentPanel -- choose which 2 weapons to carry into the night, and manage all weapons.
-// PRIMARY slot = key 1 in NightScene, SECONDARY slot = key 2.
+// EquipmentPanel -- dual-panel inventory UI for Dead Horizon.
+// LEFT panel: tabbed inventory (WEAPONS / ARMOR / SHIELDS) with pagination and hover comparison.
+// RIGHT panel: equipped slots with full stats, repair/upgrade/scrap actions.
+// Replaces the old single-column UIPanel-based layout. Uses own background (700px wide).
 // Open with Q in DayScene toolbar.
-// Includes repair and upgrade functionality (replaces separate WeaponPanel).
 
 import Phaser from 'phaser';
-import { UIPanel } from './UIPanel';
 import { WeaponManager } from '../systems/WeaponManager';
 import { renderResourceCosts } from './resourceIcons';
-import type { GameState, WeaponInstance, WeaponUpgradeType, UpgradeDefinition, WeaponUltimate, ArmorData, ShieldData, ArmorInstance, ShieldInstance } from '../config/types';
-import armorDataJson from '../data/armor.json';
+import { CLOSE_ALL_PANELS } from './UIPanel';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config/constants';
+import type {
+  GameState,
+  WeaponInstance,
+  WeaponUpgradeType,
+  UpgradeDefinition,
+  WeaponUltimate,
+  ArmorInstance,
+  ShieldInstance,
+  ArmorData,
+  ShieldData,
+} from '../config/types';
+import armorJson from '../data/armor.json';
 
-const PANEL_WIDTH = 360; // must match UIPanel max width
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const PANEL_W = Math.min(GAME_WIDTH - 16, 720);
+const PANEL_H = GAME_HEIGHT - 100;
+const PANEL_X = Math.floor((GAME_WIDTH - PANEL_W) / 2);
+const PANEL_Y = 50;
+
+const LEFT_W = 320;
+const RIGHT_X = LEFT_W + 20;
+const RIGHT_W = PANEL_W - RIGHT_X - 12;
+
+const HEADER_H = 28;
+const CONTENT_PAD = 10;
+
+const DEPTH = 250;
+
+const BG_COLOR = 0x111111;
+const BG_ALPHA = 0.97;
+const BORDER_COLOR = 0x333333;
+
+const FONT = '"Press Start 2P", monospace';
 
 // Rarity color mapping
 const RARITY_COLORS: Record<string, string> = {
-  common: '#E8DCC8',
-  uncommon: '#4CAF50',
-  rare: '#4A90D9',
+  common:    '#E8DCC8',
+  uncommon:  '#4CAF50',
+  rare:      '#4A90D9',
   legendary: '#FFD700',
 };
 
-// Build level label e.g. "Lv 2/3"
+// Scrap yield per rarity
+const SCRAP_VALUES: Record<string, { scrap: number; parts: number }> = {
+  common:    { scrap: 2, parts: 1 },
+  uncommon:  { scrap: 3, parts: 2 },
+  rare:      { scrap: 5, parts: 3 },
+  legendary: { scrap: 8, parts: 5 },
+};
+
+// Left panel tabs
+type InventoryTab = 'WEAPONS' | 'ARMOR' | 'SHIELDS';
+
+type Slot = 'primary' | 'secondary';
+
+/**
+ * View state machine:
+ *  - default: dual panel view
+ *  - upgrade: inline upgrade options for a specific weapon
+ */
+type ViewState =
+  | { mode: 'default' }
+  | { mode: 'upgrade'; weaponId: string };
+
+// ---------------------------------------------------------------------------
+// Backward-compat shim -- DayScene calls getPanel().getBackdrop()
+// ---------------------------------------------------------------------------
+
+class PanelShim {
+  private backdrop: Phaser.GameObjects.Graphics;
+  constructor(backdrop: Phaser.GameObjects.Graphics) {
+    this.backdrop = backdrop;
+  }
+  getBackdrop(): Phaser.GameObjects.Graphics {
+    return this.backdrop;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helper: build a label e.g. "Lv 2/3"
+// ---------------------------------------------------------------------------
 function levelLabel(current: number, max: number): string {
   return `Lv ${current}/${max}`;
 }
 
-// Resolve upgrade description template
+// ---------------------------------------------------------------------------
+// Helper: resolve upgrade description template
+// ---------------------------------------------------------------------------
 function resolveDescription(def: UpgradeDefinition, level: number): string {
   const val = def.values[level - 1] ?? 0;
   return def.description
@@ -33,27 +107,52 @@ function resolveDescription(def: UpgradeDefinition, level: number): string {
     .replace('{value}', String(val));
 }
 
-type Slot = 'primary' | 'secondary';
+// ---------------------------------------------------------------------------
+// Loaded armor/shield data lists
+// ---------------------------------------------------------------------------
+const armorDataList = (armorJson as { armor: ArmorData[]; shields: ShieldData[] }).armor;
+const shieldDataList = (armorJson as { armor: ArmorData[]; shields: ShieldData[] }).shields;
 
-/**
- * View state machine:
- *  - default: shows slots + storage list
- *  - picker: choose weapon for a slot
- *  - upgrade: inline upgrade options for a specific weapon
- */
-type ViewState =
-  | { mode: 'default' }
-  | { mode: 'picker'; slot: Slot }
-  | { mode: 'upgrade'; weaponId: string };
+function getArmorData(armorId: string): ArmorData | undefined {
+  return armorDataList.find(a => a.id === armorId);
+}
+
+function getShieldData(shieldId: string): ShieldData | undefined {
+  return shieldDataList.find(s => s.id === shieldId);
+}
+
+// ---------------------------------------------------------------------------
+// Main class
+// ---------------------------------------------------------------------------
 
 export class EquipmentPanel {
   private scene: Phaser.Scene;
   private weaponManager: WeaponManager;
   private gameState: GameState;
-  private panel: UIPanel;
+
+  // Root container (everything lives here)
+  private container: Phaser.GameObjects.Container;
+
+  // Full-screen backdrop for click-outside-to-close
+  private backdrop: Phaser.GameObjects.Graphics;
+
+  // Shim for backward compat with DayScene.addToUI(panel.getPanel().getBackdrop())
+  private panelShim: PanelShim;
+
+  // Left and right content sub-containers (cleared and rebuilt on every rebuild())
+  private leftContent!: Phaser.GameObjects.Container;
+  private rightContent!: Phaser.GameObjects.Container;
+
+  // Tooltip overlay container (hover comparison)
+  private tooltipContainer!: Phaser.GameObjects.Container;
+
+  private visible: boolean = false;
   private viewState: ViewState = { mode: 'default' };
-  private storageScrollOffset: number = 0;
-  private pickerPage: number = 0;
+  private activeTab: InventoryTab = 'WEAPONS';
+  private weaponPage: number = 0;
+  private armorPage: number = 0;
+  private shieldPage: number = 0;
+
   private currentAP: () => number;
   private spendAP: (cost: number) => void;
   private onResourceChange: () => void;
@@ -73,57 +172,135 @@ export class EquipmentPanel {
     this.spendAP = spendAP;
     this.onResourceChange = onResourceChange;
 
-    this.panel = new UIPanel(scene, 'EQUIPMENT', PANEL_WIDTH, 480);
+    // Full-screen backdrop (invisible, catches outside clicks)
+    this.backdrop = scene.add.graphics();
+    this.backdrop.fillStyle(0x000000, 0.01);
+    this.backdrop.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.backdrop.setDepth(DEPTH - 1);
+    this.backdrop.setVisible(false);
+    this.backdrop.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    this.backdrop.on('pointerdown', () => this.hide());
+
+    this.panelShim = new PanelShim(this.backdrop);
+
+    // Root container
+    this.container = scene.add.container(PANEL_X, PANEL_Y);
+    this.container.setDepth(DEPTH);
+    this.container.setVisible(false);
+
+    // Opaque background panel
+    const bg = scene.add.graphics();
+    bg.fillStyle(BG_COLOR, BG_ALPHA);
+    bg.fillRect(0, 0, PANEL_W, PANEL_H);
+    bg.lineStyle(1, BORDER_COLOR, 1);
+    bg.strokeRect(0, 0, PANEL_W, PANEL_H);
+    // Intercept clicks so they don't fall through to backdrop
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, PANEL_W, PANEL_H),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    this.container.add(bg);
+
+    // Header bar
+    const headerBg = scene.add.graphics();
+    headerBg.fillStyle(0x222222, 1);
+    headerBg.fillRect(0, 0, PANEL_W, HEADER_H);
+    this.container.add(headerBg);
+
+    const titleText = scene.add.text(CONTENT_PAD, 8, 'EQUIPMENT', {
+      fontFamily: FONT,
+      fontSize: '10px',
+      color: '#E8DCC8',
+    });
+    this.container.add(titleText);
+
+    // Close button
+    const closeBtn = scene.add.text(PANEL_W - 30, 8, '[X]', {
+      fontFamily: FONT,
+      fontSize: '10px',
+      color: '#E8DCC8',
+    }).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => this.hide());
+    closeBtn.on('pointerover', () => closeBtn.setColor('#FFD700'));
+    closeBtn.on('pointerout', () => closeBtn.setColor('#E8DCC8'));
+    this.container.add(closeBtn);
+
+    // Vertical divider between left and right panels
+    const divider = scene.add.graphics();
+    divider.lineStyle(1, BORDER_COLOR, 1);
+    divider.lineBetween(LEFT_W + 10, HEADER_H, LEFT_W + 10, PANEL_H - 4);
+    this.container.add(divider);
+
+    // Sub-containers for content (offset below header)
+    this.leftContent = scene.add.container(CONTENT_PAD, HEADER_H + CONTENT_PAD);
+    this.container.add(this.leftContent);
+
+    this.rightContent = scene.add.container(RIGHT_X, HEADER_H + CONTENT_PAD);
+    this.container.add(this.rightContent);
+
+    // Tooltip container (shown on hover, rendered on top within panel)
+    this.tooltipContainer = scene.add.container(0, 0);
+    this.container.add(this.tooltipContainer);
+
+    // Listen for close-all-panels event
+    scene.events.on(CLOSE_ALL_PANELS, this.handleCloseAll, this);
+    scene.events.once('shutdown', () => {
+      scene.events.off(CLOSE_ALL_PANELS, this.handleCloseAll, this);
+      this.backdrop.destroy();
+      this.container.destroy();
+    });
+
     this.rebuild();
   }
 
+  // ---------------------------------------------------------------------------
+  // Public API (backward compatible)
+  // ---------------------------------------------------------------------------
+
   getContainer(): Phaser.GameObjects.Container {
-    return this.panel.getContainer();
+    return this.container;
   }
 
-  getPanel(): UIPanel {
-    return this.panel;
+  /** Shim: DayScene calls getPanel().getBackdrop(). Returns a minimal shim. */
+  getPanel(): PanelShim {
+    return this.panelShim;
   }
 
   toggle(): void {
-    this.panel.toggle();
-    if (this.panel.isVisible()) {
-      this.viewState = { mode: 'default' };
-      this.rebuild();
+    if (this.visible) {
+      this.hide();
+    } else {
+      this.show();
     }
   }
 
   isVisible(): boolean {
-    return this.panel.isVisible();
+    return this.visible;
   }
 
-  /** Handle keyboard input. Returns true if the key was consumed. */
+  /** Handle keyboard input. Returns true if key was consumed. */
   handleKey(key: string): boolean {
-    if (!this.panel.isVisible()) return false;
+    if (!this.visible) return false;
     if (key === 'Escape') {
       if (this.viewState.mode !== 'default') {
         this.viewState = { mode: 'default' };
         this.rebuild();
       } else {
-        this.panel.hide();
+        this.hide();
       }
       return true;
     }
     return false;
   }
 
-  // ---------------------------------------------------------------------------
-  // Internal rebuild -- renders current viewState
-  // ---------------------------------------------------------------------------
-
-  private rebuild(): void {
-    this.panel.resetScroll();
+  rebuild(): void {
+    this.hideTooltip();
     switch (this.viewState.mode) {
       case 'default':
         this.buildDefaultView();
-        break;
-      case 'picker':
-        this.buildPickerView(this.viewState.slot);
         break;
       case 'upgrade':
         this.buildUpgradeView(this.viewState.weaponId);
@@ -131,619 +308,765 @@ export class EquipmentPanel {
     }
   }
 
-  private buildDefaultView(): void {
-    const content = this.panel.getContentContainer();
-    content.removeAll(true);
+  // ---------------------------------------------------------------------------
+  // Show / hide
+  // ---------------------------------------------------------------------------
 
+  private show(): void {
+    // Close other open panels first
+    this.scene.events.emit(CLOSE_ALL_PANELS);
+    this.viewState = { mode: 'default' };
+    this.rebuild();
+    this.backdrop.setVisible(true);
+    this.container.setVisible(true);
+    this.visible = true;
+  }
+
+  private hide(): void {
+    this.hideTooltip();
+    this.backdrop.setVisible(false);
+    this.container.setVisible(false);
+    this.visible = false;
+  }
+
+  private handleCloseAll = (): void => {
+    if (this.visible) {
+      this.container.setVisible(false);
+      this.backdrop.setVisible(false);
+      this.visible = false;
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Default view -- dual panel layout
+  // ---------------------------------------------------------------------------
+
+  private buildDefaultView(): void {
+    this.leftContent.removeAll(true);
+    this.rightContent.removeAll(true);
+
+    this.buildLeftPanel();
+    this.buildRightPanel();
+  }
+
+  // ---------------------------------------------------------------------------
+  // LEFT PANEL -- tabbed inventory
+  // ---------------------------------------------------------------------------
+
+  private buildLeftPanel(): void {
+    const c = this.leftContent;
+    const w = LEFT_W - CONTENT_PAD * 2;
+    let y = 0;
+
+    // Tab strip: WEAPONS | ARMOR | SHIELDS
+    y = this.buildTabStrip(c, y, w);
+    y += 6;
+
+    switch (this.activeTab) {
+      case 'WEAPONS':
+        y = this.buildWeaponsTab(c, y, w);
+        break;
+      case 'ARMOR':
+        y = this.buildArmorTab(c, y, w);
+        break;
+      case 'SHIELDS':
+        this.buildShieldsTab(c, y, w);
+        break;
+    }
+  }
+
+  /** Draw WEAPONS | ARMOR | SHIELDS tab buttons. Returns next y. */
+  private buildTabStrip(
+    c: Phaser.GameObjects.Container,
+    y: number,
+    w: number,
+  ): number {
+    const tabs: InventoryTab[] = ['WEAPONS', 'ARMOR', 'SHIELDS'];
+    const tabW = Math.floor(w / tabs.length);
+    const tabH = 18;
+
+    tabs.forEach((tab, i) => {
+      const tx = i * tabW;
+      const isActive = this.activeTab === tab;
+
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(isActive ? 0x333333 : 0x1A1A1A, 1);
+      bg.fillRect(tx, y, tabW - 2, tabH);
+      bg.lineStyle(1, isActive ? 0xE07030 : 0x333333, 1);
+      bg.strokeRect(tx, y, tabW - 2, tabH);
+      c.add(bg);
+
+      const label = this.scene.add.text(tx + Math.floor(tabW / 2) - 1, y + 5, tab, {
+        fontFamily: FONT,
+        fontSize: '7px',
+        color: isActive ? '#E07030' : '#6B6B6B',
+      }).setOrigin(0.5, 0);
+      c.add(label);
+
+      if (!isActive) {
+        bg.setInteractive(
+          new Phaser.Geom.Rectangle(tx, y, tabW - 2, tabH),
+          Phaser.Geom.Rectangle.Contains,
+        );
+        if (bg.input) bg.input.cursor = 'pointer';
+        bg.on('pointerdown', () => {
+          this.activeTab = tab;
+          this.weaponPage = 0;
+          this.armorPage = 0;
+          this.shieldPage = 0;
+          this.rebuild();
+        });
+        bg.on('pointerover', () => {
+          bg.clear();
+          bg.fillStyle(0x2A2A2A, 1);
+          bg.fillRect(tx, y, tabW - 2, tabH);
+          bg.lineStyle(1, 0x555555, 1);
+          bg.strokeRect(tx, y, tabW - 2, tabH);
+          label.setColor('#E8DCC8');
+        });
+        bg.on('pointerout', () => {
+          bg.clear();
+          bg.fillStyle(0x1A1A1A, 1);
+          bg.fillRect(tx, y, tabW - 2, tabH);
+          bg.lineStyle(1, 0x333333, 1);
+          bg.strokeRect(tx, y, tabW - 2, tabH);
+          label.setColor('#6B6B6B');
+        });
+      }
+    });
+
+    return y + tabH;
+  }
+
+  // ---- WEAPONS tab ----
+
+  private buildWeaponsTab(c: Phaser.GameObjects.Container, y: number, w: number): number {
     const weapons = this.gameState.inventory.weapons;
     const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
 
-    const primaryWeapon = primaryWeaponId
-      ? weapons.find(w => w.id === primaryWeaponId) ?? null
-      : null;
-    const secondaryWeapon = secondaryWeaponId
-      ? weapons.find(w => w.id === secondaryWeaponId) ?? null
-      : null;
-
-    let y = 0;
-
-    // ---- Character portrait ----
-    const portraitKey = `portrait_${this.gameState.player.character}`;
-    if (this.scene.textures.exists(portraitKey)) {
-      const portrait = this.scene.add.image(PANEL_WIDTH / 2 - 12, 32, portraitKey);
-      portrait.setDisplaySize(48, 48);
-      content.add(portrait);
-      const border = this.scene.add.graphics();
-      border.lineStyle(2, 0xC5A030);
-      border.strokeRect(PANEL_WIDTH / 2 - 12 - 24, 32 - 24, 48, 48);
-      content.add(border);
-      const charName = this.gameState.player.character.charAt(0).toUpperCase()
-        + this.gameState.player.character.slice(1);
-      const nameText = this.scene.add.text(PANEL_WIDTH / 2 - 12, 62, charName, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: '#C5A030',
-      }).setOrigin(0.5, 0);
-      content.add(nameText);
-      y = 82;
-    }
-
-    // ---- PRIMARY slot ----
-    y = this.renderSlotRow(content, 'PRIMARY [1]', primaryWeapon, 'primary', y);
-    y += 12;
-
-    // ---- SECONDARY slot ----
-    y = this.renderSlotRow(content, 'SECONDARY [2]', secondaryWeapon, 'secondary', y);
-    y += 16;
-
-    // ---- Divider ----
-    const divider = this.scene.add.graphics();
-    divider.lineStyle(1, 0x444444, 1);
-    divider.lineBetween(0, y, PANEL_WIDTH - 24, y);
-    content.add(divider);
-    y += 10;
-
-    // ---- Storage list (weapons not equipped) ----
-    const storageWeapons = weapons.filter(
-      w => w.id !== primaryWeaponId && w.id !== secondaryWeaponId
-    );
-
-    const storageHeader = this.scene.add.text(
-      0, y,
-      `STORAGE (${storageWeapons.length} weapon${storageWeapons.length !== 1 ? 's' : ''})`,
-      {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: '#6B6B6B',
-      }
-    );
-    content.add(storageHeader);
-    y += 16;
-
-    if (storageWeapons.length === 0) {
-      const emptyText = this.scene.add.text(0, y, '  (all weapons equipped)', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: '#555555',
-      });
-      content.add(emptyText);
-    } else {
-      // Paginate: show max 3 storage weapons at a time
-      const MAX_STORAGE_VISIBLE = 3;
-      const total = storageWeapons.length;
-      const endIdx = Math.min(this.storageScrollOffset + MAX_STORAGE_VISIBLE, total);
-
-      if (this.storageScrollOffset > 0) {
-        const upBtn = this.scene.add.text(0, y, '[ ^ UP ]', {
-          fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#FFD700',
-        }).setInteractive({ useHandCursor: true });
-        upBtn.on('pointerdown', () => { this.storageScrollOffset = Math.max(0, this.storageScrollOffset - 1); this.rebuild(); });
-        content.add(upBtn);
-        y += 12;
-      }
-
-      for (let i = this.storageScrollOffset; i < endIdx; i++) {
-        const weapon = storageWeapons[i];
-        if (weapon) y = this.renderStorageEntry(content, weapon, y);
-      }
-
-      if (endIdx < total) {
-        const downBtn = this.scene.add.text(0, y, `[ v ${total - endIdx} MORE ]`, {
-          fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#FFD700',
-        }).setInteractive({ useHandCursor: true });
-        downBtn.on('pointerdown', () => { this.storageScrollOffset = Math.min(total - MAX_STORAGE_VISIBLE, this.storageScrollOffset + 1); this.rebuild(); });
-        content.add(downBtn);
-        y += 12;
-      }
-    }
-
-    // ---- Divider before armor section ----
-    y += 8;
-    const armorDivider = this.scene.add.graphics();
-    armorDivider.lineStyle(1, 0x444444, 1);
-    armorDivider.lineBetween(0, y, PANEL_WIDTH - 24, y);
-    content.add(armorDivider);
-    y += 8;
-
-    // ---- ARMOR section ----
-    y = this.buildArmorSection(content, y);
-
-    // ---- Stats footer ----
-    y += 8;
-    const ammoInfo = this.scene.add.text(0, y, `AMMO: ${this.gameState.inventory.resources.ammo}`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: '#4A90D9',
-      wordWrap: { width: PANEL_WIDTH - 24 },
+    // Sort: highest damage first, then by rarity
+    const rarityOrder: Record<string, number> = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
+    const sorted = [...weapons].sort((a, b) => {
+      const da = this.weaponManager.getWeaponStats(a).damage;
+      const db = this.weaponManager.getWeaponStats(b).damage;
+      if (db !== da) return db - da;
+      return (rarityOrder[a.rarity] ?? 4) - (rarityOrder[b.rarity] ?? 4);
     });
-    content.add(ammoInfo);
-  }
 
-  /**
-   * Render the ARMOR + SHIELD equipment section.
-   * Shows equipped items and a compact inventory list.
-   * Returns the new y offset after the section.
-   */
-  private buildArmorSection(content: Phaser.GameObjects.Container, y: number): number {
-    const contentWidth = PANEL_WIDTH - 24;
-    const { equippedArmor, equippedShield } = this.gameState.equipped;
-    const armorInventory: ArmorInstance[] = this.gameState.inventory.armorInventory ?? [];
-    const shieldInventory: ShieldInstance[] = this.gameState.inventory.shieldInventory ?? [];
+    const total = sorted.length;
 
-    // Section header
-    const header = this.scene.add.text(0, y, 'ARMOR & SHIELD', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#6B6B6B',
+    // Header row with count
+    const header = this.scene.add.text(0, y, `WEAPONS (${total})`, {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
     });
-    content.add(header);
+    c.add(header);
     y += 14;
 
-    // ---- Equipped armor row ----
-    const armorLabelText = this.scene.add.text(0, y, 'ARMOR:', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: '#8A8A8A',
-    });
-    content.add(armorLabelText);
-    y += 12;
+    if (total === 0) {
+      c.add(this.scene.add.text(0, y, 'No weapons', {
+        fontFamily: FONT, fontSize: '7px', color: '#444444',
+      }));
+      return y + 12;
+    }
 
-    const equippedArmorInst = equippedArmor
-      ? armorInventory.find(a => a.id === equippedArmor) ?? null
-      : null;
-    const equippedArmorDef = equippedArmorInst
-      ? (armorDataJson.armor as ArmorData[]).find(a => a.id === equippedArmorInst.armorId) ?? null
-      : null;
+    // Pagination: 8 items per page
+    const PAGE_SIZE = 8;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    const page = Math.min(this.weaponPage, totalPages - 1);
+    const startIdx = page * PAGE_SIZE;
+    const endIdx = Math.min(startIdx + PAGE_SIZE, total);
 
-    if (equippedArmorInst && equippedArmorDef) {
-      const isDepleted = equippedArmorInst.nightsRemaining <= 0;
-      const armorColor = isDepleted ? '#F44336' : '#4CAF50';
-      const armorRow = this.scene.add.text(4, y,
-        `${equippedArmorDef.name} [${Math.round(equippedArmorDef.reduction * 100)}%] ${equippedArmorInst.nightsRemaining}N`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: armorColor,
-        wordWrap: { width: contentWidth - 8 },
+    for (let i = startIdx; i < endIdx; i++) {
+      const weapon = sorted[i];
+      if (!weapon) continue;
+
+      const isEquipped = weapon.id === primaryWeaponId || weapon.id === secondaryWeaponId;
+      const isBroken = this.weaponManager.isBroken(weapon);
+      const stats = this.weaponManager.getWeaponStats(weapon);
+      const data = WeaponManager.getWeaponData(weapon.weaponId);
+      const name = data?.name ?? weapon.weaponId;
+      const color = isBroken ? '#F44336' : (RARITY_COLORS[weapon.rarity] ?? '#E8DCC8');
+      const rar = weapon.rarity[0]?.toUpperCase() ?? '?';
+
+      const rowH = 18;
+      const rowBg = this.scene.add.graphics();
+      rowBg.fillStyle(isEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
+      rowBg.fillRect(0, y, w, rowH);
+      c.add(rowBg);
+
+      const equippedMark = isEquipped
+        ? (weapon.id === primaryWeaponId ? ' [1]' : ' [2]')
+        : '';
+      const rowLabel = `${name} [${rar}] D:${stats.damage}${equippedMark}`;
+      const rowText = this.scene.add.text(4, y + 4, rowLabel, {
+        fontFamily: FONT, fontSize: '7px', color,
       });
-      content.add(armorRow);
-      y += 12;
-      // Unequip button
-      const unequipArmorBtn = this.scene.add.text(4, y, '[UNEQUIP]', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#888888',
-      }).setInteractive({ useHandCursor: true });
-      unequipArmorBtn.on('pointerover', () => unequipArmorBtn.setColor('#FFD700'));
-      unequipArmorBtn.on('pointerout', () => unequipArmorBtn.setColor('#888888'));
-      unequipArmorBtn.on('pointerdown', () => {
-        this.gameState.equipped.equippedArmor = null;
+      c.add(rowText);
+
+      // Chevron on right
+      const arrowText = this.scene.add.text(w - 4, y + 4, '>', {
+        fontFamily: FONT, fontSize: '7px', color: '#4A90D9',
+      }).setOrigin(1, 0);
+      c.add(arrowText);
+
+      // Capture loop variables for closures (arrow functions preserve 'this')
+      const capturedWeapon = weapon;
+      const capturedY = y;
+      const capturedIsEquipped = isEquipped;
+      const capturedColor = color;
+      const capturedIsBroken = isBroken;
+
+      rowBg.setInteractive(
+        new Phaser.Geom.Rectangle(0, y, w, rowH),
+        Phaser.Geom.Rectangle.Contains,
+      );
+      if (rowBg.input) rowBg.input.cursor = 'pointer';
+
+      rowBg.on('pointerover', () => {
+        rowBg.clear();
+        rowBg.fillStyle(0x3A3A3A, 1);
+        rowBg.fillRect(0, capturedY, w, rowH);
+        rowText.setColor('#FFD700');
+        // Show hover comparison against primary weapon
+        const primaryWeapon = this.gameState.equipped.primaryWeaponId
+          ? this.gameState.inventory.weapons.find(ww => ww.id === this.gameState.equipped.primaryWeaponId) ?? null
+          : null;
+        this.showWeaponComparison(capturedWeapon, primaryWeapon, capturedY + rowH);
+      });
+      rowBg.on('pointerout', () => {
+        rowBg.clear();
+        rowBg.fillStyle(capturedIsEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
+        rowBg.fillRect(0, capturedY, w, rowH);
+        rowText.setColor(capturedColor);
+        this.hideTooltip();
+      });
+      rowBg.on('pointerdown', () => {
+        if (capturedIsEquipped) {
+          // Click equipped weapon -- open upgrade view
+          this.viewState = { mode: 'upgrade', weaponId: capturedWeapon.id };
+          this.rebuild();
+        } else if (!capturedIsBroken) {
+          // Equip: fill primary first, then secondary
+          const { primaryWeaponId: pid, secondaryWeaponId: sid } = this.gameState.equipped;
+          if (!pid) {
+            this.gameState.equipped.primaryWeaponId = capturedWeapon.id;
+          } else if (!sid) {
+            this.gameState.equipped.secondaryWeaponId = capturedWeapon.id;
+          } else {
+            // Replace primary by default
+            this.gameState.equipped.primaryWeaponId = capturedWeapon.id;
+          }
+          this.rebuild();
+        }
+      });
+
+      y += rowH + 2;
+    }
+
+    // Pagination controls
+    if (totalPages > 1) {
+      y += 4;
+      const pageLabel = this.scene.add.text(w / 2, y, `Page ${page + 1}/${totalPages}`, {
+        fontFamily: FONT, fontSize: '7px', color: '#555555',
+      }).setOrigin(0.5, 0);
+      c.add(pageLabel);
+
+      if (page > 0) {
+        const prevBtn = this.scene.add.text(0, y, '[<]', {
+          fontFamily: FONT, fontSize: '7px', color: '#FFD700',
+        }).setInteractive({ useHandCursor: true });
+        prevBtn.on('pointerdown', () => { this.weaponPage = page - 1; this.rebuild(); });
+        c.add(prevBtn);
+      }
+      if (page < totalPages - 1) {
+        const nextBtn = this.scene.add.text(w - 2, y, '[>]', {
+          fontFamily: FONT, fontSize: '7px', color: '#FFD700',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        nextBtn.on('pointerdown', () => { this.weaponPage = page + 1; this.rebuild(); });
+        c.add(nextBtn);
+      }
+
+      y += 14;
+    }
+
+    // Scrap all common button (only non-equipped common weapons)
+    const unequippedCommon = weapons.filter(
+      ww => ww.rarity === 'common'
+        && ww.id !== primaryWeaponId
+        && ww.id !== secondaryWeaponId,
+    );
+    if (unequippedCommon.length >= 1) {
+      y += 4;
+      const scrapAllBtn = this.scene.add.text(
+        0, y,
+        `[SCRAP ALL COMMON (${unequippedCommon.length}) +${unequippedCommon.length * 2}S]`,
+        { fontFamily: FONT, fontSize: '7px', color: '#AA4433' },
+      ).setInteractive({ useHandCursor: true });
+      scrapAllBtn.on('pointerover', () => scrapAllBtn.setColor('#FF6655'));
+      scrapAllBtn.on('pointerout', () => scrapAllBtn.setColor('#AA4433'));
+      scrapAllBtn.on('pointerdown', () => {
+        for (const ww of unequippedCommon) {
+          const idx = this.gameState.inventory.weapons.indexOf(ww);
+          if (idx >= 0) this.gameState.inventory.weapons.splice(idx, 1);
+          this.gameState.inventory.resources.scrap += 2;
+          this.gameState.inventory.resources.parts += 1;
+        }
+        this.onResourceChange();
+        this.weaponPage = 0;
         this.rebuild();
       });
-      content.add(unequipArmorBtn);
+      c.add(scrapAllBtn);
       y += 14;
-    } else {
-      const emptyArmorText = this.scene.add.text(4, y, '(none equipped)', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#555555',
-      });
-      content.add(emptyArmorText);
-      y += 12;
-    }
-
-    // ---- Equipped shield row ----
-    const shieldLabelText = this.scene.add.text(0, y, 'SHIELD:', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: '#8A8A8A',
-    });
-    content.add(shieldLabelText);
-    y += 12;
-
-    const equippedShieldInst = equippedShield
-      ? shieldInventory.find(s => s.id === equippedShield) ?? null
-      : null;
-    const equippedShieldDef = equippedShieldInst
-      ? (armorDataJson.shields as ShieldData[]).find(s => s.id === equippedShieldInst.shieldId) ?? null
-      : null;
-
-    if (equippedShieldInst && equippedShieldDef) {
-      const shieldRow = this.scene.add.text(4, y,
-        `${equippedShieldDef.name} [${equippedShieldDef.blockHits}x]`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#4A90D9',
-        wordWrap: { width: contentWidth - 8 },
-      });
-      content.add(shieldRow);
-      y += 12;
-      // Unequip button
-      const unequipShieldBtn = this.scene.add.text(4, y, '[UNEQUIP]', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#888888',
-      }).setInteractive({ useHandCursor: true });
-      unequipShieldBtn.on('pointerover', () => unequipShieldBtn.setColor('#FFD700'));
-      unequipShieldBtn.on('pointerout', () => unequipShieldBtn.setColor('#888888'));
-      unequipShieldBtn.on('pointerdown', () => {
-        this.gameState.equipped.equippedShield = null;
-        this.rebuild();
-      });
-      content.add(unequipShieldBtn);
-      y += 14;
-    } else {
-      const emptyShieldText = this.scene.add.text(4, y, '(none equipped)', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#555555',
-      });
-      content.add(emptyShieldText);
-      y += 12;
-    }
-
-    // ---- Armor inventory (unequipped) ----
-    const unequippedArmor = armorInventory.filter(a => a.id !== equippedArmor);
-    if (unequippedArmor.length > 0) {
-      const invHeader = this.scene.add.text(0, y, 'ARMOR STORAGE:', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#555555',
-      });
-      content.add(invHeader);
-      y += 12;
-
-      for (const inst of unequippedArmor) {
-        const def = (armorDataJson.armor as ArmorData[]).find(a => a.id === inst.armorId);
-        if (!def) continue;
-        const isDepleted = inst.nightsRemaining <= 0;
-        const rowColor = isDepleted ? '#F44336' : '#E8DCC8';
-        const instText = this.scene.add.text(0, y,
-          `  ${def.name} ${Math.round(def.reduction * 100)}% [${inst.nightsRemaining}N]`, {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '7px',
-          color: rowColor,
-          wordWrap: { width: contentWidth - 32 },
-        });
-        content.add(instText);
-        // Equip button
-        const equipBtn = this.scene.add.text(contentWidth - 28, y, '[=]', {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '7px',
-          color: '#4CAF50',
-        }).setInteractive({ useHandCursor: true });
-        equipBtn.on('pointerover', () => equipBtn.setColor('#FFD700'));
-        equipBtn.on('pointerout', () => equipBtn.setColor('#4CAF50'));
-        equipBtn.on('pointerdown', () => {
-          this.gameState.equipped.equippedArmor = inst.id;
-          this.rebuild();
-        });
-        content.add(equipBtn);
-        y += 12;
-      }
-    }
-
-    // ---- Shield inventory (unequipped) ----
-    const unequippedShields = shieldInventory.filter(s => s.id !== equippedShield);
-    if (unequippedShields.length > 0) {
-      const shieldInvHeader = this.scene.add.text(0, y, 'SHIELD STORAGE:', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#555555',
-      });
-      content.add(shieldInvHeader);
-      y += 12;
-
-      for (const inst of unequippedShields) {
-        const def = (armorDataJson.shields as ShieldData[]).find(s => s.id === inst.shieldId);
-        if (!def) continue;
-        const instText = this.scene.add.text(0, y,
-          `  ${def.name} [${def.blockHits}x block]`, {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '7px',
-          color: '#4A90D9',
-          wordWrap: { width: contentWidth - 32 },
-        });
-        content.add(instText);
-        // Equip button
-        const equipBtn = this.scene.add.text(contentWidth - 28, y, '[=]', {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '7px',
-          color: '#4CAF50',
-        }).setInteractive({ useHandCursor: true });
-        equipBtn.on('pointerover', () => equipBtn.setColor('#FFD700'));
-        equipBtn.on('pointerout', () => equipBtn.setColor('#4CAF50'));
-        equipBtn.on('pointerdown', () => {
-          this.gameState.equipped.equippedShield = inst.id;
-          this.rebuild();
-        });
-        content.add(equipBtn);
-        y += 12;
-      }
     }
 
     return y;
   }
 
-  /**
-   * Render one slot row (PRIMARY or SECONDARY).
-   * Returns the new y after the row.
-   */
-  private renderSlotRow(
-    content: Phaser.GameObjects.Container,
-    label: string,
-    weapon: WeaponInstance | null,
-    slot: Slot,
-    y: number,
-  ): number {
-    const contentWidth = PANEL_WIDTH - 24;
+  // ---- ARMOR tab ----
 
-    // Slot label
-    const labelText = this.scene.add.text(0, y, `${label}:`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#6B6B6B',
-    });
-    content.add(labelText);
+  private buildArmorTab(c: Phaser.GameObjects.Container, y: number, w: number): number {
+    const armorInv: ArmorInstance[] = this.gameState.inventory.armorInventory ?? [];
+    const equippedArmorId = this.gameState.equipped.equippedArmor ?? null;
+
+    const total = armorInv.length;
+    c.add(this.scene.add.text(0, y, `ARMOR (${total})`, {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
+    }));
     y += 14;
 
-    // Weapon info box
-    const boxH = weapon ? 44 : 26;
-    const boxW = contentWidth - 32; // leave room for [>] button
-
-    const boxBg = this.scene.add.graphics();
-    boxBg.fillStyle(0x2A2A2A, 1);
-    boxBg.fillRect(0, y, boxW, boxH);
-    boxBg.lineStyle(1, 0x444444, 1);
-    boxBg.strokeRect(0, y, boxW, boxH);
-    content.add(boxBg);
-
-    if (weapon) {
-      const stats = this.weaponManager.getWeaponStats(weapon);
-      const data = WeaponManager.getWeaponData(weapon.weaponId);
-      const name = data?.name ?? weapon.weaponId;
-      const color = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
-      const isBroken = this.weaponManager.isBroken(weapon);
-
-      const nameText = this.scene.add.text(4, y + 3, `${name} [${weapon.rarity}]`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: isBroken ? '#F44336' : color,
-      });
-      content.add(nameText);
-
-      const dmgText = this.scene.add.text(4, y + 15, `DMG:${stats.damage} RNG:${stats.range} DUR:${weapon.durability}/${weapon.maxDurability}`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: isBroken ? '#F44336' : '#8A8A8A',
-      });
-      content.add(dmgText);
-
-      // Repair button (if damaged)
-      if (weapon.durability < weapon.maxDurability) {
-        const canRepair = this.currentAP() >= 1 && this.gameState.inventory.resources.parts >= 1;
-        const repairColor = canRepair ? '#4CAF50' : '#555555';
-        const repairBtn = this.scene.add.text(4, y + 28, '[REPAIR]', {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '7px',
-          color: repairColor,
-        });
-        content.add(repairBtn);
-        if (canRepair) {
-          repairBtn.setInteractive({ useHandCursor: true });
-          repairBtn.on('pointerover', () => repairBtn.setColor('#FFD700'));
-          repairBtn.on('pointerout', () => repairBtn.setColor('#4CAF50'));
-          repairBtn.on('pointerdown', () => {
-            if (this.weaponManager.repair(weapon.id)) {
-              this.spendAP(1);
-              this.onResourceChange();
-              this.rebuild();
-            }
-          });
-        }
-        // Cost hint
-        renderResourceCosts(this.scene, content, { parts: 1 }, 68, y + 28, repairColor);
-      }
-
-      // Upgrade button
-      const availableUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(weapon);
-      if (availableUpgrades.length > 0) {
-        const upgBtnX = weapon.durability < weapon.maxDurability ? 140 : 4;
-        const upgBtnY = weapon.durability < weapon.maxDurability ? y + 28 : y + 28;
-        const upgradeBtn = this.scene.add.text(upgBtnX, upgBtnY, '[UPGRADE]', {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '7px',
-          color: '#4A90D9',
-        }).setInteractive({ useHandCursor: true });
-        upgradeBtn.on('pointerover', () => upgradeBtn.setColor('#FFD700'));
-        upgradeBtn.on('pointerout', () => upgradeBtn.setColor('#4A90D9'));
-        upgradeBtn.on('pointerdown', () => {
-          this.viewState = { mode: 'upgrade', weaponId: weapon.id };
-          this.rebuild();
-        });
-        content.add(upgradeBtn);
-      }
-    } else {
-      const emptyText = this.scene.add.text(4, y + 9, '(empty)', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: '#555555',
-      });
-      content.add(emptyText);
+    if (total === 0) {
+      c.add(this.scene.add.text(0, y, 'No armor in inventory', {
+        fontFamily: FONT, fontSize: '7px', color: '#444444',
+      }));
+      return y + 12;
     }
 
-    // [>] button to open weapon picker for this slot
-    const btnX = contentWidth - 28;
-    const btnBg = this.scene.add.graphics();
-    btnBg.fillStyle(0x333333, 1);
-    btnBg.fillRect(btnX, y, 28, boxH);
-    btnBg.lineStyle(1, 0x4A90D9, 1);
-    btnBg.strokeRect(btnX, y, 28, boxH);
-    btnBg.setInteractive(
-      new Phaser.Geom.Rectangle(btnX, y, 28, boxH),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    if (btnBg.input) btnBg.input.cursor = 'pointer';
-    content.add(btnBg);
+    const PAGE_SIZE = 8;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    const page = Math.min(this.armorPage, totalPages - 1);
+    const startIdx = page * PAGE_SIZE;
+    const endIdx = Math.min(startIdx + PAGE_SIZE, total);
 
-    const btnLabel = this.scene.add.text(btnX + 14, y + boxH / 2, '[>]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: '#4A90D9',
-    }).setOrigin(0.5);
-    content.add(btnLabel);
+    for (let i = startIdx; i < endIdx; i++) {
+      const inst = armorInv[i];
+      if (!inst) continue;
 
-    btnBg.on('pointerover', () => {
-      btnBg.clear();
-      btnBg.fillStyle(0x4A90D9, 0.3);
-      btnBg.fillRect(btnX, y, 28, boxH);
-      btnBg.lineStyle(1, 0x4A90D9, 1);
-      btnBg.strokeRect(btnX, y, 28, boxH);
-      btnLabel.setColor('#FFD700');
-    });
-    btnBg.on('pointerout', () => {
-      btnBg.clear();
-      btnBg.fillStyle(0x333333, 1);
-      btnBg.fillRect(btnX, y, 28, boxH);
-      btnBg.lineStyle(1, 0x4A90D9, 1);
-      btnBg.strokeRect(btnX, y, 28, boxH);
-      btnLabel.setColor('#4A90D9');
-    });
-    btnBg.on('pointerdown', () => {
-      this.viewState = { mode: 'picker', slot };
-      this.pickerPage = 0;
-      this.rebuild();
-    });
+      const data = getArmorData(inst.armorId);
+      const name = data?.name ?? inst.armorId;
+      const reductionPct = data ? Math.round(data.reduction * 100) : 0;
+      const isEquipped = inst.id === equippedArmorId;
+      const color = isEquipped ? '#4CAF50' : (RARITY_COLORS[inst.rarity] ?? '#E8DCC8');
+      const rar = inst.rarity[0]?.toUpperCase() ?? '?';
 
-    return y + boxH;
+      const rowH = 18;
+      const rowBg = this.scene.add.graphics();
+      rowBg.fillStyle(isEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
+      rowBg.fillRect(0, y, w, rowH);
+      c.add(rowBg);
+
+      const mark = isEquipped ? ' [E]' : '';
+      const rowLabel = `${name} [${rar}] ${reductionPct}%${mark}`;
+      const rowText = this.scene.add.text(4, y + 4, rowLabel, {
+        fontFamily: FONT, fontSize: '7px', color,
+      });
+      c.add(rowText);
+
+      const capturedInst = inst;
+      const capturedIsEquipped = isEquipped;
+      const capturedY = y;
+      const capturedColor = color;
+
+      rowBg.setInteractive(
+        new Phaser.Geom.Rectangle(0, y, w, rowH),
+        Phaser.Geom.Rectangle.Contains,
+      );
+      if (rowBg.input) rowBg.input.cursor = 'pointer';
+      rowBg.on('pointerover', () => {
+        rowBg.clear();
+        rowBg.fillStyle(0x3A3A3A, 1);
+        rowBg.fillRect(0, capturedY, w, rowH);
+        rowText.setColor('#FFD700');
+      });
+      rowBg.on('pointerout', () => {
+        rowBg.clear();
+        rowBg.fillStyle(capturedIsEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
+        rowBg.fillRect(0, capturedY, w, rowH);
+        rowText.setColor(capturedColor);
+      });
+      rowBg.on('pointerdown', () => {
+        // Toggle equip on click
+        if (capturedIsEquipped) {
+          this.gameState.equipped.equippedArmor = null;
+        } else {
+          this.gameState.equipped.equippedArmor = capturedInst.id;
+        }
+        this.rebuild();
+      });
+
+      y += rowH + 2;
+    }
+
+    if (totalPages > 1) {
+      y += 4;
+      c.add(this.scene.add.text(w / 2, y, `Page ${page + 1}/${totalPages}`, {
+        fontFamily: FONT, fontSize: '7px', color: '#555555',
+      }).setOrigin(0.5, 0));
+      if (page > 0) {
+        const pb = this.scene.add.text(0, y, '[<]', {
+          fontFamily: FONT, fontSize: '7px', color: '#FFD700',
+        }).setInteractive({ useHandCursor: true });
+        pb.on('pointerdown', () => { this.armorPage = page - 1; this.rebuild(); });
+        c.add(pb);
+      }
+      if (page < totalPages - 1) {
+        const nb = this.scene.add.text(w - 2, y, '[>]', {
+          fontFamily: FONT, fontSize: '7px', color: '#FFD700',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        nb.on('pointerdown', () => { this.armorPage = page + 1; this.rebuild(); });
+        c.add(nb);
+      }
+      y += 14;
+    }
+
+    return y;
+  }
+
+  // ---- SHIELDS tab ----
+
+  private buildShieldsTab(c: Phaser.GameObjects.Container, y: number, w: number): number {
+    const shieldInv: ShieldInstance[] = this.gameState.inventory.shieldInventory ?? [];
+    const equippedShieldId = this.gameState.equipped.equippedShield ?? null;
+
+    const total = shieldInv.length;
+    c.add(this.scene.add.text(0, y, `SHIELDS (${total})`, {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
+    }));
+    y += 14;
+
+    if (total === 0) {
+      c.add(this.scene.add.text(0, y, 'No shields in inventory', {
+        fontFamily: FONT, fontSize: '7px', color: '#444444',
+      }));
+      return y + 12;
+    }
+
+    const PAGE_SIZE = 8;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    const page = Math.min(this.shieldPage, totalPages - 1);
+    const startIdx = page * PAGE_SIZE;
+    const endIdx = Math.min(startIdx + PAGE_SIZE, total);
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const inst = shieldInv[i];
+      if (!inst) continue;
+
+      const data = getShieldData(inst.shieldId);
+      const name = data?.name ?? inst.shieldId;
+      const blocks = data?.blockHits ?? 0;
+      const isEquipped = inst.id === equippedShieldId;
+      const color = isEquipped ? '#4CAF50' : (RARITY_COLORS[inst.rarity] ?? '#E8DCC8');
+      const rar = inst.rarity[0]?.toUpperCase() ?? '?';
+
+      const rowH = 18;
+      const rowBg = this.scene.add.graphics();
+      rowBg.fillStyle(isEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
+      rowBg.fillRect(0, y, w, rowH);
+      c.add(rowBg);
+
+      const mark = isEquipped ? ' [E]' : '';
+      const rowLabel = `${name} [${rar}] ${blocks}blk${mark}`;
+      const rowText = this.scene.add.text(4, y + 4, rowLabel, {
+        fontFamily: FONT, fontSize: '7px', color,
+      });
+      c.add(rowText);
+
+      const capturedInst = inst;
+      const capturedIsEquipped = isEquipped;
+      const capturedY = y;
+      const capturedColor = color;
+
+      rowBg.setInteractive(
+        new Phaser.Geom.Rectangle(0, y, w, rowH),
+        Phaser.Geom.Rectangle.Contains,
+      );
+      if (rowBg.input) rowBg.input.cursor = 'pointer';
+      rowBg.on('pointerover', () => {
+        rowBg.clear();
+        rowBg.fillStyle(0x3A3A3A, 1);
+        rowBg.fillRect(0, capturedY, w, rowH);
+        rowText.setColor('#FFD700');
+      });
+      rowBg.on('pointerout', () => {
+        rowBg.clear();
+        rowBg.fillStyle(capturedIsEquipped ? 0x2A2A2A : 0x1A1A1A, 1);
+        rowBg.fillRect(0, capturedY, w, rowH);
+        rowText.setColor(capturedColor);
+      });
+      rowBg.on('pointerdown', () => {
+        // Toggle equip on click
+        if (capturedIsEquipped) {
+          this.gameState.equipped.equippedShield = null;
+        } else {
+          this.gameState.equipped.equippedShield = capturedInst.id;
+        }
+        this.rebuild();
+      });
+
+      y += rowH + 2;
+    }
+
+    if (totalPages > 1) {
+      y += 4;
+      c.add(this.scene.add.text(w / 2, y, `Page ${page + 1}/${totalPages}`, {
+        fontFamily: FONT, fontSize: '7px', color: '#555555',
+      }).setOrigin(0.5, 0));
+      if (page > 0) {
+        const pb = this.scene.add.text(0, y, '[<]', {
+          fontFamily: FONT, fontSize: '7px', color: '#FFD700',
+        }).setInteractive({ useHandCursor: true });
+        pb.on('pointerdown', () => { this.shieldPage = page - 1; this.rebuild(); });
+        c.add(pb);
+      }
+      if (page < totalPages - 1) {
+        const nb = this.scene.add.text(w - 2, y, '[>]', {
+          fontFamily: FONT, fontSize: '7px', color: '#FFD700',
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        nb.on('pointerdown', () => { this.shieldPage = page + 1; this.rebuild(); });
+        c.add(nb);
+      }
+      y += 14;
+    }
+
+    return y;
+  }
+
+  // ---------------------------------------------------------------------------
+  // RIGHT PANEL -- equipped overview
+  // ---------------------------------------------------------------------------
+
+  private buildRightPanel(): void {
+    const c = this.rightContent;
+    const w = RIGHT_W;
+    let y = 0;
+
+    const weapons = this.gameState.inventory.weapons;
+    const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
+
+    const primaryWeapon = primaryWeaponId
+      ? weapons.find(ww => ww.id === primaryWeaponId) ?? null
+      : null;
+    const secondaryWeapon = secondaryWeaponId
+      ? weapons.find(ww => ww.id === secondaryWeaponId) ?? null
+      : null;
+
+    // Character portrait
+    const portraitKey = `portrait_${this.gameState.player.character}`;
+    if (this.scene.textures.exists(portraitKey)) {
+      const portrait = this.scene.add.image(w / 2, y + 24, portraitKey);
+      portrait.setDisplaySize(48, 48);
+      c.add(portrait);
+
+      const border = this.scene.add.graphics();
+      border.lineStyle(2, 0xC5A030, 1);
+      border.strokeRect(w / 2 - 24, y, 48, 48);
+      c.add(border);
+
+      const charName = this.gameState.player.character.charAt(0).toUpperCase()
+        + this.gameState.player.character.slice(1);
+      const nameText = this.scene.add.text(w / 2, y + 52, charName, {
+        fontFamily: FONT,
+        fontSize: '8px',
+        color: '#C5A030',
+      }).setOrigin(0.5, 0);
+      c.add(nameText);
+
+      y = 68;
+    }
+
+    // Thin divider
+    const div1 = this.scene.add.graphics();
+    div1.lineStyle(1, 0x333333, 1);
+    div1.lineBetween(0, y, w, y);
+    c.add(div1);
+    y += 8;
+
+    // PRIMARY weapon slot
+    y = this.buildEquippedWeaponSlot(c, w, y, 'PRIMARY [1]', primaryWeapon, 'primary');
+    y += 4;
+
+    // SECONDARY weapon slot
+    y = this.buildEquippedWeaponSlot(c, w, y, 'SECONDARY [2]', secondaryWeapon, 'secondary');
+    y += 4;
+
+    const div2 = this.scene.add.graphics();
+    div2.lineStyle(1, 0x333333, 1);
+    div2.lineBetween(0, y, w, y);
+    c.add(div2);
+    y += 8;
+
+    // Armor slot
+    y = this.buildEquippedArmorSlot(c, w, y);
+    y += 4;
+
+    // Shield slot
+    y = this.buildEquippedShieldSlot(c, w, y);
+    y += 4;
+
+    const div3 = this.scene.add.graphics();
+    div3.lineStyle(1, 0x333333, 1);
+    div3.lineBetween(0, y, w, y);
+    c.add(div3);
+    y += 8;
+
+    // Stats summary
+    this.buildStatsSummary(c, w, y);
   }
 
   /**
-   * Render one storage entry row with EQUIP and UPGRADE buttons.
+   * Render one equipped weapon slot (PRIMARY or SECONDARY).
+   * Shows full stats + UNEQUIP / REPAIR / UPGRADE / SCRAP buttons.
    * Returns new y.
    */
-  private renderStorageEntry(
-    content: Phaser.GameObjects.Container,
-    w: WeaponInstance,
+  private buildEquippedWeaponSlot(
+    c: Phaser.GameObjects.Container,
+    w: number,
     y: number,
+    label: string,
+    weapon: WeaponInstance | null,
+    slot: Slot,
   ): number {
-    const contentWidth = PANEL_WIDTH - 24;
-
-    const data = WeaponManager.getWeaponData(w.weaponId);
-    const name = data?.name ?? w.weaponId;
-    const color = RARITY_COLORS[w.rarity] ?? '#E8DCC8';
-    const stats = this.weaponManager.getWeaponStats(w);
-    const isBroken = this.weaponManager.isBroken(w);
-
-    // Separator line
-    const sep = this.scene.add.graphics();
-    sep.lineStyle(1, 0x333333, 0.5);
-    sep.lineBetween(0, y, contentWidth, y);
-    content.add(sep);
-    y += 3;
-
-    // Name
-    const nameText = this.scene.add.text(0, y, `${name} [${w.rarity}]`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: isBroken ? '#F44336' : color,
-    });
-    content.add(nameText);
-    y += 14;
-
-    // Stats on own line
-    const statsText = this.scene.add.text(0, y, `DMG:${stats.damage} DUR:${w.durability}/${w.maxDurability}`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '7px',
-      color: '#6B6B6B',
-    });
-    content.add(statsText);
-
+    // Slot label
+    c.add(this.scene.add.text(0, y, `${label}:`, {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
+    }));
     y += 12;
 
-    // Action buttons on their own line, spaced horizontally
-    let btnX = 0;
-    const btnGap = 8;
+    if (!weapon) {
+      const emptyBg = this.scene.add.graphics();
+      emptyBg.lineStyle(1, 0x333333, 1);
+      emptyBg.strokeRect(0, y, w, 22);
+      c.add(emptyBg);
+      c.add(this.scene.add.text(4, y + 7, '(empty -- click weapon to equip)', {
+        fontFamily: FONT, fontSize: '6px', color: '#444444',
+      }));
+      return y + 24;
+    }
 
-    const makeBtn = (label: string, col: string, cb: () => void) => {
-      const btn = this.scene.add.text(btnX, y, label, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: col,
+    const stats = this.weaponManager.getWeaponStats(weapon);
+    const data = WeaponManager.getWeaponData(weapon.weaponId);
+    const name = data?.name ?? weapon.weaponId;
+    const color = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
+    const isBroken = this.weaponManager.isBroken(weapon);
+
+    // Name + rarity line
+    c.add(this.scene.add.text(0, y, `${name} [${weapon.rarity}]`, {
+      fontFamily: FONT, fontSize: '7px',
+      color: isBroken ? '#F44336' : color,
+    }));
+    y += 11;
+
+    // Stats line: DMG and RNG on left, DUR on right
+    const durColor = weapon.durability < weapon.maxDurability * 0.3 ? '#F44336'
+      : weapon.durability < weapon.maxDurability * 0.6 ? '#FFD700' : '#8A8A8A';
+    c.add(this.scene.add.text(0, y, `DMG:${stats.damage} RNG:${stats.range}`, {
+      fontFamily: FONT, fontSize: '7px', color: '#8A8A8A',
+    }));
+    c.add(this.scene.add.text(w - 2, y, `DUR:${weapon.durability}/${weapon.maxDurability}`, {
+      fontFamily: FONT, fontSize: '7px', color: durColor,
+    }).setOrigin(1, 0));
+    y += 11;
+
+    // Special effect line (if any)
+    if (stats.specialEffect) {
+      c.add(this.scene.add.text(0, y, `Special: ${stats.specialEffect.type}`, {
+        fontFamily: FONT, fontSize: '6px', color: '#AAB8C2',
+      }));
+      y += 11;
+    }
+
+    // Active upgrades summary
+    if (weapon.upgrades.length > 0) {
+      const upgradeNames = weapon.upgrades.map(u => u.id.replace(/_/g, ' ')).join(', ');
+      c.add(this.scene.add.text(0, y, `Mods: ${upgradeNames}`, {
+        fontFamily: FONT, fontSize: '6px', color: '#4A90D9',
+        wordWrap: { width: w },
+      }));
+      y += 11;
+    }
+
+    // Action buttons row
+    let btnX = 0;
+    const btnGap = 4;
+
+    const makeBtn = (lbl: string, col: string, cb: () => void): void => {
+      const btn = this.scene.add.text(btnX, y, lbl, {
+        fontFamily: FONT, fontSize: '6px', color: col,
       }).setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#FFD700'));
       btn.on('pointerout', () => btn.setColor(col));
       btn.on('pointerdown', cb);
-      content.add(btn);
+      c.add(btn);
       btnX += btn.width + btnGap;
     };
 
-    // EQUIP (disabled with [BROKEN] label when weapon durability is zero)
-    if (isBroken) {
-      // Show a non-interactive broken indicator instead of the equip button
-      const brokenLabel = this.scene.add.text(btnX, y, '[BROKEN]', {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#F44336',
-      });
-      content.add(brokenLabel);
-      btnX += brokenLabel.width + btnGap;
-    } else {
-      makeBtn('[EQUIP]', '#E07030', () => {
-        const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
-        if (!primaryWeaponId) {
-          this.gameState.equipped.primaryWeaponId = w.id;
-        } else if (!secondaryWeaponId) {
-          this.gameState.equipped.secondaryWeaponId = w.id;
-        } else {
-          this.gameState.equipped.primaryWeaponId = w.id;
-        }
-        this.rebuild();
-      });
-    }
+    // UNEQUIP
+    makeBtn('[UNEQUIP]', '#E07030', () => {
+      if (slot === 'primary') {
+        this.gameState.equipped.primaryWeaponId = null;
+      } else {
+        this.gameState.equipped.secondaryWeaponId = null;
+      }
+      this.rebuild();
+    });
 
-    // REPAIR (if damaged)
-    if (w.durability < w.maxDurability) {
+    // REPAIR (only if damaged)
+    if (weapon.durability < weapon.maxDurability) {
       const canRepair = this.currentAP() >= 1 && this.gameState.inventory.resources.parts >= 1;
+      const repairCol = canRepair ? '#4CAF50' : '#444444';
+      const repairBtn = this.scene.add.text(btnX, y, '[REPAIR]', {
+        fontFamily: FONT, fontSize: '6px', color: repairCol,
+      });
+      c.add(repairBtn);
       if (canRepair) {
-        makeBtn('[REPAIR]', '#4CAF50', () => {
-          if (this.weaponManager.repair(w.id)) {
+        repairBtn.setInteractive({ useHandCursor: true });
+        repairBtn.on('pointerover', () => repairBtn.setColor('#FFD700'));
+        repairBtn.on('pointerout', () => repairBtn.setColor(repairCol));
+        repairBtn.on('pointerdown', () => {
+          if (this.weaponManager.repair(weapon.id)) {
             this.spendAP(1);
             this.onResourceChange();
             this.rebuild();
           }
         });
+        btnX += repairBtn.width + btnGap;
+        renderResourceCosts(this.scene, c, { parts: 1 }, btnX, y, repairCol);
+        btnX += 28;
+      } else {
+        btnX += repairBtn.width + btnGap;
       }
     }
 
-    // UPGRADE
-    const availUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(w);
+    // UPGRADE (if upgrades available)
+    const availUpgrades = this.weaponManager.getAvailableUpgradesForWeapon(weapon);
     if (availUpgrades.length > 0) {
       makeBtn('[UPGRADE]', '#4A90D9', () => {
-        this.viewState = { mode: 'upgrade', weaponId: w.id };
+        this.viewState = { mode: 'upgrade', weaponId: weapon.id };
         this.rebuild();
       });
     }
 
-    // SCRAP button on the same line
-    const scrapValues: Record<string, { scrap: number; parts: number }> = {
-      common:    { scrap: 2, parts: 1 },
-      uncommon:  { scrap: 3, parts: 2 },
-      rare:      { scrap: 5, parts: 3 },
-      legendary: { scrap: 8, parts: 5 },
-    };
-    const sv = scrapValues[w.rarity] ?? { scrap: 2, parts: 1 };
-    makeBtn(`[SCRAP +${sv.scrap}S +${sv.parts}P]`, '#AA6633', () => {
-      const idx = this.gameState.inventory.weapons.indexOf(w);
+    // SCRAP
+    const sv = SCRAP_VALUES[weapon.rarity] ?? { scrap: 2, parts: 1 };
+    makeBtn(`[SCRAP +${sv.scrap}S]`, '#AA6633', () => {
+      const idx = this.gameState.inventory.weapons.indexOf(weapon);
       if (idx >= 0) {
         this.gameState.inventory.weapons.splice(idx, 1);
-        // Unequip if equipped
-        if (this.gameState.equipped.primaryWeaponId === w.id) {
+        if (this.gameState.equipped.primaryWeaponId === weapon.id) {
           this.gameState.equipped.primaryWeaponId = null;
         }
-        if (this.gameState.equipped.secondaryWeaponId === w.id) {
+        if (this.gameState.equipped.secondaryWeaponId === weapon.id) {
           this.gameState.equipped.secondaryWeaponId = null;
         }
-        // Add resources
         this.gameState.inventory.resources.scrap += sv.scrap;
         this.gameState.inventory.resources.parts += sv.parts;
         this.onResourceChange();
@@ -751,240 +1074,258 @@ export class EquipmentPanel {
       }
     });
 
-    y += 12; // button row height
-    return y + 4;
+    y += 12;
+    return y;
   }
 
-  // ---------------------------------------------------------------------------
-  // Picker view: shows all weapons, click one to equip it in the selected slot
-  // ---------------------------------------------------------------------------
+  /** Render equipped armor slot with UNEQUIP button. Returns new y. */
+  private buildEquippedArmorSlot(c: Phaser.GameObjects.Container, _w: number, y: number): number {
+    c.add(this.scene.add.text(0, y, 'ARMOR:', {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
+    }));
+    y += 12;
 
-  private buildPickerView(slot: Slot): void {
-    const content = this.panel.getContentContainer();
-    content.removeAll(true);
+    const equippedArmorId = this.gameState.equipped.equippedArmor ?? null;
+    const armorInv: ArmorInstance[] = this.gameState.inventory.armorInventory ?? [];
+    const armorInst = equippedArmorId
+      ? armorInv.find(a => a.id === equippedArmorId) ?? null
+      : null;
 
-    const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
-    const otherSlotId = slot === 'primary' ? secondaryWeaponId : primaryWeaponId;
-    const weapons = this.gameState.inventory.weapons;
-
-    let y = 0;
-
-    const header = this.scene.add.text(
-      0, y,
-      `Select ${slot.toUpperCase()} weapon:`,
-      {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: '#FFD700',
-      }
-    );
-    content.add(header);
-    y += 18;
-
-    // Option to clear the slot
-    y = this.renderPickerEntry(content, null, slot, otherSlotId, y);
-    y += 4;
-
-    // Sort weapons: highest damage first, then by rarity
-    const rarityOrder: Record<string, number> = { legendary: 0, rare: 1, uncommon: 2, common: 3 };
-    const sorted = [...weapons].sort((a, b) => {
-      const aDmg = this.weaponManager.getWeaponStats(a).damage;
-      const bDmg = this.weaponManager.getWeaponStats(b).damage;
-      if (bDmg !== aDmg) return bDmg - aDmg;
-      return (rarityOrder[a.rarity] ?? 4) - (rarityOrder[b.rarity] ?? 4);
-    });
-
-    // Paginate: show 8 weapons per page
-    const PAGE_SIZE = 8;
-    const totalWeapons = sorted.length;
-    const totalPages = Math.ceil(totalWeapons / PAGE_SIZE);
-    const currentPage = Math.min(this.pickerPage, totalPages - 1);
-    const startIdx = currentPage * PAGE_SIZE;
-    const endIdx = Math.min(startIdx + PAGE_SIZE, totalWeapons);
-
-    // Page indicator
-    if (totalPages > 1) {
-      const pageText = this.scene.add.text(0, y, `Page ${currentPage + 1}/${totalPages}  (${totalWeapons} weapons)`, {
-        fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#6B6B6B',
-      });
-      content.add(pageText);
-      y += 12;
+    if (!armorInst) {
+      c.add(this.scene.add.text(0, y, '(none -- select from ARMOR tab)', {
+        fontFamily: FONT, fontSize: '6px', color: '#444444',
+      }));
+      return y + 12;
     }
 
-    // Previous page button
-    if (currentPage > 0) {
-      const prevBtn = this.scene.add.text(0, y, '[ << PREV PAGE ]', {
-        fontFamily: '"Press Start 2P", monospace', fontSize: '8px', color: '#FFD700',
-      }).setInteractive({ useHandCursor: true });
-      prevBtn.on('pointerdown', () => { this.pickerPage = currentPage - 1; this.rebuild(); });
-      content.add(prevBtn);
-      y += 14;
-    }
+    const data = getArmorData(armorInst.armorId);
+    const name = data?.name ?? armorInst.armorId;
+    const reductionPct = data ? Math.round(data.reduction * 100) : 0;
 
-    for (let i = startIdx; i < endIdx; i++) {
-      const w = sorted[i];
-      if (w) y = this.renderPickerEntry(content, w, slot, otherSlotId, y);
-    }
+    c.add(this.scene.add.text(0, y, name, {
+      fontFamily: FONT, fontSize: '7px', color: RARITY_COLORS[armorInst.rarity] ?? '#E8DCC8',
+    }));
+    y += 11;
 
-    // Next page button
-    if (endIdx < totalWeapons) {
-      const nextBtn = this.scene.add.text(0, y, `[ NEXT PAGE >> ] (${totalWeapons - endIdx} more)`, {
-        fontFamily: '"Press Start 2P", monospace', fontSize: '8px', color: '#FFD700',
-      }).setInteractive({ useHandCursor: true });
-      nextBtn.on('pointerdown', () => { this.pickerPage = currentPage + 1; this.rebuild(); });
-      content.add(nextBtn);
-      y += 14;
-    }
+    c.add(this.scene.add.text(0, y, `-${reductionPct}% damage, ${armorInst.nightsRemaining} nights left`, {
+      fontFamily: FONT, fontSize: '6px', color: '#8A8A8A',
+    }));
+    y += 11;
 
-    // Scrap all common button (bulk cleanup)
-    const commonCount = weapons.filter(w => w.rarity === 'common' && w.id !== this.gameState.equipped.primaryWeaponId && w.id !== this.gameState.equipped.secondaryWeaponId).length;
-    if (commonCount > 2) {
-      y += 4;
-      const scrapAllBtn = this.scene.add.text(0, y, `[ SCRAP ALL COMMON (${commonCount}) +${commonCount * 2}S +${commonCount}P ]`, {
-        fontFamily: '"Press Start 2P", monospace', fontSize: '7px', color: '#AA4433',
-      }).setInteractive({ useHandCursor: true });
-      scrapAllBtn.on('pointerdown', () => {
-        const toScrap = weapons.filter(w => w.rarity === 'common' && w.id !== this.gameState.equipped.primaryWeaponId && w.id !== this.gameState.equipped.secondaryWeaponId);
-        for (const w of toScrap) {
-          const idx = this.gameState.inventory.weapons.indexOf(w);
-          if (idx >= 0) this.gameState.inventory.weapons.splice(idx, 1);
-          this.gameState.inventory.resources.scrap += 2;
-          this.gameState.inventory.resources.parts += 1;
-        }
-        this.onResourceChange();
-        this.rebuild();
-      });
-      content.add(scrapAllBtn);
-      y += 14;
-    }
-
-    y += 8;
-
-    const backBtn = this.scene.add.text(0, y, '[ BACK ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#D4620B',
+    const unequipBtn = this.scene.add.text(0, y, '[UNEQUIP]', {
+      fontFamily: FONT, fontSize: '6px', color: '#E07030',
     }).setInteractive({ useHandCursor: true });
-    backBtn.on('pointerover', () => backBtn.setColor('#FFD700'));
-    backBtn.on('pointerout', () => backBtn.setColor('#D4620B'));
-    backBtn.on('pointerdown', () => {
-      this.viewState = { mode: 'default' };
+    unequipBtn.on('pointerover', () => unequipBtn.setColor('#FFD700'));
+    unequipBtn.on('pointerout', () => unequipBtn.setColor('#E07030'));
+    unequipBtn.on('pointerdown', () => {
+      this.gameState.equipped.equippedArmor = null;
       this.rebuild();
     });
-    content.add(backBtn);
+    c.add(unequipBtn);
+    y += 12;
+
+    return y;
   }
 
-  private renderPickerEntry(
-    content: Phaser.GameObjects.Container,
-    weapon: WeaponInstance | null,
-    targetSlot: Slot,
-    otherSlotId: string | null,
-    y: number,
-  ): number {
-    const contentWidth = PANEL_WIDTH - 24;
-    const rowH = 28;
+  /** Render equipped shield slot with UNEQUIP button. Returns new y. */
+  private buildEquippedShieldSlot(c: Phaser.GameObjects.Container, _w: number, y: number): number {
+    c.add(this.scene.add.text(0, y, 'SHIELD:', {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
+    }));
+    y += 12;
 
-    const isBlockedByOther = weapon !== null && weapon.id === otherSlotId;
+    const equippedShieldId = this.gameState.equipped.equippedShield ?? null;
+    const shieldInv: ShieldInstance[] = this.gameState.inventory.shieldInventory ?? [];
+    const shieldInst = equippedShieldId
+      ? shieldInv.find(s => s.id === equippedShieldId) ?? null
+      : null;
 
-    let rowText: string;
-    let rowColor: string;
-
-    if (weapon === null) {
-      rowText = '  (clear slot)';
-      rowColor = '#6B6B6B';
-    } else if (isBlockedByOther) {
-      const data = WeaponManager.getWeaponData(weapon.weaponId);
-      rowText = `  ${data?.name ?? weapon.weaponId} [${weapon.rarity}] -- IN OTHER SLOT`;
-      rowColor = '#444444';
-    } else {
-      const stats = this.weaponManager.getWeaponStats(weapon);
-      const data = WeaponManager.getWeaponData(weapon.weaponId);
-      const name = data?.name ?? weapon.weaponId;
-      const cls = stats.weaponClass === 'melee' ? 'M' : 'R';
-      const dur = `${weapon.durability}/${weapon.maxDurability}`;
-      const spec = stats.specialEffect ? ` ${stats.specialEffect.type}` : '';
-      rowText = `  ${name} [${weapon.rarity[0]?.toUpperCase() ?? ''}] ${cls} D:${stats.damage} RNG:${stats.range} DUR:${dur}${spec}`;
-      rowColor = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
+    if (!shieldInst) {
+      c.add(this.scene.add.text(0, y, '(none -- select from SHIELDS tab)', {
+        fontFamily: FONT, fontSize: '6px', color: '#444444',
+      }));
+      return y + 12;
     }
 
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x2A2A2A, 0);
-    bg.fillRect(0, y, contentWidth, rowH);
-    content.add(bg);
+    const data = getShieldData(shieldInst.shieldId);
+    const name = data?.name ?? shieldInst.shieldId;
+    const blocks = data?.blockHits ?? 0;
+    const cooldownS = data ? (data.cooldownMs / 1000).toFixed(0) : '?';
 
-    const txt = this.scene.add.text(0, y + 8, rowText, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: rowColor,
+    c.add(this.scene.add.text(0, y, name, {
+      fontFamily: FONT, fontSize: '7px', color: RARITY_COLORS[shieldInst.rarity] ?? '#E8DCC8',
+    }));
+    y += 11;
+
+    c.add(this.scene.add.text(0, y, `${blocks} block${blocks !== 1 ? 's' : ''}, ${cooldownS}s cooldown`, {
+      fontFamily: FONT, fontSize: '6px', color: '#8A8A8A',
+    }));
+    y += 11;
+
+    const unequipBtn = this.scene.add.text(0, y, '[UNEQUIP]', {
+      fontFamily: FONT, fontSize: '6px', color: '#E07030',
+    }).setInteractive({ useHandCursor: true });
+    unequipBtn.on('pointerover', () => unequipBtn.setColor('#FFD700'));
+    unequipBtn.on('pointerout', () => unequipBtn.setColor('#E07030'));
+    unequipBtn.on('pointerdown', () => {
+      this.gameState.equipped.equippedShield = null;
+      this.rebuild();
     });
-    content.add(txt);
+    c.add(unequipBtn);
+    y += 12;
 
-    if (!isBlockedByOther) {
-      bg.setInteractive(
-        new Phaser.Geom.Rectangle(0, y, contentWidth, rowH),
-        Phaser.Geom.Rectangle.Contains,
-      );
-      if (bg.input) bg.input.cursor = 'pointer';
+    return y;
+  }
 
-      bg.on('pointerover', () => {
-        bg.clear();
-        bg.fillStyle(0x3A3A3A, 1);
-        bg.fillRect(0, y, contentWidth, rowH);
-        txt.setColor('#FFD700');
-      });
-      bg.on('pointerout', () => {
-        bg.clear();
-        bg.fillStyle(0x2A2A2A, 0);
-        bg.fillRect(0, y, contentWidth, rowH);
-        txt.setColor(rowColor);
-      });
-      bg.on('pointerdown', () => {
-        this.equipWeaponInSlot(targetSlot, weapon ? weapon.id : null);
-        this.viewState = { mode: 'default' };
-        this.rebuild();
-      });
-    }
+  /** Render bottom stats summary. Returns new y. */
+  private buildStatsSummary(c: Phaser.GameObjects.Container, _w: number, y: number): number {
+    c.add(this.scene.add.text(0, y, 'STATS:', {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
+    }));
+    y += 12;
 
-    return y + rowH;
+    // Total damage reduction from equipped armor
+    const equippedArmorId = this.gameState.equipped.equippedArmor ?? null;
+    const armorInv: ArmorInstance[] = this.gameState.inventory.armorInventory ?? [];
+    const armorInst = equippedArmorId
+      ? armorInv.find(a => a.id === equippedArmorId) ?? null
+      : null;
+    const armorReduction = armorInst ? (getArmorData(armorInst.armorId)?.reduction ?? 0) : 0;
+    const armorSpeed = armorInst ? (getArmorData(armorInst.armorId)?.speedPenalty ?? 0) : 0;
+
+    // Speed penalty from equipped shield
+    const equippedShieldId = this.gameState.equipped.equippedShield ?? null;
+    const shieldInv: ShieldInstance[] = this.gameState.inventory.shieldInventory ?? [];
+    const shieldInst = equippedShieldId
+      ? shieldInv.find(s => s.id === equippedShieldId) ?? null
+      : null;
+    const shieldSpeed = shieldInst ? (getShieldData(shieldInst.shieldId)?.speedPenalty ?? 0) : 0;
+
+    const totalDmgReduce = Math.round(armorReduction * 100);
+    const totalSpeedPenalty = Math.round((armorSpeed + shieldSpeed) * 100);
+
+    c.add(this.scene.add.text(0, y, `Total DMG reduction: ${totalDmgReduce}%`, {
+      fontFamily: FONT, fontSize: '7px', color: totalDmgReduce > 0 ? '#4CAF50' : '#555555',
+    }));
+    y += 12;
+
+    c.add(this.scene.add.text(0, y, `Speed penalty: ${totalSpeedPenalty}%`, {
+      fontFamily: FONT, fontSize: '7px',
+      color: totalSpeedPenalty < 0 ? '#F44336' : '#555555',
+    }));
+    y += 12;
+
+    c.add(this.scene.add.text(0, y, `AMMO: ${this.gameState.inventory.resources.ammo}`, {
+      fontFamily: FONT, fontSize: '7px', color: '#4A90D9',
+    }));
+    y += 12;
+
+    return y;
   }
 
   // ---------------------------------------------------------------------------
-  // Upgrade view: inline upgrade options for a specific weapon
+  // Hover comparison tooltip
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Show a compact stat comparison overlay below a hovered inventory item.
+   * Compares the hovered weapon against the currently equipped primary weapon.
+   * Green = better stat, red = worse stat.
+   */
+  private showWeaponComparison(
+    hovered: WeaponInstance,
+    equipped: WeaponInstance | null,
+    tooltipLocalY: number,
+  ): void {
+    this.tooltipContainer.removeAll(true);
+
+    const hovStats = this.weaponManager.getWeaponStats(hovered);
+
+    // Position within left panel coordinate space
+    const tx = CONTENT_PAD;
+    const ty = HEADER_H + CONTENT_PAD + tooltipLocalY;
+
+    const lines: Array<{ text: string; color: string }> = [];
+
+    if (!equipped) {
+      lines.push({ text: `DMG: ${hovStats.damage}`, color: '#4CAF50' });
+      lines.push({ text: `RNG: ${hovStats.range}`, color: '#4CAF50' });
+      lines.push({ text: `DUR: ${hovered.durability}/${hovered.maxDurability}`, color: '#E8DCC8' });
+    } else {
+      const eqStats = this.weaponManager.getWeaponStats(equipped);
+      const dmgDiff = hovStats.damage - eqStats.damage;
+      const rngDiff = hovStats.range - eqStats.range;
+      const durDiff = hovered.durability - equipped.durability;
+
+      lines.push({
+        text: `DMG: ${eqStats.damage} -> ${hovStats.damage} (${dmgDiff >= 0 ? '+' : ''}${dmgDiff})`,
+        color: dmgDiff > 0 ? '#4CAF50' : dmgDiff < 0 ? '#F44336' : '#E8DCC8',
+      });
+      lines.push({
+        text: `RNG: ${eqStats.range} -> ${hovStats.range} (${rngDiff >= 0 ? '+' : ''}${rngDiff})`,
+        color: rngDiff > 0 ? '#4CAF50' : rngDiff < 0 ? '#F44336' : '#E8DCC8',
+      });
+      lines.push({
+        text: `DUR: ${equipped.durability} -> ${hovered.durability} (${durDiff >= 0 ? '+' : ''}${durDiff})`,
+        color: durDiff > 0 ? '#4CAF50' : durDiff < 0 ? '#F44336' : '#E8DCC8',
+      });
+    }
+
+    const ttH = lines.length * 12 + 8;
+    const ttW = 200;
+    const ttBg = this.scene.add.graphics();
+    ttBg.fillStyle(0x000000, 0.9);
+    ttBg.fillRect(tx, ty, ttW, ttH);
+    ttBg.lineStyle(1, 0x555555, 1);
+    ttBg.strokeRect(tx, ty, ttW, ttH);
+    this.tooltipContainer.add(ttBg);
+
+    lines.forEach((line, idx) => {
+      const txt = this.scene.add.text(tx + 4, ty + 4 + idx * 12, line.text, {
+        fontFamily: FONT, fontSize: '7px', color: line.color,
+      });
+      this.tooltipContainer.add(txt);
+    });
+  }
+
+  private hideTooltip(): void {
+    this.tooltipContainer.removeAll(true);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Upgrade view (full-width, replaces dual panel for the selected weapon)
   // ---------------------------------------------------------------------------
 
   private buildUpgradeView(weaponId: string): void {
-    const content = this.panel.getContentContainer();
-    content.removeAll(true);
+    this.leftContent.removeAll(true);
+    this.rightContent.removeAll(true);
 
-    const weapon = this.gameState.inventory.weapons.find(w => w.id === weaponId);
+    const weapon = this.gameState.inventory.weapons.find(ww => ww.id === weaponId);
     if (!weapon) {
       this.viewState = { mode: 'default' };
-      this.rebuild();
+      this.buildDefaultView();
       return;
     }
 
-    const contentWidth = PANEL_WIDTH - 24;
+    // Use leftContent as full-width area; adjust right origin so content spans full width
+    const c = this.leftContent;
+    // Content width spans from left panel to right edge of the whole panel
+    const contentWidth = PANEL_W - CONTENT_PAD * 2;
     const available = this.weaponManager.getAvailableUpgradesForWeapon(weapon);
     const weaponName = WeaponManager.getWeaponData(weapon.weaponId)?.name ?? weapon.weaponId;
 
     let y = 0;
 
-    const title = this.scene.add.text(0, y, `Upgrade: ${weaponName}`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '10px',
-      color: '#FFD700',
-    });
-    content.add(title);
+    c.add(this.scene.add.text(0, y, `Upgrade: ${weaponName}`, {
+      fontFamily: FONT, fontSize: '10px', color: '#FFD700',
+    }));
     y += 16;
 
     const slotsUsed = weapon.upgrades.length;
     const slotsTotal = WeaponManager.getMaxUpgradesPerWeapon();
-    const slotSummary = this.scene.add.text(0, y, `Slots: ${slotsUsed}/${slotsTotal}  PARTS: ${this.gameState.inventory.resources.parts}`, {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '8px',
-      color: '#6B6B6B',
-    });
-    content.add(slotSummary);
+    c.add(this.scene.add.text(0, y, `Slots: ${slotsUsed}/${slotsTotal}  PARTS: ${this.gameState.inventory.resources.parts}`, {
+      fontFamily: FONT, fontSize: '8px', color: '#6B6B6B',
+    }));
     y += 18;
 
     const entrySpacing = 58;
@@ -1002,7 +1343,7 @@ export class EquipmentPanel {
       const bg = this.scene.add.graphics();
       bg.fillStyle(0x333333, 0);
       bg.fillRect(-4, entryY - 2, contentWidth + 8, entrySpacing - 4);
-      content.add(bg);
+      c.add(bg);
 
       const levelTag = isMaxed
         ? `${def.name} MAX`
@@ -1011,29 +1352,19 @@ export class EquipmentPanel {
           : `${def.name} [${levelLabel(currentLevel, def.maxLevel)}]`;
 
       const nameEntry = this.scene.add.text(0, entryY, levelTag, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: isMaxed ? '#6B6B6B' : baseColor,
+        fontFamily: FONT, fontSize: '9px', color: isMaxed ? '#6B6B6B' : baseColor,
       });
-      content.add(nameEntry);
+      c.add(nameEntry);
 
       if (!isMaxed) {
         const nextDesc = resolveDescription(def, nextLevel);
-        const descText = this.scene.add.text(0, entryY + 13, `-- ${nextDesc}`, {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '8px',
-          color: '#AAB8C2',
-        });
-        content.add(descText);
+        c.add(this.scene.add.text(0, entryY + 13, `-- ${nextDesc}`, {
+          fontFamily: FONT, fontSize: '8px', color: '#AAB8C2',
+        }));
 
-        const costLabel = `${cost} parts`;
-        const costText = this.scene.add.text(contentWidth, entryY, costLabel, {
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: '8px',
-          color: baseColor,
-        });
-        costText.setOrigin(1, 0);
-        content.add(costText);
+        c.add(this.scene.add.text(contentWidth, entryY, `${cost} parts`, {
+          fontFamily: FONT, fontSize: '8px', color: baseColor,
+        }).setOrigin(1, 0));
 
         if (canAfford) {
           bg.setInteractive(
@@ -1062,14 +1393,13 @@ export class EquipmentPanel {
       }
     });
 
-    // --- Ultimate unlock section (only shown when weapon is level 4) ---
+    // Ultimate unlock section (only shown when weapon is level 4)
     const weaponData = WeaponManager.getWeaponData(weapon.weaponId);
     const ultimateData: WeaponUltimate | undefined = weaponData?.ultimate;
     const ultimateBaseY = y + available.length * entrySpacing + 4;
     let ultimateRowHeight = 0;
 
     if (ultimateData && weapon.level === 4) {
-      // Show the ultimate upgrade option
       const { parts, scrap } = ultimateData.cost;
       const canAffordParts = this.gameState.inventory.resources.parts >= parts;
       const canAffordScrap = this.gameState.inventory.resources.scrap >= scrap;
@@ -1078,40 +1408,29 @@ export class EquipmentPanel {
       const divider = this.scene.add.graphics();
       divider.lineStyle(1, 0xFFD700, 0.4);
       divider.lineBetween(0, ultimateBaseY + 2, contentWidth, ultimateBaseY + 2);
-      content.add(divider);
+      c.add(divider);
 
       const ultiLabel = this.scene.add.text(0, ultimateBaseY + 8, `ULTIMATE: ${ultimateData.name}`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: '#FFD700',
+        fontFamily: FONT, fontSize: '9px', color: '#FFD700',
       });
-      content.add(ultiLabel);
+      c.add(ultiLabel);
 
-      const ultiDesc = this.scene.add.text(0, ultimateBaseY + 22, ultimateData.description, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: '#AAB8C2',
+      c.add(this.scene.add.text(0, ultimateBaseY + 22, ultimateData.description, {
+        fontFamily: FONT, fontSize: '7px', color: '#AAB8C2',
         wordWrap: { width: contentWidth - 60 },
-      });
-      content.add(ultiDesc);
+      }));
 
-      const costLabel = `${parts}P + ${scrap}S`;
       const costColor = canAfford ? '#FFD700' : '#6B6B6B';
-      const ultiCostText = this.scene.add.text(contentWidth, ultimateBaseY + 8, costLabel, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '8px',
-        color: costColor,
-      });
-      ultiCostText.setOrigin(1, 0);
-      content.add(ultiCostText);
+      c.add(this.scene.add.text(contentWidth, ultimateBaseY + 8, `${parts}P + ${scrap}S`, {
+        fontFamily: FONT, fontSize: '8px', color: costColor,
+      }).setOrigin(1, 0));
 
-      // Clickable upgrade button
       const ultiRowH = 50;
       ultimateRowHeight = ultiRowH + 8;
       const ultiBg = this.scene.add.graphics();
       ultiBg.fillStyle(0x1A1A00, 0);
       ultiBg.fillRect(-4, ultimateBaseY + 2, contentWidth + 8, ultiRowH);
-      content.add(ultiBg);
+      c.add(ultiBg);
 
       if (canAfford) {
         ultiBg.setInteractive(
@@ -1138,26 +1457,20 @@ export class EquipmentPanel {
         });
       }
     } else if (ultimateData && weapon.level >= 5) {
-      // Weapon already has ultimate unlocked -- show status
       const divider = this.scene.add.graphics();
       divider.lineStyle(1, 0xFFD700, 0.4);
       divider.lineBetween(0, ultimateBaseY + 2, contentWidth, ultimateBaseY + 2);
-      content.add(divider);
+      c.add(divider);
 
-      const ultiActiveLabel = this.scene.add.text(0, ultimateBaseY + 8, `ULTIMATE ACTIVE: ${ultimateData.name}`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '9px',
-        color: '#FFD700',
-      });
-      content.add(ultiActiveLabel);
+      c.add(this.scene.add.text(0, ultimateBaseY + 8, `ULTIMATE ACTIVE: ${ultimateData.name}`, {
+        fontFamily: FONT, fontSize: '9px', color: '#FFD700',
+      }));
       ultimateRowHeight = 24;
     }
 
     const backY = ultimateBaseY + ultimateRowHeight + 8;
     const backBtn = this.scene.add.text(0, backY, '[ BACK ]', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#D4620B',
+      fontFamily: FONT, fontSize: '9px', color: '#D4620B',
     }).setInteractive({ useHandCursor: true });
     backBtn.on('pointerover', () => backBtn.setColor('#FFD700'));
     backBtn.on('pointerout', () => backBtn.setColor('#D4620B'));
@@ -1165,19 +1478,7 @@ export class EquipmentPanel {
       this.viewState = { mode: 'default' };
       this.rebuild();
     });
-    content.add(backBtn);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Equip logic
-  // ---------------------------------------------------------------------------
-
-  private equipWeaponInSlot(slot: Slot, weaponId: string | null): void {
-    if (slot === 'primary') {
-      this.gameState.equipped.primaryWeaponId = weaponId;
-    } else {
-      this.gameState.equipped.secondaryWeaponId = weaponId;
-    }
+    c.add(backBtn);
   }
 
   // ---------------------------------------------------------------------------
@@ -1193,7 +1494,7 @@ export class EquipmentPanel {
     const weapons = gameState.inventory.weapons;
     if (weapons.length === 0) return false;
 
-    const ids = new Set(weapons.map(w => w.id));
+    const ids = new Set(weapons.map(ww => ww.id));
     const { primaryWeaponId, secondaryWeaponId } = gameState.equipped;
 
     const primaryOk = primaryWeaponId !== null && ids.has(primaryWeaponId);
@@ -1211,7 +1512,7 @@ export class EquipmentPanel {
     let changed = false;
 
     if (!primaryOk) {
-      const pick = sorted.find(w => w.id !== gameState.equipped.secondaryWeaponId) ?? sorted[0];
+      const pick = sorted.find(ww => ww.id !== gameState.equipped.secondaryWeaponId) ?? sorted[0];
       if (pick) {
         gameState.equipped.primaryWeaponId = pick.id;
         changed = true;
@@ -1219,7 +1520,7 @@ export class EquipmentPanel {
     }
 
     if (!secondaryOk && sorted.length >= 2) {
-      const pick = sorted.find(w => w.id !== gameState.equipped.primaryWeaponId);
+      const pick = sorted.find(ww => ww.id !== gameState.equipped.primaryWeaponId);
       if (pick) {
         gameState.equipped.secondaryWeaponId = pick.id;
         changed = true;
