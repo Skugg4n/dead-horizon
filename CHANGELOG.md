@@ -1,5 +1,32 @@
 # Dead Horizon -- Changelog
 
+## [v5.8.0] - 2026-04-04 14:40 -- Redesigned toolbar icons + upgrade path visualization in EquipmentPanel
+
+### Varfor
+Toolbar-ikonerna var abstrakta och svara att tolka. EquipmentPanel visade tier-info som ren text
+utan att ge spelaren en tydlig bild av hela uppgraderingskedjan. Bada delarna behavde visual polish.
+
+### Andrat
+
+- **Fix 1 (public/assets/sprites):** 6 nya 32x32 RGBA pixel art-ikoner genererade med Pillow:
+  - `icon_build.png` -- hammare + spik (gron accent)
+  - `icon_weapons.png` -- skoeld + svaerd korsade (orange accent)
+  - `icon_craft.png` -- kugghjul + skiftnyckel (gul accent)
+  - `icon_lootrun.png` -- ryggsack med karta-X (brun/gul accent)
+  - `icon_refugees.png` -- personsilhuett med hjarta (lila accent)
+  - `icon_endday.png` -- maane + stjarnor + rod END-strip (morkbla bakgrund)
+- **Fix 2 (EquipmentPanel.ts):** Upgrade path ersatter gammal "Tier: Enhanced (Lv3/5)"-text.
+  Visar 5 rutor i en rad: grona bockar for avklarade niver, gul highlight-ram for nuvarande,
+  gra text for framtida, guld ★ ULT for niva 5. Bojr under vapennamnet i hogerpanelen.
+- **Fix 2 (EquipmentPanel.ts):** Om vapnet ar Lv4: blinkande gul text "ULTIMATE available! (XP YS)"
+  visas under upgrade path med tweened alpha-blink (600ms yoyo).
+- **Cleanup (EquipmentPanel.ts):** Borttagna oanvanda symboler `TIER_NAMES`, `weaponTierLabel`
+  (funktionaliteten ar nu inbyggd i buildUpgradePath()).
+- **constants.ts:** GAME_VERSION 5.7.0 -> 5.8.0
+
+### Versioner
+- `src/config/constants.ts`: GAME_VERSION 5.7.0 -> 5.8.0
+
 ## [v5.7.0] - 2026-04-04 14:22 -- 8 UX improvements: scrap buttons, weapon tiers, hover comparison, toolbar labels, shelter/refugee clarity
 
 ### Varfor

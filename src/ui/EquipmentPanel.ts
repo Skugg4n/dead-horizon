@@ -62,21 +62,6 @@ const SCRAP_VALUES: Record<string, { scrap: number; parts: number }> = {
   legendary: { scrap: 8, parts: 5 },
 };
 
-// Weapon tier names by level
-const TIER_NAMES: Record<number, string> = {
-  1: 'Stock',
-  2: 'Modified',
-  3: 'Enhanced',
-  4: 'Superior',
-  5: 'ULTIMATE',
-};
-
-/** Return display label for weapon level including star for Lv5. */
-function weaponTierLabel(level: number): string {
-  if (level >= 5) return '★ ULTIMATE';
-  return TIER_NAMES[level] ?? `Lv${level}`;
-}
-
 /** Return color for weapon level indicator in list rows. */
 function weaponLevelColor(level: number): string {
   if (level >= 5) return '#FFD700'; // gold
@@ -1151,10 +1136,6 @@ export class EquipmentPanel {
     const color = RARITY_COLORS[weapon.rarity] ?? '#E8DCC8';
     const isBroken = this.weaponManager.isBroken(weapon);
 
-    // Fix 3: Show tier name instead of just level number
-    const tierName = weaponTierLabel(weapon.level);
-    const tierColor = weapon.level >= 5 ? '#FFD700' : weapon.level >= 3 ? '#FFD700' : '#E8DCC8';
-
     // Name + rarity line -- clamped to right panel width with wordWrap (Fix 8)
     c.add(this.scene.add.text(0, y, `${name} [${weapon.rarity}]`, {
       fontFamily: FONT, fontSize: '7px',
@@ -1163,33 +1144,30 @@ export class EquipmentPanel {
     }));
     y += 11;
 
-    // Fix 3: Tier line: "Enhanced (Lv3/5)" with appropriate color
-    c.add(this.scene.add.text(0, y, `Tier: ${tierName} (Lv${weapon.level}/5)`, {
-      fontFamily: FONT, fontSize: '6px', color: tierColor,
-      wordWrap: { width: w - 2 },
-    }));
-    y += 10;
+    // Upgrade path visualization: 5 boxes in a row
+    // [Stock] -> [Modified] -> [Enhanced] -> [Superior] -> [ULTIMATE]
+    //  done(green)  done(green)  CURRENT(yellow)  future(gray)  locked(gray/gold)
+    y = this.buildUpgradePath(c, w, y, weapon.level);
 
-    // Fix 3: Show upgrade path hint
-    {
-      const xpNeeded = this.weaponManager.getXPForNextLevel(weapon);
-      const nextTier = TIER_NAMES[weapon.level + 1];
-      let upgradeHint = '';
-      if (weapon.level < 4 && nextTier) {
-        upgradeHint = `Next: ${nextTier} (needs ${xpNeeded} XP)`;
-      } else if (weapon.level === 4) {
-        const weaponData = WeaponManager.getWeaponData(weapon.weaponId);
-        if (weaponData?.ultimate) {
-          const { parts, scrap } = weaponData.ultimate.cost;
-          upgradeHint = `ULTIMATE available! (${parts}P ${scrap}S)`;
-        }
-      }
-      if (upgradeHint) {
-        c.add(this.scene.add.text(0, y, upgradeHint, {
-          fontFamily: FONT, fontSize: '6px',
-          color: weapon.level === 4 ? '#FFD700' : '#6B6B6B',
+    // If weapon is Lv4, show blinking "ULTIMATE available!" prompt
+    if (weapon.level === 4) {
+      const weaponData = WeaponManager.getWeaponData(weapon.weaponId);
+      if (weaponData?.ultimate) {
+        const { parts, scrap } = weaponData.ultimate.cost;
+        const ultimatePrompt = this.scene.add.text(0, y, `ULTIMATE available! (${parts}P ${scrap}S)`, {
+          fontFamily: FONT, fontSize: '6px', color: '#FFD700',
           wordWrap: { width: w - 2 },
-        }));
+        });
+        c.add(ultimatePrompt);
+        // Blinking tween on the ultimate prompt text
+        this.scene.tweens.add({
+          targets: ultimatePrompt,
+          alpha: { from: 1, to: 0.2 },
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
         y += 10;
       }
     }
@@ -1307,6 +1285,114 @@ export class EquipmentPanel {
 
     y += 12;
     return y;
+  }
+
+  /**
+   * Render a compact upgrade path row for a weapon.
+   * Shows 5 tier boxes with arrows: Stock -> Modified -> Enhanced -> Superior -> ULTIMATE
+   * Completed tiers are green, current is yellow/highlighted, future are gray, Lv5 is gold.
+   * Fits in ~300px width (RIGHT_W).
+   * Returns next y after the row.
+   */
+  private buildUpgradePath(
+    c: Phaser.GameObjects.Container,
+    w: number,
+    y: number,
+    currentLevel: number,
+  ): number {
+    // Tier definitions in order
+    const tiers: Array<{ level: number; label: string }> = [
+      { level: 1, label: 'Stock' },
+      { level: 2, label: 'Modif' },  // truncated to fit narrow box
+      { level: 3, label: 'Enhcd' },
+      { level: 4, label: 'Supr' },
+      { level: 5, label: '★ ULT' },
+    ];
+
+    // Calculate box dimensions to fit within w (~300px)
+    // 5 boxes + 4 arrows: arrow = 6px, box width varies
+    const ARROW_W = 6;
+    const totalArrows = 4 * ARROW_W; // 24px
+    const boxW = Math.floor((w - totalArrows) / 5); // ~55px each at 300px wide
+    const boxH = 18;
+
+    let bx = 0; // current x within container offset
+
+    for (let i = 0; i < tiers.length; i++) {
+      const tier = tiers[i];
+      if (!tier) continue;
+      const isDone = currentLevel > tier.level;
+      const isCurrent = currentLevel === tier.level;
+      const isUltimate = tier.level === 5;
+
+      // Box background color
+      let bgColor = 0x1A1A1A;
+      let borderColor = 0x333333;
+      let textColor = '#4B4B4B';  // future: dark gray
+
+      if (isDone) {
+        bgColor = 0x1A2A1A;
+        borderColor = 0x2E6B2E;
+        textColor = '#4CAF50';  // green for completed
+      } else if (isCurrent) {
+        bgColor = isUltimate ? 0x2A2200 : 0x2A2200;
+        borderColor = isUltimate ? 0xC5A030 : 0xC5A030;
+        textColor = isUltimate ? '#FFD700' : '#FFD700';  // yellow/gold for current
+      }
+
+      // Draw box
+      const boxBg = this.scene.add.graphics();
+      boxBg.fillStyle(bgColor, 1);
+      boxBg.fillRect(bx, y, boxW - 1, boxH);
+      boxBg.lineStyle(1, borderColor, 1);
+      boxBg.strokeRect(bx, y, boxW - 1, boxH);
+      // Extra bright border for current level
+      if (isCurrent) {
+        boxBg.lineStyle(2, isUltimate ? 0xFFD700 : 0xE8C840, 0.9);
+        boxBg.strokeRect(bx + 1, y + 1, boxW - 3, boxH - 2);
+      }
+      c.add(boxBg);
+
+      // Checkmark or level indicator on top line
+      let topLabel: string;
+      if (isDone) {
+        topLabel = '\u2713';  // check mark
+      } else if (isCurrent) {
+        topLabel = `Lv${tier.level}`;
+      } else {
+        topLabel = '...';
+      }
+
+      const topText = this.scene.add.text(
+        bx + Math.floor(boxW / 2) - 1, y + 2,
+        topLabel,
+        { fontFamily: FONT, fontSize: '5px', color: textColor },
+      ).setOrigin(0.5, 0);
+      c.add(topText);
+
+      // Tier name on bottom line
+      const tierNameText = this.scene.add.text(
+        bx + Math.floor(boxW / 2) - 1, y + 9,
+        tier.label,
+        { fontFamily: FONT, fontSize: '5px', color: textColor },
+      ).setOrigin(0.5, 0);
+      c.add(tierNameText);
+
+      bx += boxW;
+
+      // Draw arrow between boxes (except after last)
+      if (i < tiers.length - 1) {
+        const arrowColor = isDone ? '#2E6B2E' : '#333333';
+        const arrowY = y + Math.floor(boxH / 2);
+        const arrowText = this.scene.add.text(bx + 1, arrowY, '>', {
+          fontFamily: FONT, fontSize: '6px', color: arrowColor,
+        }).setOrigin(0, 0.5);
+        c.add(arrowText);
+        bx += ARROW_W;
+      }
+    }
+
+    return y + boxH + 4;
   }
 
   /** Render equipped armor slot with UNEQUIP button. Returns new y. */
