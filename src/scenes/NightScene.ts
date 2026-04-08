@@ -3265,9 +3265,8 @@ export class NightScene extends Phaser.Scene {
     this._currentKillSource = null;
     this._currentKillTrapName = null;
 
-    // Floating damage number: only show red number when it's NOT a combo
-    // (combo hits already got a gold "COMBO -N!" floater above)
-    if (!isCombo) {
+    // Floating damage number: skip tiny DOT ticks (< 1 damage), show for real hits
+    if (!isCombo && finalDamage >= 1) {
       this.showDamageNumber(zombie.x, zombie.y, finalDamage, '#FF4444');
     }
   }
