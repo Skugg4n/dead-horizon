@@ -10,7 +10,8 @@
       "wave": 2,
       "enemies": [
         { "type": "walker", "count": 8, "spawnDelay": 1800 },
-        { "type": "runner", "count": 3, "spawnDelay": 3000 }
+        { "type": "runner", "count": 3, "spawnDelay": 3000 },
+        { "type": "rot_bloat", "count": 2, "spawnDelay": 4500 }
       ]
     },
     {
@@ -19,7 +20,8 @@
         { "type": "walker", "count": 15, "spawnDelay": 1500 },
         { "type": "runner", "count": 6, "spawnDelay": 2500 },
         { "type": "brute", "count": 2, "spawnDelay": 5000 },
-        { "type": "spitter", "count": 1, "spawnDelay": 4000 }
+        { "type": "spitter", "count": 1, "spawnDelay": 4000 },
+        { "type": "rot_bloat", "count": 3, "spawnDelay": 3500 }
       ]
     },
     {
@@ -29,7 +31,8 @@
         { "type": "runner", "count": 10, "spawnDelay": 2000 },
         { "type": "brute", "count": 4, "spawnDelay": 4000 },
         { "type": "spitter", "count": 2, "spawnDelay": 3500 },
-        { "type": "screamer", "count": 1, "spawnDelay": 6000 }
+        { "type": "screamer", "count": 1, "spawnDelay": 6000 },
+        { "type": "rot_bloat", "count": 4, "spawnDelay": 3000 }
       ]
     },
     {
@@ -40,6 +43,7 @@
         { "type": "brute", "count": 6, "spawnDelay": 3000 },
         { "type": "spitter", "count": 3, "spawnDelay": 2500 },
         { "type": "screamer", "count": 2, "spawnDelay": 5000 },
+        { "type": "rot_bloat", "count": 6, "spawnDelay": 2500 },
         { "type": "forest_boss", "count": 1, "spawnDelay": 8000 }
       ]
     }

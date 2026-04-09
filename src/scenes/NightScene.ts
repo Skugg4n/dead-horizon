@@ -2176,6 +2176,49 @@ export class NightScene extends Phaser.Scene {
   }
 
   private setupEvents(): void {
+    // Rot Bloat acid pool: visible green splash that deals DoT to any zombie
+    // standing in it for ~4 seconds. Fire-and-forget temporary graphics.
+    this.events.on('bloat-explode', (x: number, y: number, radius: number, damage: number) => {
+      const pool = this.add.graphics();
+      pool.setDepth(4);
+      const draw = (alpha: number): void => {
+        pool.clear();
+        pool.fillStyle(0x88DD44, alpha * 0.5);
+        pool.fillCircle(x, y, radius);
+        pool.fillStyle(0x66BB22, alpha * 0.7);
+        pool.fillCircle(x, y, radius * 0.7);
+        pool.fillStyle(0x4A9A11, alpha * 0.9);
+        pool.fillCircle(x, y, radius * 0.4);
+      };
+      draw(1);
+      // DoT tick every 250ms for 4s
+      const totalTicks = 16;
+      let ticksLeft = totalTicks;
+      const tickEvent = this.time.addEvent({
+        delay: 250,
+        repeat: totalTicks - 1,
+        callback: () => {
+          ticksLeft--;
+          const alphaRatio = ticksLeft / totalTicks;
+          draw(alphaRatio);
+          // Damage any zombie currently inside the pool (excluding the dying one)
+          this.zombieGroup.getChildren().forEach(child => {
+            const z = child as Zombie;
+            if (!z.active) return;
+            const dx = z.x - x;
+            const dy = z.y - y;
+            if (dx * dx + dy * dy <= radius * radius) {
+              z.takeDamage(damage / 4); // per-tick damage scales so total over lifetime ~ damage*4
+            }
+          });
+          if (ticksLeft <= 0) {
+            pool.destroy();
+            tickEvent.remove();
+          }
+        },
+      });
+    });
+
     this.events.on('zombie-killed', (zombie: Zombie) => {
       this.kills++;
       this.player.kills = this.kills;

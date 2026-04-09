@@ -62,6 +62,10 @@ export interface ZombieConfig {
   // Military tank config
   weakSpotMultiplier?: number;
   crushStructuresOnPath?: boolean;
+  // Rot Bloat: leave an acid damage pool on death
+  explodesOnDeath?: boolean;
+  acidPoolRadius?: number;
+  acidPoolDamage?: number;
 }
 
 export class Zombie extends Phaser.Physics.Arcade.Sprite {
@@ -132,6 +136,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
 
   // Tank: crushes structures when moving through them
   crushStructuresOnPath: boolean = false;
+
+  // Rot Bloat: explodes on death into an acid damage pool
+  explodesOnDeath: boolean = false;
+  acidPoolRadius: number = 64;
+  acidPoolDamage: number = 8;
 
   // Forest boss phase state machine
   // Phase 1: charge toward base. Phase 2 (below 50% HP): also throws rocks.
@@ -232,6 +241,10 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     if (config.armorDamageReduction) this.armorDamageReduction = config.armorDamageReduction;
     if (config.weakSpotMultiplier) this.weakSpotMultiplier = config.weakSpotMultiplier;
     if (config.crushStructuresOnPath) this.crushStructuresOnPath = config.crushStructuresOnPath;
+    // Rot Bloat config
+    if (config.explodesOnDeath) this.explodesOnDeath = config.explodesOnDeath;
+    if (config.acidPoolRadius) this.acidPoolRadius = config.acidPoolRadius;
+    if (config.acidPoolDamage) this.acidPoolDamage = config.acidPoolDamage;
 
     // Forest boss config
     if (config.chargeSpeed) this.forestBossChargeSpeed = config.chargeSpeed;
@@ -1151,6 +1164,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
 
     // Emit killed event -- NightScene handles blood splatters and loot
     this.scene.events.emit('zombie-killed', this);
+
+    // Rot Bloat: spawn an acid pool at the corpse that damages zombies nearby
+    if (this.explodesOnDeath) {
+      this.scene.events.emit('bloat-explode', this.x, this.y, this.acidPoolRadius, this.acidPoolDamage);
+    }
 
     // Disable physics immediately so zombie stops blocking/moving
     if (this.body) {

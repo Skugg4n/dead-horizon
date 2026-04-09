@@ -5,6 +5,7 @@
       "enemies": [
         { "type": "walker", "count": 10, "spawnDelay": 1600 },
         { "type": "runner", "count": 5, "spawnDelay": 2200 },
+        { "type": "swarmling", "count": 8, "spawnDelay": 700 },
         { "type": "city_crawler", "count": 3, "spawnDelay": 2500 }
       ]
     },
@@ -14,6 +15,7 @@
         { "type": "walker", "count": 16, "spawnDelay": 1300 },
         { "type": "runner", "count": 8, "spawnDelay": 1800 },
         { "type": "spitter", "count": 3, "spawnDelay": 3500 },
+        { "type": "swarmling", "count": 8, "spawnDelay": 700 },
         { "type": "city_crawler", "count": 6, "spawnDelay": 2000 }
       ]
     },
@@ -24,6 +26,7 @@
         { "type": "runner", "count": 14, "spawnDelay": 1500 },
         { "type": "spitter", "count": 6, "spawnDelay": 3000 },
         { "type": "brute", "count": 3, "spawnDelay": 4500 },
+        { "type": "swarmling", "count": 8, "spawnDelay": 700 },
         { "type": "city_crawler", "count": 10, "spawnDelay": 1500 },
         { "type": "screamer", "count": 1, "spawnDelay": 5000 }
       ]
@@ -35,6 +38,7 @@
         { "type": "runner", "count": 20, "spawnDelay": 1200 },
         { "type": "spitter", "count": 8, "spawnDelay": 2500 },
         { "type": "brute", "count": 5, "spawnDelay": 3500 },
+        { "type": "swarmling", "count": 8, "spawnDelay": 700 },
         { "type": "city_crawler", "count": 15, "spawnDelay": 1200 },
         { "type": "screamer", "count": 2, "spawnDelay": 4500 },
         { "type": "tunnel_zombie", "count": 2, "spawnDelay": 5000 }
@@ -48,6 +52,7 @@
         { "type": "spitter", "count": 12, "spawnDelay": 2000 },
         { "type": "brute", "count": 8, "spawnDelay": 2500 },
         { "type": "screamer", "count": 3, "spawnDelay": 4000 },
+        { "type": "swarmling", "count": 8, "spawnDelay": 700 },
         { "type": "city_crawler", "count": 18, "spawnDelay": 1000 },
         { "type": "tunnel_zombie", "count": 3, "spawnDelay": 4500 },
         { "type": "city_boss", "count": 1, "spawnDelay": 10000 }
