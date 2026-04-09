@@ -14,6 +14,20 @@ Uppdaterad: 2026-04-09, v6.1.2
 - Fix: body.setSize(20, 20) + setOffset(6, 6) på båda entities. Ger 6px slack per sida.
 - Samma fix löser BG/Ai: zombies kan nu faktiskt följa A*-paths genom smala gap.
 
+### BG7: Terrängdekor ser ut som duplicerade byggnader
+- Användaren bygger strukturer i mitten av kartan, men när natten börjar tycks "samma
+  saker" ha spawnats på vänster sida av kartan (Forest, Night 5/5).
+- Sannolik orsak: Forest terrain-decor (drawCrate, drawStone, drawStump) har visuell
+  stil som överlappar med built structures (barricade, sandbags, wooden crate-like walls).
+  Det är alltså INTE ett spawn-bug -- det är en visuell förväxling där terrängdekor
+  ser ut som byggda strukturer.
+- Verifiering: mini-mappen i screenshotet visar structures BARA runt basen, inte på
+  vänster sida. Alltså är left-side-sakerna inte i `gameState.base.structures`.
+- Fix: differentiera terrängdekor visuellt -- mörkare färger, mer "natural" shapes,
+  eller annan outline-style. Alternativt lägg till en subtil glow/aura kring riktiga
+  byggda strukturer så spelaren ser vad som är "deras".
+- Status: EJ FIXAD -- visuell polish, men viktig för att inte förvirra spelaren.
+
 ### BG6: Hittade items syns aldrig i Inventory
 - Användaren rapporterar att en massa saker som hittas (loot runs / nattens pickups)
   aldrig dyker upp i inventory. Senaste exemplet: "Improvised plate" -- hittades men
