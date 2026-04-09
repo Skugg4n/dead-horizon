@@ -103,7 +103,7 @@ export class Wall extends Phaser.GameObjects.Graphics {
     const px = this.structureInstance.x;
     const py = this.structureInstance.y;
 
-    // --- HP bar above the wall ---
+    // --- HP bar ON the wall (bottom edge, inside footprint) ---
     if (!this.hpBar) {
       this.hpBar = this.scene.add.graphics();
       this.hpBar.setDepth(6);
@@ -111,7 +111,7 @@ export class Wall extends Phaser.GameObjects.Graphics {
     const BAR_W = TILE_SIZE - 6;
     const BAR_H = 3;
     const BAR_X = px + 3;
-    const BAR_Y = py - 5;
+    const BAR_Y = py + TILE_SIZE - BAR_H - 2;
     this.hpBar.clear();
     // Background
     this.hpBar.fillStyle(0x000000, 0.7);

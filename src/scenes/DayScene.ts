@@ -518,15 +518,7 @@ export class DayScene extends Phaser.Scene {
     this.drawBaseTent(this.baseTentGraphics, centerX, centerY);
     this.mapContainer.add(this.baseTentGraphics);
 
-    const baseLevelData = this.getBaseLevelData();
-    // Base label -- rendered on the game world; 9px + stroke for readability over terrain
-    this.add.text(centerX, centerY - (baseLevelData.visual.size / 2) - 8, 'BASE', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#E8DCC8',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(10);
+    // Base label removed -- player already knows where the base is.
   }
 
   private renderPlacedStructures(): void {
@@ -609,11 +601,11 @@ export class DayScene extends Phaser.Scene {
         dmgGfx.lineBetween(x1, y1, x2, y2);
       }
 
-      // HP bar above the structure
+      // HP bar ON the structure tile (bottom edge, inside the tile footprint)
       const BAR_W = TILE_SIZE - 6;
       const BAR_H = 3;
       const BAR_X = structure.x + 3;
-      const BAR_Y = structure.y - 5;
+      const BAR_Y = structure.y + TILE_SIZE - BAR_H - 2;
       dmgGfx.fillStyle(0x000000, 0.7);
       dmgGfx.fillRect(BAR_X - 1, BAR_Y - 1, BAR_W + 2, BAR_H + 2);
       let fillColor = 0x4CAF50;
@@ -1169,6 +1161,14 @@ export class DayScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.rightButtonDown()) {
+        // Right-click on a damaged structure = repair it (1 parts per 50 HP).
+        // Cancel any in-progress placement or popup as a side effect.
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const clickedStructure = this.buildingManager.getStructureAt(worldPoint.x, worldPoint.y);
+        if (clickedStructure && clickedStructure.hp > 0 && clickedStructure.hp < clickedStructure.maxHp) {
+          this.repairStructure(clickedStructure);
+          return;
+        }
         this.cancelPlacement();
         this.closeStructurePopup();
         return;
@@ -1382,6 +1382,33 @@ export class DayScene extends Phaser.Scene {
       }
     };
     this.input.keyboard?.on('keydown', handlers.key);
+  }
+
+  /**
+   * Repair a damaged structure during the day. Costs 1 parts per 50 HP.
+   * Called on right-click on any damaged-but-alive structure.
+   */
+  private repairStructure(instance: StructureInstance): void {
+    const REPAIR_COST = 1;
+    const REPAIR_HP   = 50;
+
+    if (this.gameState.inventory.resources.parts < REPAIR_COST) {
+      this.showInfo('Need 1 PARTS to repair!');
+      AudioManager.play('ui_error');
+      return;
+    }
+
+    this.gameState.inventory.resources.parts -= REPAIR_COST;
+    instance.hp = Math.min(instance.maxHp, instance.hp + REPAIR_HP);
+    this.updateResourceDisplay();
+
+    // Redraw structures to refresh the damage overlay
+    this.renderPlacedStructures();
+
+    const data = this.buildingManager.getStructureData(instance.structureId);
+    this.showInfo(`Repaired ${data?.name ?? 'structure'} (+${REPAIR_HP} HP)`);
+    this.gameLog.addMessage(`Repaired ${data?.name ?? 'structure'}`, '#44AAFF');
+    AudioManager.play('ui_build');
   }
 
   private placeStructure(structureId: string, x: number, y: number): void {

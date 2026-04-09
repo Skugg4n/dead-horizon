@@ -242,13 +242,10 @@ export class NightScene extends Phaser.Scene {
    */
   private structureGrid: SpatialBucketGrid<StructureGridEntry> = new SpatialBucketGrid<StructureGridEntry>(128);
 
-  // Repair interaction state
+  // Repair interaction state (traps only -- walls are repaired in DayScene)
   private _repairTarget: TrapBase | null = null;
   private _repairProgressBar: Phaser.GameObjects.Graphics | null = null;
   private _repairKey: Phaser.Input.Keyboard.Key | null = null;
-  // Wall repair (separate from trap repair since Wall has a different interface)
-  private _wallRepairTarget: Wall | null = null;
-  private _wallRepairProgress: number = 0;
   // Single source of truth for both physics collision and A* pathfinding.
   // Every wall-like structure and natural blocker stamps a tile into this layer.
   // Arcade Physics colliders and PathGrid both read from it.
@@ -816,14 +813,7 @@ export class NightScene extends Phaser.Scene {
       }
     }
 
-    // Base label -- rendered on the game world; 9px + stroke for readability over terrain
-    this.add.text(centerX, centerY - halfSize - 8, 'BASE', {
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
-      color: '#E8DCC8',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(10);
+    // Base label removed -- player already knows where the base is.
 
     // Set world bounds
     this.physics.world.setBounds(0, 0, mapPixelWidth, mapPixelHeight);
@@ -5069,12 +5059,11 @@ export class NightScene extends Phaser.Scene {
     const REPAIR_RANGE = 40;
     const REPAIR_TIME  = 2000; // ms
     const REPAIR_COST  = { parts: 1 } as const;
-    const WALL_REPAIR_HP = 50; // HP restored per parts spent
 
     const eDown = this._repairKey.isDown;
 
     if (!eDown) {
-      // Cancel any in-progress repair (traps + walls)
+      // Cancel any in-progress trap repair
       if (this._repairTarget) {
         this._repairTarget.isBeingRepaired = false;
         this._repairTarget.repairProgress  = 0;
@@ -5084,94 +5073,7 @@ export class NightScene extends Phaser.Scene {
           this._repairProgressBar = null;
         }
       }
-      if (this._wallRepairTarget) {
-        this._wallRepairTarget = null;
-        this._wallRepairProgress = 0;
-        if (this._repairProgressBar) {
-          this._repairProgressBar.destroy();
-          this._repairProgressBar = null;
-        }
-      }
       return;
-    }
-
-    // ---- Wall repair check (runs BEFORE trap repair so walls take priority) ----
-    // Find the nearest damaged-but-alive wall within repair range.
-    let nearestWall: Wall | null = null;
-    let nearestWallDist = REPAIR_RANGE + 1;
-    for (const wall of this.walls) {
-      if (!wall.active) continue;
-      if (wall.structureInstance.hp >= wall.structureInstance.maxHp) continue;
-      if (wall.structureInstance.hp <= 0) continue;
-      const dist = Phaser.Math.Distance.Between(
-        this.player.x, this.player.y,
-        wall.structureInstance.x + TILE_SIZE / 2,
-        wall.structureInstance.y + TILE_SIZE / 2,
-      );
-      if (dist < nearestWallDist) {
-        nearestWall = wall;
-        nearestWallDist = dist;
-      }
-    }
-
-    if (nearestWall) {
-      // Cancel any stale trap target
-      if (this._repairTarget) {
-        this._repairTarget.isBeingRepaired = false;
-        this._repairTarget.repairProgress  = 0;
-        this._repairTarget = null;
-      }
-      // Switch wall target if different
-      if (this._wallRepairTarget !== nearestWall) {
-        this._wallRepairTarget = nearestWall;
-        this._wallRepairProgress = 0;
-      }
-      this._wallRepairProgress += delta;
-
-      if (!this._repairProgressBar) {
-        this._repairProgressBar = this.add.graphics().setDepth(60);
-      }
-      const bar = this._repairProgressBar;
-      bar.clear();
-      const bx = nearestWall.structureInstance.x;
-      const by = nearestWall.structureInstance.y - 10;
-      const progress = Math.min(this._wallRepairProgress / REPAIR_TIME, 1);
-      bar.fillStyle(0x333333);
-      bar.fillRect(bx, by, TILE_SIZE, 5);
-      bar.fillStyle(0x44AAFF);
-      bar.fillRect(bx, by, Math.round(TILE_SIZE * progress), 5);
-
-      if (this._wallRepairProgress >= REPAIR_TIME) {
-        if (!this.resourceManager.canAfford({ parts: REPAIR_COST.parts })) {
-          this.hud.showMessage('Need 1 PARTS to repair wall!');
-          this.gameLog.addMessage('Need 1 PARTS to repair wall!', '#FF8C00');
-          this._wallRepairTarget = null;
-          this._wallRepairProgress = 0;
-          bar.destroy();
-          this._repairProgressBar = null;
-          return;
-        }
-        this.resourceManager.spend('parts', REPAIR_COST.parts);
-        nearestWall.repair(WALL_REPAIR_HP);
-        this.showFloatingText(
-          nearestWall.structureInstance.x + TILE_SIZE / 2,
-          nearestWall.structureInstance.y - 24,
-          `+${WALL_REPAIR_HP} HP`,
-        );
-        this._wallRepairTarget = null;
-        this._wallRepairProgress = 0;
-        bar.destroy();
-        this._repairProgressBar = null;
-      }
-      return;
-    } else if (this._wallRepairTarget) {
-      // Player moved away from the wall -- cancel wall repair
-      this._wallRepairTarget = null;
-      this._wallRepairProgress = 0;
-      if (this._repairProgressBar) {
-        this._repairProgressBar.destroy();
-        this._repairProgressBar = null;
-      }
     }
 
     // Find the nearest malfunctioned trap within repair range
