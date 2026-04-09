@@ -1149,6 +1149,29 @@ export class EquipmentPanel {
     //  done(green)  done(green)  CURRENT(yellow)  future(gray)  locked(gray/gold)
     y = this.buildUpgradePath(c, w, y, weapon.level);
 
+    // XP progress to next tier (addresses BG5: nunchucks stuck at Lv3).
+    // Shows "XP: current/needed" and a thin bar. Lv4+ shows ULTIMATE unlock hint.
+    if (weapon.level < 4) {
+      const needed = this.weaponManager.getXPForNextLevel(weapon);
+      const curr = weapon.xp;
+      const ratio = needed > 0 ? Math.min(1, curr / needed) : 0;
+      c.add(this.scene.add.text(0, y, `XP ${curr}/${needed}`, {
+        fontFamily: FONT, fontSize: '6px', color: '#BDBDBD',
+      }));
+      const BAR_W = Math.min(120, w - 60);
+      const BAR_X = 50;
+      const BAR_Y = y + 1;
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(0x1A1A1A, 1);
+      bg.fillRect(BAR_X, BAR_Y, BAR_W, 4);
+      bg.fillStyle(0xC5A030, 1);
+      bg.fillRect(BAR_X, BAR_Y, Math.floor(BAR_W * ratio), 4);
+      bg.lineStyle(1, 0x555555, 1);
+      bg.strokeRect(BAR_X, BAR_Y, BAR_W, 4);
+      c.add(bg);
+      y += 10;
+    }
+
     // If weapon is Lv4, show blinking "ULTIMATE available!" prompt
     if (weapon.level === 4) {
       const weaponData = WeaponManager.getWeaponData(weapon.weaponId);

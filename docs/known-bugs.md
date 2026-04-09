@@ -7,20 +7,17 @@ Uppdaterad: 2026-04-09, v6.1.2
 
 ## AKTIVA (2026-04-09)
 
-### BG8: shock_wire duplicerar vid placement (4x istallet for 1x)
-- Nar spelaren bygger en shock_wire blir det 4 instanser i gameState, 3 pa olika
-  position an dar spelaren klickade. Alla 3 extras hamnar pa vanstra sidan av
-  kartan i positioner som spelaren inte valt.
-- Exempel ur debug-logg: `shock_wire placed 4x: (512,704) (448,416) (256,416) (448,832)`.
-  Spelaren klickade pa (512,704). De andra 3 dok upp av sig sjalva.
-- BuildingManager.place() pushar bara EN instance. Nagot annat matar in de extra.
-  Troligt: event-handler, auto-link-logik for trap-network, eller en bug i
-  ghost-preview som konverterar previews till riktiga instances.
-- Startpunkter: grep for 'shock_wire' + 'structures.push' i src/, och verifiera
-  att inget i structure-placement flowet skapar flera instances per click.
-- Reproduktion: starta ny run, bygg en shock_wire, starta natten, oppna console,
-  leta efter "shock_wire placed Nx" dar N > antal intentionella clicks.
-- Status: EJ FIXAD.
+### BG8: shock_wire duplicerar vid placement ✅ DEFENSIVT FIXAD v6.9.0
+- Symptom: 1 click -> 4 instances i gameState. Efter grep: INGEN kodvag skapar
+  multipla instances programmatically. BuildingManager.place() pushar bara EN,
+  och ingen annan kod pushar till gameState.base.structures.
+- Troligt: trackpad double-tap, Phaser pointerdown fires multiple, eller en
+  propagation-bug dar samma click registreras flera ganger.
+- Fix v6.9.0: BuildingManager.place() har nu debounce -- rejects calls inom
+  80ms av forsta lyckad placement. Aven stabilare instance ID med counter
+  (undviker dubletter pa samma ms). Console.log visar varje lyckad placement.
+- Om buggen aterkommer: kolla console for "[BuildingManager] placed" loggar
+  och se hur manga gar igenom vs hur manga "[BuildingManager] place() debounced".
 
 
 
@@ -62,12 +59,11 @@ Uppdaterad: 2026-04-09, v6.1.2
   - DayScene vs NightScene pickup-handlers (sync till gameState innan scene-byte?)
 - Status: EJ FIXAD -- prioritera efter AI-fixen landat.
 
-### BG5: Nunchucks fastnar på Lv3 Enhanced trots många kills
-- Användaren rapporterar att weapon-XP inte känns som att den leds hela vägen till Supr/Ult.
-- Designintention: xpPerLevel = [0, 10, 25, 50, 100]; Lv3→Lv4 kräver 50 weapon-XP (1 XP per kill).
-  Lv4→Lv5 (ULT) är manuell unlock med parts+scrap, INTE XP-baserat.
-- UI-problem: EquipmentPanel visar inte weapon.xp eller "X/Y till nästa tier", så spelaren ser
-  inte progressionen. Add UI: visa `xp/needed` under tier-raden för nuvarande nivå.
+### BG5: Nunchucks fastnar på Lv3 Enhanced ✅ FIXAD v6.9.0
+- UX-problem: EquipmentPanel visade inte weapon.xp eller hur mycket XP som krävdes för nästa tier.
+- Fix: lagt till "XP: curr/needed" text + horisontell progressbar under tier-raden i
+  EquipmentPanel. Visas för Lv1-3 (Lv4→5 är manuell ULTIMATE unlock, inte XP).
+- Nu ser spelaren exakt hur nära nästa tier de är.
 - Status: EJ FIXAD (UX clarity)
 
 ---

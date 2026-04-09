@@ -115,6 +115,19 @@ export class BuildingManager {
   }
 
   /**
+   * Debounce: reject place() calls within PLACE_DEBOUNCE_MS of the previous
+   * successful placement. This defends against the user reporting in BG8
+   * where one shock_wire click resulted in 4 instances -- the root cause
+   * could be trackpad multi-tap, double pointerdown, or a UI handler
+   * leaking through. Rate-limiting is the most reliable defense.
+   */
+  private lastPlaceTimeMs: number = 0;
+  private static readonly PLACE_DEBOUNCE_MS = 80;
+
+  /** Monotonic counter so instance IDs are unique even within a single ms. */
+  private static placeCounter: number = 0;
+
+  /**
    * Place a structure. Returns the instance if successful, null otherwise.
    * Deducts resources and AP cost from currentAP (returned as new value).
    */
@@ -127,6 +140,13 @@ export class BuildingManager {
     const data = this.structureDataMap.get(structureId);
     if (!data) return null;
 
+    // Debounce: reject rapid-fire placement
+    const now = Date.now();
+    if (now - this.lastPlaceTimeMs < BuildingManager.PLACE_DEBOUNCE_MS) {
+      console.warn(`[BuildingManager] place() debounced: ${structureId} @ (${gridX},${gridY})`);
+      return null;
+    }
+
     if (currentAP < data.apCost) return null;
     if (!this.canAfford(structureId)) return null;
     if (!this.isPositionFree(gridX, gridY)) return null;
@@ -136,8 +156,9 @@ export class BuildingManager {
       this.gameState.inventory.resources[resource as ResourceType] -= amount;
     }
 
+    BuildingManager.placeCounter++;
     const instance: StructureInstance = {
-      id: `${structureId}_${Date.now()}`,
+      id: `${structureId}_${now}_${BuildingManager.placeCounter}`,
       structureId,
       level: 1,
       hp: data.hp,
@@ -147,6 +168,8 @@ export class BuildingManager {
     };
 
     this.gameState.base.structures.push(instance);
+    this.lastPlaceTimeMs = now;
+    console.log(`[BuildingManager] placed ${structureId} @ (${gridX},${gridY}) id=${instance.id}`);
     this.scene.events.emit('structure-placed', instance);
 
     return { instance, apRemaining: currentAP - data.apCost };
