@@ -62,6 +62,7 @@ export class DayScene extends Phaser.Scene {
   // Placement mode state
   private placementMode: boolean = false;
   private placementStructureId: string | null = null;
+  private scrapMode: boolean = false;
   private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
   private placementJustStarted: boolean = false;
 
@@ -733,6 +734,7 @@ export class DayScene extends Phaser.Scene {
 
     const buttons: ToolbarButton[] = [
       { label: 'BUILD', iconKey: 'icon_build', color: 0x4CAF50, onClick: () => this.toggleBuildMenu(), shortcut: 'B' },
+      { label: 'SCRAP', iconKey: 'icon_scrap', color: 0xC5620B, onClick: () => this.toggleScrapMode(), shortcut: 'X' },
       { label: 'EQUIP', iconKey: 'icon_weapons', color: 0xE07030, onClick: () => this.equipmentPanel.toggle(), shortcut: 'Q' },
       { label: 'CRAFT', iconKey: 'icon_craft', color: 0xD4A030, onClick: () => this.craftingPanel.toggle(), shortcut: 'C' },
       { label: 'LOOT', iconKey: 'icon_lootrun', color: 0xD4A030, onClick: () => this.lootRunPanel.toggle(), shortcut: 'L' },
@@ -1145,6 +1147,24 @@ export class DayScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Toggle "scrap mode". When active, left-clicking any placed structure
+   * sells it (75% refund) without showing a popup. Lets the player bulldoze
+   * many structures quickly. Exits on right-click, ESC, or toggling again.
+   */
+  private toggleScrapMode(): void {
+    // Leaving any placement mode first
+    if (this.placementMode) this.cancelPlacement();
+    this.closeStructurePopup();
+
+    this.scrapMode = !this.scrapMode;
+    if (this.scrapMode) {
+      this.showInfo('SCRAP MODE -- click structures to scrap. ESC/right-click to exit.');
+    } else {
+      this.showInfo('Scrap mode off');
+    }
+  }
+
   private setupInput(): void {
     // DEFENSIVE: remove any stale pointerdown handler registered by a previous
     // create() that didn't get cleaned up. This is the nuclear option and
@@ -1161,6 +1181,12 @@ export class DayScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.rightButtonDown()) {
+        // Right-click exits scrap mode if active
+        if (this.scrapMode) {
+          this.scrapMode = false;
+          this.showInfo('Scrap mode off');
+          return;
+        }
         // Right-click on a damaged structure = repair it (1 parts per 50 HP).
         // Cancel any in-progress placement or popup as a side effect.
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -1177,6 +1203,22 @@ export class DayScene extends Phaser.Scene {
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
       const gridX = Math.floor(worldPoint.x / TILE_SIZE) * TILE_SIZE;
       const gridY = Math.floor(worldPoint.y / TILE_SIZE) * TILE_SIZE;
+
+      // Scrap mode: any click on a structure scraps it (sell via BuildingManager).
+      // Player stays in scrap mode so they can bulldoze many in a row.
+      if (this.scrapMode) {
+        const target = this.buildingManager.getStructureAt(worldPoint.x, worldPoint.y);
+        if (target) {
+          const data = this.buildingManager.getStructureData(target.structureId);
+          if (this.buildingManager.sell(target.id)) {
+            this.renderPlacedStructures();
+            this.updateResourceDisplay();
+            this.showInfo(`Scrapped ${data?.name ?? 'structure'}`);
+            AudioManager.play('ui_click');
+          }
+        }
+        return;
+      }
 
       if (this.placementMode && this.placementStructureId) {
         // Skip the click that opened placement mode (same pointer event)
@@ -1275,6 +1317,13 @@ export class DayScene extends Phaser.Scene {
           return;
         }
 
+        // 4b. Scrap mode
+        if (this.scrapMode && key === 'Escape') {
+          this.scrapMode = false;
+          this.showInfo('Scrap mode off');
+          return;
+        }
+
         // 5. Structure popup
         if (this.structurePopup) {
           if (key === 'Escape') {
@@ -1293,6 +1342,7 @@ export class DayScene extends Phaser.Scene {
           case 'L': this.lootRunPanel.toggle(); break;
           case 'S': this.skillPanel.toggle(); break;
           case 'E': this.showEndDayConfirmation(); break;
+          case 'X': this.toggleScrapMode(); break;
           default: break;
         }
 
