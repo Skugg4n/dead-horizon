@@ -1139,46 +1139,57 @@ export class DayScene extends Phaser.Scene {
     this.showInfo(`Click to place ${data?.name ?? structureId}.${rotHint} ESC/right-click to cancel.`);
   }
 
-  /** Show a floating [ROTATE] button near the top of the screen during placement. */
+  /**
+   * Show a floating [ROTATE] button. Drawn directly on the UI camera using
+   * setScrollFactor(0) so it works regardless of dual-camera quirks. Built
+   * from raw sprites (rectangle + text + hit zone) to sidestep any container-
+   * depth/camera-ignore edge cases that may have hidden the previous version.
+   */
   private showRotateButton(): void {
     if (this.rotateButton) {
       this.rotateButton.setVisible(true);
       return;
     }
-    const BTN_W = 88;
-    const BTN_H = 24;
-    const x = Math.floor(GAME_WIDTH / 2 - BTN_W / 2);
-    const y = 64;
+    console.log('[DayScene] showRotateButton called');
+
+    const BTN_W = 130;
+    const BTN_H = 32;
+    const x = Math.floor(GAME_WIDTH / 2);
+    const y = 80;
 
     const container = this.add.container(x, y);
-    const bg = this.add.graphics();
-    bg.fillStyle(0x1A1A1A, 0.92);
-    bg.fillRoundedRect(0, 0, BTN_W, BTN_H, 4);
-    bg.lineStyle(2, 0xC5A030, 0.9);
-    bg.strokeRoundedRect(0, 0, BTN_W, BTN_H, 4);
+
+    const bg = this.add.rectangle(0, 0, BTN_W, BTN_H, 0x1A1A1A, 0.95).setOrigin(0.5, 0.5);
+    bg.setStrokeStyle(3, 0xFFD700, 1);
     container.add(bg);
 
-    const label = this.add.text(BTN_W / 2, BTN_H / 2, 'ROTATE', {
+    const label = this.add.text(0, 0, '[ ROTATE ]', {
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '9px',
+      fontSize: '11px',
       color: '#FFD700',
     }).setOrigin(0.5, 0.5);
     container.add(label);
 
-    // Interactive hit zone covering the whole button
-    const hit = this.add.rectangle(0, 0, BTN_W, BTN_H, 0xffffff, 0.001).setOrigin(0, 0);
-    hit.setInteractive({ useHandCursor: true });
-    hit.on('pointerover', () => label.setColor('#FFFFFF'));
-    hit.on('pointerout', () => label.setColor('#FFD700'));
-    hit.on('pointerdown', (_pointer: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
+    // Make the rectangle itself the hit zone so clicks always land on it.
+    bg.setInteractive({ useHandCursor: true });
+    bg.on('pointerover', () => {
+      label.setColor('#FFFFFF');
+      bg.setFillStyle(0x333333, 0.95);
+    });
+    bg.on('pointerout', () => {
+      label.setColor('#FFD700');
+      bg.setFillStyle(0x1A1A1A, 0.95);
+    });
+    bg.on('pointerdown', (_pointer: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
       event.stopPropagation();
       this.rotatePlacement();
     });
-    container.add(hit);
 
-    container.setDepth(300);
+    container.setDepth(10000);
+    container.setScrollFactor(0);
     this.addToUI(container);
     this.rotateButton = container;
+    console.log(`[DayScene] rotate button placed at (${x}, ${y})`);
   }
 
   private hideRotateButton(): void {
@@ -1208,6 +1219,13 @@ export class DayScene extends Phaser.Scene {
     if (this.ghostGraphics) {
       this.ghostGraphics.destroy();
       this.ghostGraphics = null;
+    }
+    // Ensure rotate button reflects current structure's widthTiles
+    const data = this.buildingManager.getStructureData(this.placementStructureId);
+    if ((data?.widthTiles ?? 1) > 1) {
+      this.showRotateButton();
+    } else {
+      this.hideRotateButton();
     }
     const color = STRUCTURE_COLORS[this.placementStructureId] ?? 0x888888;
     const { w: ghostW, h: ghostH } = this.getGhostDimensions(this.placementStructureId);
