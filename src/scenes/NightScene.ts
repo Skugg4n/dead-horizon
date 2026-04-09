@@ -546,9 +546,12 @@ export class NightScene extends Phaser.Scene {
       AudioManager.startAmbient('night');
     }
 
-    // Start wave 1 after a brief delay
+    // Start wave 1 after a brief delay.
+    // NOTE: gameState.progress.currentWave stores the NIGHT NUMBER (legacy
+    // naming from back when one night == one wave). Each night always starts
+    // at wave 1 and counts up to getMaxWaves() which is set to nightNumber.
     this.time.delayedCall(1500, () => {
-      this.waveManager.startWave(this.gameState.progress.currentWave);
+      this.waveManager.startWave(1);
     });
 
     // Clean up all event listeners on scene shutdown to prevent memory leaks
