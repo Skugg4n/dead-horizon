@@ -63,6 +63,7 @@ export class DayScene extends Phaser.Scene {
   private placementMode: boolean = false;
   private placementStructureId: string | null = null;
   private placementRotation: 0 | 1 = 0; // 0 = horizontal (default), 1 = vertical
+  private rotateButton: Phaser.GameObjects.Container | null = null;
   private scrapMode: boolean = false;
   private maxApForDay: number = AP_PER_DAY;
   private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
@@ -1124,10 +1125,67 @@ export class DayScene extends Phaser.Scene {
     // we draw a ghost that covers the actual footprint so the player can see
     this.redrawGhost();
 
-    // Keep build menu visible so player can switch structures or close to exit
+    // Show a floating ROTATE button for multi-tile structures so the player
+    // has a reliable way to rotate without depending on the R key.
     const data = this.buildingManager.getStructureData(structureId);
-    const rotHint = (data?.widthTiles ?? 1) > 1 ? ' [R] rotate.' : '';
+    if ((data?.widthTiles ?? 1) > 1) {
+      this.showRotateButton();
+    } else {
+      this.hideRotateButton();
+    }
+
+    // Keep build menu visible so player can switch structures or close to exit
+    const rotHint = (data?.widthTiles ?? 1) > 1 ? ' Click ROTATE to turn.' : '';
     this.showInfo(`Click to place ${data?.name ?? structureId}.${rotHint} ESC/right-click to cancel.`);
+  }
+
+  /** Show a floating [ROTATE] button near the top of the screen during placement. */
+  private showRotateButton(): void {
+    if (this.rotateButton) {
+      this.rotateButton.setVisible(true);
+      return;
+    }
+    const BTN_W = 88;
+    const BTN_H = 24;
+    const x = Math.floor(GAME_WIDTH / 2 - BTN_W / 2);
+    const y = 64;
+
+    const container = this.add.container(x, y);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1A1A1A, 0.92);
+    bg.fillRoundedRect(0, 0, BTN_W, BTN_H, 4);
+    bg.lineStyle(2, 0xC5A030, 0.9);
+    bg.strokeRoundedRect(0, 0, BTN_W, BTN_H, 4);
+    container.add(bg);
+
+    const label = this.add.text(BTN_W / 2, BTN_H / 2, 'ROTATE', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#FFD700',
+    }).setOrigin(0.5, 0.5);
+    container.add(label);
+
+    // Interactive hit zone covering the whole button
+    const hit = this.add.rectangle(0, 0, BTN_W, BTN_H, 0xffffff, 0.001).setOrigin(0, 0);
+    hit.setInteractive({ useHandCursor: true });
+    hit.on('pointerover', () => label.setColor('#FFFFFF'));
+    hit.on('pointerout', () => label.setColor('#FFD700'));
+    hit.on('pointerdown', (_pointer: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
+      event.stopPropagation();
+      this.rotatePlacement();
+    });
+    container.add(hit);
+
+    container.setDepth(300);
+    this.addToUI(container);
+    this.rotateButton = container;
+  }
+
+  private hideRotateButton(): void {
+    if (this.rotateButton) {
+      this.rotateButton.destroy();
+      this.rotateButton = null;
+    }
   }
 
   /**
@@ -1193,6 +1251,7 @@ export class DayScene extends Phaser.Scene {
       this.ghostGraphics.destroy();
       this.ghostGraphics = null;
     }
+    this.hideRotateButton();
   }
 
   /**
