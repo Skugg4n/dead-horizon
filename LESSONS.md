@@ -227,6 +227,21 @@ npx tsc --noEmit && npm run lint && npx vitest run
 ```
 Om nagon failar, fixa INNAN push. GitHub Pages visar senaste LYCKADE deploy, sa en fail = gammal version live.
 
+### Deploy failure: "passerar lokalt men CI failar" -- ostagade filer
+**Problem (v6.13.0 - v6.15.2, 10 pushade commits live-blockade):** Lokal `npx tsc --noEmit` kor mot working tree inklusive ostagade andringar. Om du lagger till ett nytt type-falt (t.ex. `rotation?: 0 | 1` pa `StructureInstance`) i types.ts men `git add` ALDRIG korde, sa:
+- Lokalt: tsc ser den modifierade types.ts -> passerar
+- Push: bara andra filer gar till remote main
+- CI: checkar ut remote main utan type-patchen -> tsc failar -> deploy blockad
+- Live: fortsatter visa senaste LYCKADE deploy medan N commits staplar ovanpa trasig main
+
+**Losning:**
+1. Kor `git status` FORE commit och verifiera att ALLA modifierade filer ar med.
+2. Anvand `git add -A` eller explicit `git add <file>` for varje file som roros.
+3. Efter push, kolla `gh run list --limit 3` for att se om CI gick gront. Om failure -- ingen deploy.
+4. Om deploy fastnat: `gh run view <id> --log-failed | tail` visar exakt felet.
+
+**Regel:** Efter en stor feature som rorelser flera filer, stana upp och kor `git status` fore commit. Om nagot ar "modified" och du inte ar saker pa om det ska med -- verifiera, sen ta beslutet medvetet.
+
 ---
 
 ## Placement ghost och multi-tile strukturer
