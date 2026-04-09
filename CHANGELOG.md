@@ -1,5 +1,39 @@
 # Dead Horizon -- Changelog
 
+## [v6.4.0] - 2026-04-09 09:30 -- AI: Tre verkliga rotorsaker till "stuck mot mur"
+
+### Varfor
+Trots body-shrink i v6.3.0/6.3.2 fastnade zombies fortfarande vid muren och nuddade
+den i evighet. Tre faktiska bugar i PathGrid:
+
+1. **Target-tilen kunde vara blockerad.** Om base center landade pa en wall/shelter-tile
+   hittade A* aldrig nagon path till den. Resultat: fallback "ga rakt" som matar zombien
+   in i narmaste vagg.
+2. **Fallbacks cachades.** Nar A* misslyckades cachades den raka linjen i directionCache.
+   Alla zombies pa den tilen fick samma trasiga riktning for evigt -- aven efter att
+   griden andrats. Stuck-zombies forblev stuck eftersom de aldrig fragade om igen.
+3. **Cache-key inkluderade inte target.** Om olika zombies hade olika targets (base vs
+   player) blandades deras paths.
+
+### Andrat
+- **PathGrid.nearestWalkableTile():** ny spiral-search som hittar narmaste walkable
+  tile till en blockerad target. Om base center sitter pa en wall, omdirigerar A*
+  till narmaste oppning istallet.
+- **getSteeringDirection():** anropar `nearestWalkableTile` om target ar blockerad.
+- **Fallbacks cachas inte langre.** Endast lyckade A*-paths sparas. Misslyckade
+  forsok aterforsoks varje frame -- om griden andras (vagg forstord) lar zombien
+  sig direkt.
+- **Cache-key inkluderar target-tile:** `${fx},${fy}->${tx},${ty}` istallet for bara
+  start. Multipla targets stor inte varandra.
+- **DayScene debug button: CLEANUP FAR STRUCTURES.** Tar bort alla structures som ar
+  > 250px fran map center. Anvands for att rensa gamla save-contamination (BG7) dar
+  spelaren har structures kvar fran en tidigare bug-version.
+
+### Verifiering
+- npx tsc --noEmit: 0 fel
+- npm run lint: 0 varningar
+- npx vitest run: 1127/1127 pass
+
 ## [v6.3.2] - 2026-04-09 09:18 -- AI: ytterligare body-shrink + duplikerings-debug
 
 ### Varfor

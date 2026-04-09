@@ -134,14 +134,42 @@ export class PathGrid {
   }
 
   /**
+   * Find the nearest walkable tile to a target tile using a spiral search.
+   * Used when the path target itself is on a blocked cell (e.g. base center
+   * sitting on top of a structure tile). Without this, A* finds no path and
+   * zombies fall back to "walk straight into the wall" behavior.
+   */
+  private nearestWalkableTile(tx: number, ty: number, maxRadius: number = 8): { x: number; y: number } | null {
+    if (tx >= 0 && tx < this.gridWidth && ty >= 0 && ty < this.gridHeight && this.pfGrid.isWalkableAt(tx, ty)) {
+      return { x: tx, y: ty };
+    }
+    for (let r = 1; r <= maxRadius; r++) {
+      for (let oy = -r; oy <= r; oy++) {
+        for (let ox = -r; ox <= r; ox++) {
+          // Only check the ring at distance r
+          if (Math.max(Math.abs(ox), Math.abs(oy)) !== r) continue;
+          const nx = tx + ox;
+          const ny = ty + oy;
+          if (nx < 0 || nx >= this.gridWidth || ny < 0 || ny >= this.gridHeight) continue;
+          if (this.pfGrid.isWalkableAt(nx, ny)) return { x: nx, y: ny };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Get steering direction for a zombie at (fromX, fromY) toward the base.
    * Uses A* pathfinding with result caching per tile.
+   *
+   * Cache invariant: ONLY successful A* paths are cached. Fallback "go straight"
+   * results are NEVER cached, otherwise zombies stuck against a wall would
+   * forever receive the same broken direction.
    */
   getSteeringDirection(fromX: number, fromY: number, targetX: number, targetY: number): SteeringVector {
     const dx = targetX - fromX;
     const dy = targetY - fromY;
 
-    // Already at target
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
       return { x: 0, y: 0 };
     }
@@ -149,46 +177,47 @@ export class PathGrid {
     const fromTileX = Math.max(0, Math.min(this.gridWidth - 1, Math.floor(fromX / TILE_SIZE)));
     const fromTileY = Math.max(0, Math.min(this.gridHeight - 1, Math.floor(fromY / TILE_SIZE)));
 
-    const toTileX = Math.max(0, Math.min(this.gridWidth - 1, Math.floor(targetX / TILE_SIZE)));
-    const toTileY = Math.max(0, Math.min(this.gridHeight - 1, Math.floor(targetY / TILE_SIZE)));
+    const rawToTileX = Math.max(0, Math.min(this.gridWidth - 1, Math.floor(targetX / TILE_SIZE)));
+    const rawToTileY = Math.max(0, Math.min(this.gridHeight - 1, Math.floor(targetY / TILE_SIZE)));
 
-    // Same tile as target -- go straight
+    // If target tile is blocked (e.g. base center sits on a wall/shelter cell),
+    // re-target to the nearest walkable tile so A* can find SOMETHING. Otherwise
+    // every path fails and zombies just walk into the nearest wall forever.
+    let toTileX = rawToTileX;
+    let toTileY = rawToTileY;
+    if (!this.pfGrid.isWalkableAt(rawToTileX, rawToTileY)) {
+      const nearest = this.nearestWalkableTile(rawToTileX, rawToTileY, 8);
+      if (nearest) {
+        toTileX = nearest.x;
+        toTileY = nearest.y;
+      }
+    }
+
     if (fromTileX === toTileX && fromTileY === toTileY) {
       const len = Math.sqrt(dx * dx + dy * dy);
       return len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
     }
 
-    // Check direction cache (expires after 30 entries to prevent stale data)
-    const cacheKey = `${fromTileX},${fromTileY}`;
-    if (this.directionCache.size > 200) this.directionCache.clear();
+    // Cache key includes target so different targets don't poison each other.
+    const cacheKey = `${fromTileX},${fromTileY}->${toTileX},${toTileY}`;
+    if (this.directionCache.size > 400) this.directionCache.clear();
     const cached = this.directionCache.get(cacheKey);
     if (cached) return cached;
 
-    // If zombie's tile is blocked (pushed into wall by physics), find nearest walkable tile
     let startX = fromTileX;
     let startY = fromTileY;
     if (!this.pfGrid.isWalkableAt(startX, startY)) {
-      // Search 3x3 neighborhood for a walkable cell
-      let found = false;
-      for (let oy = -1; oy <= 1 && !found; oy++) {
-        for (let ox = -1; ox <= 1 && !found; ox++) {
-          const nx = startX + ox;
-          const ny = startY + oy;
-          if (nx >= 0 && nx < this.gridWidth && ny >= 0 && ny < this.gridHeight && this.pfGrid.isWalkableAt(nx, ny)) {
-            startX = nx;
-            startY = ny;
-            found = true;
-          }
-        }
-      }
-      if (!found) {
-        // Fully surrounded -- just go straight and let physics handle it
+      const nearest = this.nearestWalkableTile(startX, startY, 4);
+      if (nearest) {
+        startX = nearest.x;
+        startY = nearest.y;
+      } else {
+        // Fully surrounded -- go straight (NOT cached)
         const len = Math.sqrt(dx * dx + dy * dy);
         return len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
       }
     }
 
-    // Compute A* path (grid.clone() required -- PathFinding.js mutates the grid)
     try {
       const path = this.finder.findPath(
         startX, startY,
@@ -197,30 +226,26 @@ export class PathGrid {
       );
 
       if (path.length >= 2) {
-        // Next step is path[1] (path[0] is current position)
         const nextStep = path[1] as number[] | undefined;
         if (nextStep && nextStep.length >= 2) {
           const stepDx = (nextStep[0] ?? fromTileX) - fromTileX;
           const stepDy = (nextStep[1] ?? fromTileY) - fromTileY;
-          // Normalize (diagonal = 0.707, cardinal = 1.0)
           const len = Math.sqrt(stepDx * stepDx + stepDy * stepDy);
           const dir: SteeringVector = len > 0
             ? { x: stepDx / len, y: stepDy / len }
             : { x: 0, y: 0 };
 
-          // Cache result
+          // Cache only SUCCESSFUL A* results
           this.directionCache.set(cacheKey, dir);
           return dir;
         }
       }
     } catch {
-      // A* failed (shouldn't happen but be safe)
+      // A* failed -- fall through
     }
 
-    // No path found -- zombie is enclosed or something weird. Go straight.
+    // No path found -- DO NOT cache. Caller retries next frame.
     const len = Math.sqrt(dx * dx + dy * dy);
-    const fallback: SteeringVector = len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
-    this.directionCache.set(cacheKey, fallback);
-    return fallback;
+    return len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
   }
 }

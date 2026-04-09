@@ -2072,6 +2072,30 @@ export class DayScene extends Phaser.Scene {
       console.log('[DEBUG] Game saved');
     });
 
+    addButton('CLEANUP FAR STRUCTURES', () => {
+      // Removes any structure more than 250px from the map center.
+      // The base is always at the map center -- structures far from it
+      // are leftovers from old save bugs (BG7) and should be scrapped.
+      const mapCenterX = (MAP_WIDTH * TILE_SIZE) / 2;
+      const mapCenterY = (MAP_HEIGHT * TILE_SIZE) / 2;
+      const MAX_DIST = 250;
+      const before = gs.base.structures.length;
+      const removed: Array<{ id: string; x: number; y: number }> = [];
+      gs.base.structures = gs.base.structures.filter(s => {
+        const dx = s.x + TILE_SIZE / 2 - mapCenterX;
+        const dy = s.y + TILE_SIZE / 2 - mapCenterY;
+        const tooFar = Math.sqrt(dx * dx + dy * dy) > MAX_DIST;
+        if (tooFar) removed.push({ id: s.structureId, x: s.x, y: s.y });
+        return !tooFar;
+      });
+      const after = gs.base.structures.length;
+      console.log(`[DEBUG] CLEANUP removed ${before - after} structures (>${MAX_DIST}px from center):`);
+      console.table(removed);
+      SaveManager.save(gs);
+      // Re-render the day view to reflect the change
+      this.scene.restart();
+    });
+
     addButton('[CLOSE]', () => { this.toggleDebugMenu(); });
   }
 
