@@ -365,6 +365,10 @@ export class NightScene extends Phaser.Scene {
     this.pathGrid.updateFromStructures(this.gameState.base.structures);
     // Also register natural terrain blockers (building ruins / bunkers) so zombies route around them
     this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
+    // Register every static physics collider from terrain (trees, large stones).
+    // Without this, A* plots paths straight through trees and zombies get stuck
+    // colliding with them in a tight loop. This was the second half of the AI bug.
+    this.pathGrid.addColliderGroup(this.terrainResult.colliders);
     // Compute BFS flowfield from the base center -- zombies use this to navigate around walls.
     // baseCenterX/Y are set inside createTerrain() which runs before this block.
     this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);

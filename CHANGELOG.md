@@ -1,5 +1,25 @@
 # Dead Horizon -- Changelog
 
+## [v6.3.1] - 2026-04-09 09:10 -- AI del 2: PathGrid kände inte till träd
+
+### Varfor
+v6.3.0 fixade vagg-gap men zombies fastnade fortfarande bakom trad och stenar.
+Rotorsak: PathGrid (A*) registrerade BARA structures (vaggar) och naturalBlockerRects
+(building ruins / bunkers i City/Military). Forest-trad och stora stenar har Phaser
+physics colliders men finns INTE i pathfinding-griden. Resultat: A* plottar en rak
+vag mot basen, zombien gar in i trad, fastnar, springer i cirkel.
+
+### Andrat
+- **PathGrid.addColliderGroup():** ny metod som scannar en Phaser StaticGroup och
+  markerar varje physics body's tile-cells som unwalkable.
+- **NightScene.create():** kallar `pathGrid.addColliderGroup(terrainResult.colliders)`
+  efter `addNaturalBlockers()`. Nu vet A* om alla trad, stenar och andra terrain-blockers.
+
+### Verifiering
+- npx tsc --noEmit: 0 fel
+- npm run lint: 0 varningar
+- npx vitest run: 1127/1127 pass
+
 ## [v6.3.0] - 2026-04-09 08:55 -- ROTORSAK till AI-buggen: collision-box = tile-storlek
 
 ### Varfor

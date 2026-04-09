@@ -2,6 +2,7 @@
 // Replaces homegrown BFS flowfield with battle-tested A* implementation.
 // Key features: diagonal movement, corner-cutting prevention, path caching.
 
+import Phaser from 'phaser';
 import PF from 'pathfinding';
 import { MAP_WIDTH, MAP_HEIGHT, TILE_SIZE } from '../config/constants';
 import type { NaturalBlockerRect, StructureInstance } from '../config/types';
@@ -61,6 +62,38 @@ export class PathGrid {
       }
     }
 
+    this.directionCache.clear();
+  }
+
+  /**
+   * Mark every static physics body in a Phaser StaticGroup as unwalkable.
+   * Used for terrain colliders (trees, large stones) that are not in the
+   * structures array but still block movement. Without this, A* plots
+   * paths straight through trees and zombies get stuck colliding with them.
+   */
+  addColliderGroup(group: Phaser.Physics.Arcade.StaticGroup | null | undefined): void {
+    if (!group) return;
+    const children = group.getChildren();
+    for (const child of children) {
+      const body = (child as Phaser.GameObjects.GameObject & { body?: Phaser.Physics.Arcade.StaticBody | Phaser.Physics.Arcade.Body | null }).body;
+      if (!body) continue;
+      // Both Body and StaticBody expose x/y/width/height in pixel coordinates.
+      const bx = body.x;
+      const by = body.y;
+      const bw = body.width;
+      const bh = body.height;
+      const tileLeft = Math.floor(bx / TILE_SIZE);
+      const tileRight = Math.floor((bx + bw) / TILE_SIZE);
+      const tileTop = Math.floor(by / TILE_SIZE);
+      const tileBot = Math.floor((by + bh) / TILE_SIZE);
+      for (let ty = tileTop; ty <= tileBot; ty++) {
+        for (let tx = tileLeft; tx <= tileRight; tx++) {
+          if (tx >= 0 && tx < this.gridWidth && ty >= 0 && ty < this.gridHeight) {
+            this.pfGrid.setWalkableAt(tx, ty, false);
+          }
+        }
+      }
+    }
     this.directionCache.clear();
   }
 
