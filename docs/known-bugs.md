@@ -1,7 +1,28 @@
 # Dead Horizon -- Known Bugs & Issues
 
 Denna fil trackar alla kända buggar och uppgifter. Stryks INTE förrän verifierade som fixade.
-Uppdaterad: 2026-04-06, v2.6.1
+Uppdaterad: 2026-04-09, v6.1.2
+
+---
+
+## AKTIVA (2026-04-09)
+
+### BG4: Collider matchar inte visuella hål i muren
+- Spelaren har ett hål i sin mur men kan inte gå ut genom det -- det är som om en osynlig vägg står i hålet.
+- Troligt rotorsak: static collider-rectangle skapas vid fel x/y relativt structure-grafiken, eller
+  collision-shapes rensas inte korrekt när en structure rivs. Möjligt även att tile-grid-collision
+  (A*/PathGrid) och Arcade Physics-colliders är osynkade och fysiken har en "ghost cell".
+- Reproduktion: bygg en mur runt basen, riv en wall-bit i muren, försök gå ut genom hålet.
+- Status: EJ FIXAD -- prioritera. Se /Users/olabelin/Projects/dead-horizon/src/systems/BuildingManager.ts
+  (destroy/refresh-logik) och NightScene/DayScene colliders som byggs från gameState.base.structures.
+
+### BG5: Nunchucks fastnar på Lv3 Enhanced trots många kills
+- Användaren rapporterar att weapon-XP inte känns som att den leds hela vägen till Supr/Ult.
+- Designintention: xpPerLevel = [0, 10, 25, 50, 100]; Lv3→Lv4 kräver 50 weapon-XP (1 XP per kill).
+  Lv4→Lv5 (ULT) är manuell unlock med parts+scrap, INTE XP-baserat.
+- UI-problem: EquipmentPanel visar inte weapon.xp eller "X/Y till nästa tier", så spelaren ser
+  inte progressionen. Add UI: visa `xp/needed` under tier-raden för nuvarande nivå.
+- Status: EJ FIXAD (UX clarity)
 
 ---
 

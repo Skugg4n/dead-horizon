@@ -1,5 +1,32 @@
 # Dead Horizon -- Changelog
 
+## [v6.2.0] - 2026-04-09 08:50 -- Robust dual-slot save system + nya buggar loggade
+
+### Varfor
+Save-systemet har wipat spelarens progress flera ganger (rapporterat upprepat). Istallet for
+att jaga en specifik rotorsak har vi nu ett defensivt dubbelspars-system som skyddar spelaren
+aven om en framtida bug skulle forsoka skriva over en bra save med default-liknande data.
+
+### Andrat
+- **SaveManager.ts:** Dubbelspars-system med tre slots:
+  - `dead-horizon-save` (primary)
+  - `dead-horizon-save-backup` (foregaende primary, roteras vid varje save)
+  - `dead-horizon-save-safe` (senaste "known-good" snapshot, uppdateras endast nar det ser
+    ut som riktig progress -- byggda structures, refugees, extra vapen, wave > 1 etc.)
+- **Skydd mot wipe:** `save()` vagrar skriva over en befintlig save som ser ut som riktig
+  progress med en state som ser "default-lik" ut. Sista forsvarslinjen.
+- **Robust load:** `load()` provar primary -> backup -> safe i ordning. Varje slot parsas
+  och hydrereras separat. Forsta slot med riktig progress vinner, och den "laker" primary
+  om den behovde fallback. Om ingen slot har progress, returneras forsta parsebara slotten
+  som-ar. Endast om allt failer returneras defaults.
+- **Version:** bumpad till 6.2.0.
+
+### Buggar som loggats till docs/known-bugs.md
+- **BG4:** Spelaren kan inte ga ut genom ett hal i muren -- osynlig vagg i hal. Troligt
+  collider-mismatch eller orensad collision-shape nar structure rivs. EJ FIXAD.
+- **BG5:** Nunchucks-XP-progression oklar. UI visar inte weapon.xp/needed sa spelaren vet
+  inte att Lv3->Lv4 kraver 50 kills och Lv4->Lv5 kraver manuell ULT-unlock. EJ FIXAD.
+
 ## [v6.1.0] - 2026-04-04 00:20 -- Bug fixes + polish: kill attribution, pickup spam, blueprint unlocks, combo hint, settings, crafting armor/shields
 
 ### Varfor
