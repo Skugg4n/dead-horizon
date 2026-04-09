@@ -1,5 +1,34 @@
 # Dead Horizon -- Changelog
 
+## [v6.5.0] - 2026-04-09 13:55 -- AI: single source of truth fran physics world
+
+### Varfor
+Hand-rollad sync mellan wallBodies, terrain-colliders och PathGrid ledde till
+upprepade buggar dar AI-griden hade andra block an fysiken. GRID-overlay
+visade att hela fortets interior var rod i griden trots att strukturerna dar
+inte blockerade fysiken. Orsak: (1) off-by-one i addColliderGroup dar en body
+pa exakt tile-grans markerade BADE tilen och nasta, (2) tva separata kodvagar
+for att bygga griden (updateFromStructures + addColliderGroup) med olika
+hardkodade regler.
+
+### Andrat
+- **PathGrid.rebuildFromPhysics(groups):** ny metod som scannar valfritt antal
+  Phaser StaticGroups och markerar alla tiles som overlappas. Ingen hardkodad
+  BLOCKING_STRUCTURE_IDS -- fysiken ar sanning.
+- **Off-by-one fix:** bodies som slutar pa exakt tile-grans (t.ex. 32x32-vagg
+  vid x=640, slutar pa 672) markerade tidigare BADE tile 20 och 21. Nu
+  subtraheras EPS fran right/bottom innan floor.
+- **NightScene:** bade init och wall-destroyed-handlern anropar
+  `rebuildFromPhysics([wallBodies, terrainResult.colliders])`.
+- **docs/ai-architecture-notes.md:** ny fil med anteckningar om framtida
+  alternativ (Phaser Tilemap, Yuka.js). Designregel: aldrig tva oberoende
+  datastrukturer for samma varld.
+
+### Verifiering
+- npx tsc --noEmit: 0 fel
+- npm run lint: 0 varningar
+- npx vitest run: 1127/1127 pass
+
 ## [v6.4.0] - 2026-04-09 09:30 -- AI: Tre verkliga rotorsaker till "stuck mot mur"
 
 ### Varfor
