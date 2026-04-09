@@ -2218,9 +2218,12 @@ export class NightScene extends Phaser.Scene {
       if (this.gameState.progress.currentWave > this.gameState.progress.highestWave) {
         this.gameState.progress.highestWave = this.gameState.progress.currentWave;
       }
-      // Return unused loaded ammo back to the inventory stockpile before saving
+      // Return unused loaded ammo back to the stockpile, then clear the loaded
+      // field so the next night's autoLoadAmmo idempotency check does not
+      // double-count it.
       this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
-      this.gameState.inventory.loadedAmmo = this.loadedAmmo;
+      this.gameState.inventory.loadedAmmo = 0;
+      this.loadedAmmo = 0;
       this.decreaseUsedWeaponDurability();
       this.decreaseArmorDurability();
       this.skillManager.syncToState(this.gameState);
@@ -2358,9 +2361,10 @@ export class NightScene extends Phaser.Scene {
       this.gameState.progress.currentWave = 1;
       // Randomize map seed so the layout feels fresh on the retry
       this.gameState.mapSeed = Math.floor(Math.random() * 100000);
-      // Return unused loaded ammo back to the inventory stockpile before saving
+      // Return unused loaded ammo back to the stockpile, then clear.
       this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
-      this.gameState.inventory.loadedAmmo = this.loadedAmmo;
+      this.gameState.inventory.loadedAmmo = 0;
+      this.loadedAmmo = 0;
       this.decreaseUsedWeaponDurability();
       this.decreaseArmorDurability();
       this.skillManager.syncToState(this.gameState);
@@ -2863,6 +2867,15 @@ export class NightScene extends Phaser.Scene {
    * Returns total loaded ammo.
    */
   private autoLoadAmmo(): number {
+    // Idempotency: if a previous session crashed mid-night and left ammo in
+    // gameState.inventory.loadedAmmo, return it to the stockpile before we
+    // reload. Otherwise a crash would permanently zero the player's ammo.
+    const prevLoaded = this.gameState.inventory.loadedAmmo ?? 0;
+    if (prevLoaded > 0) {
+      this.gameState.inventory.resources.ammo += prevLoaded;
+      this.gameState.inventory.loadedAmmo = 0;
+    }
+
     const weapons = this.gameState.inventory.weapons;
     const { primaryWeaponId, secondaryWeaponId } = this.gameState.equipped;
     const equippedIds = [primaryWeaponId, secondaryWeaponId].filter((id): id is string => id !== null);
@@ -2887,8 +2900,11 @@ export class NightScene extends Phaser.Scene {
       return 0;
     }
 
-    // Load all available ammo
+    // Move stockpile -> loadedAmmo AND persist the intermediate state in the
+    // save atomically. If the process crashes after this, the next
+    // autoLoadAmmo call above will see loadedAmmo > 0 and restore it.
     this.gameState.inventory.resources.ammo = 0;
+    this.gameState.inventory.loadedAmmo = available;
     SaveManager.save(this.gameState);
 
     return available;
