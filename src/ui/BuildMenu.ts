@@ -80,6 +80,7 @@ const STRUCTURE_ICONS: Record<string, string> = {
   fire_pit:             '🔥',
   propane_geyser:       '💨',
   washing_cannon:       '💧',
+  floodlight:           '💡',
   shock_wire:           '🔌',
   spring_launcher:      '🔩',
   // Tier 2 machines

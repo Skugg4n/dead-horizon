@@ -23,6 +23,7 @@ import { PitTrap } from '../structures/PitTrap';
 import { NailBoard } from '../structures/NailBoard';
 import { TripWire } from '../structures/TripWire';
 import { GlassShards } from '../structures/GlassShards';
+import { Floodlight } from '../structures/Floodlight';
 import { TarPit } from '../structures/TarPit';
 import { ShockWire } from '../structures/ShockWire';
 import { SpringLauncher } from '../structures/SpringLauncher';
@@ -177,6 +178,7 @@ export class NightScene extends Phaser.Scene {
   private _nailBoards: NailBoard[] = [];
   private _tripWires: TripWire[] = [];
   private _glassShards: GlassShards[] = [];
+  private _floodlights: Floodlight[] = [];
   private _tarPits: TarPit[] = [];
   // TrapBase-derived mechanical traps (have cooldown/overheat/malfunction)
   private _bladeSpinners: BladeSpinner[] = [];
@@ -843,6 +845,7 @@ export class NightScene extends Phaser.Scene {
     this._nailBoards = [];
     this._tripWires = [];
     this._glassShards = [];
+    this._floodlights = [];
     this._tarPits = [];
     this._bladeSpinners = [];
     this._firePits = [];
@@ -1114,6 +1117,29 @@ export class NightScene extends Phaser.Scene {
           const dps   = (glassShardsdef as { damagePerSecond?: number } | undefined)?.damagePerSecond ?? 5;
           const gs    = new GlassShards(this, structure, dps);
           this._glassShards.push(gs);
+          break;
+        }
+        case 'floodlight': {
+          const fldDef = structuresData.structures.find(s => s.id === 'floodlight') as {
+            damagePerSecond?: number; zoneRadius?: number; fuelPerNight?: number; malfunctionChance?: number;
+          } | undefined;
+          const fldDps    = fldDef?.damagePerSecond ?? 2;
+          const fldRadius = fldDef?.zoneRadius ?? 96;
+          const fldFuel   = fldDef?.fuelPerNight ?? 1;
+          const fldMal    = fldDef?.malfunctionChance ?? 0.08;
+          const fld = new Floodlight(this, structure, fldDps, fldRadius, fldFuel, fldMal);
+          // Roll malfunction
+          if (Math.random() < fld.malfunctionChance) fld.malfunctioned = true;
+          // Deduct fuel
+          if (!fld.malfunctioned && fld.fuelPerNight > 0) {
+            if (this.resourceManager.canAfford({ food: fld.fuelPerNight })) {
+              this.resourceManager.spend('food', fld.fuelPerNight);
+            } else {
+              fld.malfunctioned = true;
+              noFuelTraps.push('Floodlight');
+            }
+          }
+          this._floodlights.push(fld);
           break;
         }
         case 'tar_pit': {
@@ -1565,6 +1591,7 @@ export class NightScene extends Phaser.Scene {
     insertAlive(this._nailBoards);
     insertAlive(this._tripWires);
     insertAlive(this._glassShards);
+    insertAlive(this._floodlights);
     insertAlive(this._tarPits);
     insertAlive(this._glueFloors);
   }
@@ -2364,11 +2391,10 @@ export class NightScene extends Phaser.Scene {
       AudioManager.stopAmbient();
       this.gameState.progress.totalKills += this.kills;
       this.gameState.progress.totalRuns++;
-      // On death: reset to night 1 of the SAME zone (roguelite restart, not zone reset).
-      // Gear, refugees, skills, and zone unlocks are all preserved.
-      this.gameState.progress.currentWave = 1;
-      // Randomize map seed so the layout feels fresh on the retry
-      this.gameState.mapSeed = Math.floor(Math.random() * 100000);
+      // On death: respawn on the SAME night (not night 1). The "grind" is
+      // redoing the same day/night until you survive it. Gear, refugees,
+      // skills, and structures are all preserved -- the only cost is the
+      // time it takes to replay the day.
       // Return unused loaded ammo back to the stockpile, then clear.
       this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
       this.gameState.inventory.loadedAmmo = 0;
@@ -3731,6 +3757,7 @@ export class NightScene extends Phaser.Scene {
     this._nailBoards     = this._nailBoards.filter(t => t && t.active);
     this._tripWires      = this._tripWires.filter(t => t && t.active);
     this._glassShards    = this._glassShards.filter(t => t && t.active);
+    this._floodlights    = this._floodlights.filter(t => t && t.active);
     this._tarPits        = this._tarPits.filter(t => t && t.active);
     this._bladeSpinners  = this._bladeSpinners.filter(t => t && t.active);
     this._firePits       = this._firePits.filter(t => t && t.active);
@@ -3977,13 +4004,23 @@ export class NightScene extends Phaser.Scene {
           continue;
         }
 
-        // ----- GlassShards (continuous damage per second in zone) -----
+        // ----- GlassShards (tile-tight contact damage) -----
         if (candidate instanceof GlassShards) {
           const gs = candidate;
           if (!gs.isAlive()) continue;
           if (gs.containsPoint(zombie.x, zombie.y)) {
             this.applyTrapDamage(zombie, 'Glass Shards', gs.damagePerSecond * this._lastDelta / 1000);
             AudioManager.play('trap_glass_shards');
+          }
+          continue;
+        }
+
+        // ----- Floodlight (light beam DoT zone) -----
+        if (candidate instanceof Floodlight) {
+          const fld = candidate;
+          if (!fld.isAlive() || fld.malfunctioned) continue;
+          if (fld.containsPoint(zombie.x, zombie.y)) {
+            this.applyTrapDamage(zombie, 'Floodlight', fld.damagePerSecond * this._lastDelta / 1000);
           }
           continue;
         }
@@ -4033,6 +4070,11 @@ export class NightScene extends Phaser.Scene {
     // Animate glass shards sparkle -- once per frame, not per zombie
     for (const gs of this._glassShards) {
       if (gs.isAlive()) gs.animUpdate(this._lastDelta);
+    }
+
+    // Animate floodlights pulse
+    for (const fld of this._floodlights) {
+      if (fld.isAlive()) fld.animUpdate(this._lastDelta);
     }
 
     // Animate nail boards and trip wires (flash timers) -- once per frame

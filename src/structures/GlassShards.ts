@@ -2,11 +2,8 @@ import Phaser from 'phaser';
 import { TILE_SIZE } from '../config/constants';
 import type { StructureInstance } from '../config/types';
 
-/** Zone radius in pixels (~3 tiles). */
-export const GLASS_SHARDS_RADIUS = 96;
-
-/** Number of sparkle points that animate independently. */
-const SPARKLE_COUNT = 8;
+/** Zone radius in pixels -- tile-tight now, no more glow aura. */
+export const GLASS_SHARDS_RADIUS = 18;
 
 /**
  * Glass Shards -- broken glass spread across the ground that deals continuous
@@ -27,18 +24,6 @@ export class GlassShards extends Phaser.GameObjects.Graphics {
   /** Zone radius in pixels. */
   public readonly zoneRadius: number = GLASS_SHARDS_RADIUS;
 
-  /** Animation phase for continuous sparkle effect. */
-  private sparklePhase: number = 0;
-
-  /**
-   * Individual phase offsets for each sparkle point so they twinkle independently.
-   * Pre-computed in constructor to avoid allocating each frame.
-   */
-  private readonly sparkleOffsets: number[];
-
-  /** Pre-computed random sparkle positions within the tile. */
-  private readonly sparklePositions: Array<{ x: number; y: number }>;
-
   constructor(
     scene: Phaser.Scene,
     instance: StructureInstance,
@@ -47,18 +32,6 @@ export class GlassShards extends Phaser.GameObjects.Graphics {
     super(scene);
     this.structureInstance = instance;
     this.damagePerSecond = damagePerSecond;
-
-    // Pre-compute sparkle offsets (stable per instance, no per-frame allocation)
-    this.sparkleOffsets = Array.from({ length: SPARKLE_COUNT }, (_, i) =>
-      (i / SPARKLE_COUNT) * Math.PI * 2,
-    );
-
-    // Pre-compute sparkle positions spread across the tile
-    this.sparklePositions = [
-      { x: 4, y: 6 }, { x: 20, y: 2 }, { x: 12, y: 18 },
-      { x: 26, y: 12 }, { x: 6, y: 24 }, { x: 28, y: 26 },
-      { x: 16, y: 8 }, { x: 22, y: 22 },
-    ];
 
     this.setPosition(instance.x, instance.y);
     this.draw();
@@ -69,14 +42,9 @@ export class GlassShards extends Phaser.GameObjects.Graphics {
   private draw(): void {
     this.clear();
 
-    const cx = TILE_SIZE / 2;
-    const cy = TILE_SIZE / 2;
-
-    // Subtle zone indicator: faint circle on ground
-    this.fillStyle(0xDDDDFF, 0.04);
-    this.fillCircle(cx, cy, this.zoneRadius);
-
-    // Static glass shards (small irregular shapes)
+    // Static glass shards (small irregular shapes) -- no glow, no sparkle.
+    // Just dirty broken glass on the ground. The "glow" damage was moved
+    // to Floodlight which makes more physical sense.
     const shardColor = 0xC8E0FF;
     const staticPositions = [
       { x: 4, y: 6 }, { x: 20, y: 2 }, { x: 12, y: 18 },
@@ -85,44 +53,18 @@ export class GlassShards extends Phaser.GameObjects.Graphics {
       { x: 30, y: 6 }, { x: 2, y: 16 }, { x: 24, y: 30 },
     ];
     for (const p of staticPositions) {
-      this.fillStyle(shardColor, 0.7);
-      // Small irregular triangle-like shard
+      this.fillStyle(shardColor, 0.85);
       this.fillTriangle(
         p.x, p.y,
         p.x + 3, p.y - 2,
         p.x + 2, p.y + 3,
       );
     }
-
-    // Animated sparkles: glittering white/blue points that blink on/off
-    for (let i = 0; i < SPARKLE_COUNT; i++) {
-      const offset = this.sparkleOffsets[i] ?? 0;
-      const phase = this.sparklePhase + offset;
-      // Each sparkle pulses in and out using a sine wave
-      const brightness = (Math.sin(phase * 3) + 1) / 2; // 0..1
-      if (brightness > 0.4) {
-        const pos = this.sparklePositions[i];
-        if (!pos) continue; // guard against noUncheckedIndexedAccess
-        // Cross/star shaped sparkle: dimmer blue instead of bright white
-        this.lineStyle(1, 0x4488AA, brightness * 0.5);
-        this.lineBetween(pos.x - 2, pos.y, pos.x + 2, pos.y);
-        this.lineBetween(pos.x, pos.y - 2, pos.x, pos.y + 2);
-      }
-    }
-
-    // Border
-    this.lineStyle(1, 0x8899BB, 0.2);
-    this.strokeRect(0, 0, TILE_SIZE, TILE_SIZE);
   }
 
-  /**
-   * Advance sparkle animation. Call from NightScene.update() each frame.
-   * @param delta Frame time in ms.
-   */
-  animUpdate(delta: number): void {
-    this.sparklePhase += delta * 0.004; // slow twinkle rate
-    this.clear();
-    this.draw();
+  /** No-op: glass shards are static visuals now, no animation. */
+  animUpdate(_delta: number): void {
+    // intentionally empty
   }
 
   /**
