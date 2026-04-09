@@ -1891,6 +1891,12 @@ export class NightScene extends Phaser.Scene {
             this.clearBlockingTile(tile.x, tile.y);
             this.pathGrid.rebuildFromTilemap(this.collisionLayer);
             this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
+            // Force all active zombies to drop their cached paths so they
+            // pick up the new opening on the next frame.
+            this.zombieGroup.getChildren().forEach(child => {
+              const z = child as Zombie;
+              if (z.active && typeof z.invalidatePath === 'function') z.invalidatePath();
+            });
           } else {
             AudioManager.play('structure_damage');
           }

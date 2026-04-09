@@ -199,6 +199,73 @@ export class PathGrid {
     return { width: this.gridWidth, height: this.gridHeight };
   }
 
+  /**
+   * Find a world-coordinate path from (fromX, fromY) to (toX, toY).
+   *
+   * Returns a list of waypoints where each waypoint is the CENTER of a
+   * walkable tile. Zombies follow these in sequence so they never head
+   * directly into a wall -- every waypoint is in a guaranteed walkable
+   * cell. Returns an empty array if no path exists.
+   *
+   * The first waypoint is the center of the tile the zombie is currently
+   * in (or the nearest walkable if it spawned on a blocker). The last
+   * waypoint is the center of the target tile (or the nearest walkable).
+   */
+  findPath(fromX: number, fromY: number, toX: number, toY: number): Array<{ x: number; y: number }> {
+    const fromTileX = Math.max(0, Math.min(this.gridWidth - 1, Math.floor(fromX / TILE_SIZE)));
+    const fromTileY = Math.max(0, Math.min(this.gridHeight - 1, Math.floor(fromY / TILE_SIZE)));
+    const toTileX = Math.max(0, Math.min(this.gridWidth - 1, Math.floor(toX / TILE_SIZE)));
+    const toTileY = Math.max(0, Math.min(this.gridHeight - 1, Math.floor(toY / TILE_SIZE)));
+
+    // If target is blocked (base sits on a wall tile), find the closest walkable
+    let finalX = toTileX;
+    let finalY = toTileY;
+    if (!this.pfGrid.isWalkableAt(toTileX, toTileY)) {
+      const nearest = this.nearestWalkableTile(toTileX, toTileY, 8);
+      if (!nearest) return [];
+      finalX = nearest.x;
+      finalY = nearest.y;
+    }
+
+    // If the zombie's tile is blocked (pushed into wall by physics), start from nearest walkable
+    let startX = fromTileX;
+    let startY = fromTileY;
+    if (!this.pfGrid.isWalkableAt(startX, startY)) {
+      const nearest = this.nearestWalkableTile(startX, startY, 4);
+      if (!nearest) return [];
+      startX = nearest.x;
+      startY = nearest.y;
+    }
+
+    // Already at target -- one-waypoint path so the zombie heads to tile center
+    if (startX === finalX && startY === finalY) {
+      return [{ x: finalX * TILE_SIZE + TILE_SIZE / 2, y: finalY * TILE_SIZE + TILE_SIZE / 2 }];
+    }
+
+    let tilePath: number[][];
+    try {
+      // PathFinding.js mutates the grid, always clone before findPath
+      tilePath = this.finder.findPath(startX, startY, finalX, finalY, this.pfGrid.clone());
+    } catch {
+      return [];
+    }
+
+    if (!tilePath || tilePath.length === 0) return [];
+
+    // Convert tile indices to world-space tile centers.
+    const waypoints: Array<{ x: number; y: number }> = [];
+    for (const step of tilePath) {
+      const tx = step[0];
+      const ty = step[1];
+      if (tx == null || ty == null) continue;
+      waypoints.push({
+        x: tx * TILE_SIZE + TILE_SIZE / 2,
+        y: ty * TILE_SIZE + TILE_SIZE / 2,
+      });
+    }
+    return waypoints;
+  }
+
   /** Clear direction cache -- called when structures change */
   rebuildFlowfield(_baseCenterX: number, _baseCenterY: number): void {
     this.directionCache.clear();

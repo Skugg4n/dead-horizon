@@ -92,6 +92,19 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   private static readonly PATHFIND_INTERVAL_ONSCREEN = 150;
   offScreen: boolean = false;
 
+  // ------------------------------------------------------------------
+  // WAYPOINT PATH FOLLOWING (v6.8.0)
+  // ------------------------------------------------------------------
+  // Each zombie owns a list of world-coord waypoints (tile centers). It
+  // heads to path[pathIndex] and advances when within WAYPOINT_REACH. The
+  // path is recomputed via A* every PATH_RECOMPUTE_MS or when invalidated.
+  // This replaces the old per-frame steering which caused wall-jitter.
+  private path: Array<{ x: number; y: number }> = [];
+  private pathIndex: number = 0;
+  private pathRecomputeTimer: number = 0;
+  private static readonly PATH_RECOMPUTE_MS = 600;
+  private static readonly WAYPOINT_REACH = 10;
+
   // Spitter behavior
   private spitterRange: number = 250;
   private spitterCooldown: number = 3000;
@@ -397,8 +410,16 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.mapHeight = height;
   }
 
+  /** Invalidate the current path (e.g. when a wall is destroyed). */
+  invalidatePath(): void {
+    this.path = [];
+    this.pathIndex = 0;
+    this.pathRecomputeTimer = 0;
+  }
+
   setPathGrid(grid: PathGrid): void {
     this.pathGrid = grid;
+    this.invalidatePath();
   }
 
   /** Pick a flanking point: offset from base toward a random map edge */
@@ -591,41 +612,83 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     // Move toward target -- apply cripple debuff if active (-50% speed)
     const speedMult = this.crippleTimer > 0 ? 0.5 : 1.0;
 
-    // Use PathGrid steering if available; otherwise fall back to direct movement
+    // ------------------------------------------------------------------
+    // WAYPOINT PATH FOLLOWING
+    // ------------------------------------------------------------------
     if (this.pathGrid) {
-      const dir = this.pathGrid.getSteeringDirection(this.x, this.y, targetX, targetY);
+      // Recompute path periodically OR when we've consumed the current one.
+      this.pathRecomputeTimer -= delta;
+      const needNewPath =
+        this.path.length === 0 ||
+        this.pathIndex >= this.path.length ||
+        this.pathRecomputeTimer <= 0;
 
-      // Stuck detection: if zombie hasn't moved >4px in 600ms, nudge randomly
+      if (needNewPath) {
+        this.path = this.pathGrid.findPath(this.x, this.y, targetX, targetY);
+        this.pathIndex = 0;
+        // Stagger recomputes so 50 zombies don't all refresh on the same frame
+        this.pathRecomputeTimer = Zombie.PATH_RECOMPUTE_MS + Math.random() * 200;
+      }
+
+      // Advance past any waypoints we've already reached (skip short hops)
+      while (this.pathIndex < this.path.length) {
+        const wp = this.path[this.pathIndex];
+        if (!wp) { this.pathIndex++; continue; }
+        const dx = wp.x - this.x;
+        const dy = wp.y - this.y;
+        if (dx * dx + dy * dy < Zombie.WAYPOINT_REACH * Zombie.WAYPOINT_REACH) {
+          this.pathIndex++;
+          continue;
+        }
+        break;
+      }
+
+      if (this.pathIndex < this.path.length) {
+        const wp = this.path[this.pathIndex];
+        if (wp) {
+          const dx = wp.x - this.x;
+          const dy = wp.y - this.y;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          if (len > 0) {
+            this.setVelocity(
+              (dx / len) * this.moveSpeed * speedMult,
+              (dy / len) * this.moveSpeed * speedMult,
+            );
+          } else {
+            this.setVelocity(0, 0);
+          }
+        }
+      } else {
+        // Fell off the end of the path -- head directly to target until next recompute
+        const angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
+        this.setVelocity(
+          Math.cos(angle) * this.moveSpeed * speedMult,
+          Math.sin(angle) * this.moveSpeed * speedMult,
+        );
+      }
+
+      // Stuck detection safety net: if the zombie has barely moved for 600ms,
+      // invalidate the path so next frame picks a fresh one. Does NOT spin
+      // wildly any more -- it just forces a recompute which tends to find a
+      // different route if the old one was blocked.
       const moved = Math.abs(this.x - this._lastStuckX) + Math.abs(this.y - this._lastStuckY);
-      if (moved < 4) {
+      if (moved < 3) {
         this._stuckTime += delta;
         if (this._stuckTime > 600) {
-          // Random perpendicular nudge to break out of corner deadlock
-          const nudgeAngle = Math.random() * Math.PI * 2;
-          this.setVelocity(
-            Math.cos(nudgeAngle) * this.moveSpeed * 0.8,
-            Math.sin(nudgeAngle) * this.moveSpeed * 0.8
-          );
+          this.invalidatePath();
           this._stuckTime = 0;
-          this._lastStuckX = this.x;
-          this._lastStuckY = this.y;
-          return;
         }
       } else {
         this._stuckTime = 0;
-        this._lastStuckX = this.x;
-        this._lastStuckY = this.y;
       }
-
-      this.setVelocity(
-        dir.x * this.moveSpeed * speedMult,
-        dir.y * this.moveSpeed * speedMult
-      );
+      this._lastStuckX = this.x;
+      this._lastStuckY = this.y;
     } else {
+      // No PathGrid available -- direct movement fallback
       const angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
       this.setVelocity(
         Math.cos(angle) * this.moveSpeed * speedMult,
-        Math.sin(angle) * this.moveSpeed * speedMult
+        Math.sin(angle) * this.moveSpeed * speedMult,
       );
     }
 
