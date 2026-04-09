@@ -65,6 +65,7 @@ export class DayScene extends Phaser.Scene {
   private placementRotation: 0 | 1 = 0; // 0 = horizontal (default), 1 = vertical
   private rotateButton: Phaser.GameObjects.Container | null = null;
   private scrapMode: boolean = false;
+  private scrapBanner: Phaser.GameObjects.Container | null = null;
   private maxApForDay: number = AP_PER_DAY;
   private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
   private placementJustStarted: boolean = false;
@@ -1120,6 +1121,9 @@ export class DayScene extends Phaser.Scene {
   }
 
   private startPlacement(structureId: string): void {
+    // Entering placement mode ALWAYS cancels scrap mode. Belt-and-suspenders
+    // in case a prior close missed it.
+    if (this.scrapMode) this.exitScrapMode();
     this.placementMode = true;
     this.placementStructureId = structureId;
     this.placementRotation = 0;
@@ -1323,6 +1327,9 @@ export class DayScene extends Phaser.Scene {
    * sells it (75% refund) without showing a popup. Lets the player bulldoze
    * many structures quickly. Exits on right-click, ESC, toggling again, or
    * any other major action (opening build menu, equipment panel, etc).
+   *
+   * A persistent red banner at the top of the screen makes the mode
+   * impossible to miss while it's active.
    */
   private toggleScrapMode(): void {
     // Leaving any placement mode first
@@ -1331,8 +1338,10 @@ export class DayScene extends Phaser.Scene {
 
     this.scrapMode = !this.scrapMode;
     if (this.scrapMode) {
-      this.showInfo('SCRAP MODE -- click structures to scrap. ESC/right-click to exit.');
+      this.showScrapBanner();
+      this.showInfo('SCRAP MODE -- click structures to remove. ESC to exit.');
     } else {
+      this.hideScrapBanner();
       this.showInfo('Scrap mode off');
     }
   }
@@ -1341,7 +1350,63 @@ export class DayScene extends Phaser.Scene {
   private exitScrapMode(): void {
     if (this.scrapMode) {
       this.scrapMode = false;
+      this.hideScrapBanner();
       this.showInfo('Scrap mode off');
+    }
+  }
+
+  /** Persistent red banner at top of screen while scrap mode is active. */
+  private showScrapBanner(): void {
+    if (this.scrapBanner) {
+      this.scrapBanner.setVisible(true);
+      return;
+    }
+    const BANNER_W = 360;
+    const BANNER_H = 36;
+    const x = Math.floor(GAME_WIDTH / 2);
+    const y = 54;
+
+    const container = this.add.container(x, y);
+
+    const bg = this.add.rectangle(0, 0, BANNER_W, BANNER_H, 0x8B1A1A, 0.92).setOrigin(0.5, 0.5);
+    bg.setStrokeStyle(3, 0xFF4444, 1);
+    container.add(bg);
+
+    const label = this.add.text(0, -6, 'SCRAP MODE', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '11px',
+      color: '#FFFFFF',
+    }).setOrigin(0.5, 0.5);
+    container.add(label);
+
+    const sub = this.add.text(0, 8, 'click structures to remove / ESC to exit', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '6px',
+      color: '#FFDDDD',
+    }).setOrigin(0.5, 0.5);
+    container.add(sub);
+
+    // Pulse the banner so it's impossible to miss
+    this.tweens.add({
+      targets: container,
+      alpha: { from: 1.0, to: 0.7 },
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    container.setDepth(10000);
+    container.setScrollFactor(0);
+    this.addToUI(container);
+    this.scrapBanner = container;
+  }
+
+  private hideScrapBanner(): void {
+    if (this.scrapBanner) {
+      this.tweens.killTweensOf(this.scrapBanner);
+      this.scrapBanner.destroy();
+      this.scrapBanner = null;
     }
   }
 
