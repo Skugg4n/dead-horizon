@@ -44,7 +44,7 @@ export class PathGrid {
     } as PF.FinderOptions);
   }
 
-  /** Mark all blocking structures as unwalkable */
+  /** Mark all blocking structures as unwalkable -- LEGACY. Prefer rebuildFromPhysics() */
   updateFromStructures(structures: StructureInstance[]): void {
     // Reset all cells to walkable
     for (let y = 0; y < this.gridHeight; y++) {
@@ -59,6 +59,61 @@ export class PathGrid {
       const tileY = Math.floor(s.y / TILE_SIZE);
       if (tileX >= 0 && tileX < this.gridWidth && tileY >= 0 && tileY < this.gridHeight) {
         this.pfGrid.setWalkableAt(tileX, tileY, false);
+      }
+    }
+
+    this.directionCache.clear();
+  }
+
+  /**
+   * Rebuild the entire grid from the live Phaser physics world.
+   *
+   * This is the SINGLE SOURCE OF TRUTH path: the grid is derived from whatever
+   * static physics bodies currently exist. If a wall was destroyed mid-night,
+   * calling this again automatically un-blocks that tile. If a tree has a
+   * collider, the tile is blocked automatically -- no hardcoded list needed.
+   *
+   * Pass every static group that contains blockers (wallBodies, terrain
+   * colliders, etc). Bodies at exact tile boundaries are NOT allowed to bleed
+   * into the next tile (fixes the v6.4.1 over-marking bug where every wall
+   * marked two tiles because `floor((x + 32) / 32)` rounds up one tile).
+   */
+  rebuildFromPhysics(groups: Array<{ getChildren(): Phaser.GameObjects.GameObject[] } | null | undefined>): void {
+    // Reset all cells to walkable
+    for (let y = 0; y < this.gridHeight; y++) {
+      for (let x = 0; x < this.gridWidth; x++) {
+        this.pfGrid.setWalkableAt(x, y, true);
+      }
+    }
+
+    const EPS = 0.01;
+    for (const group of groups) {
+      if (!group) continue;
+      const children = group.getChildren();
+      for (const child of children) {
+        const body = (child as Phaser.GameObjects.GameObject & { body?: Phaser.Physics.Arcade.StaticBody | Phaser.Physics.Arcade.Body | null }).body;
+        if (!body) continue;
+
+        // Body has top-left (x, y) + (width, height). Mark every tile the
+        // body *actually overlaps* -- subtract EPS so a body that ends at an
+        // exact tile boundary does not mark the next tile.
+        const left = body.x;
+        const top = body.y;
+        const right = body.x + body.width;
+        const bottom = body.y + body.height;
+
+        const tileLeft = Math.floor(left / TILE_SIZE);
+        const tileRight = Math.floor((right - EPS) / TILE_SIZE);
+        const tileTop = Math.floor(top / TILE_SIZE);
+        const tileBot = Math.floor((bottom - EPS) / TILE_SIZE);
+
+        for (let ty = tileTop; ty <= tileBot; ty++) {
+          for (let tx = tileLeft; tx <= tileRight; tx++) {
+            if (tx >= 0 && tx < this.gridWidth && ty >= 0 && ty < this.gridHeight) {
+              this.pfGrid.setWalkableAt(tx, ty, false);
+            }
+          }
+        }
       }
     }
 

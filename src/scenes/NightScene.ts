@@ -362,14 +362,15 @@ export class NightScene extends Phaser.Scene {
     this.createStructures();
     // Build path grid after structures are placed so walls are registered
     this.pathGrid = new PathGrid();
-    this.pathGrid.updateFromStructures(this.gameState.base.structures);
-    // Also register natural terrain blockers (building ruins / bunkers) so zombies route around them
+    // Single source of truth: build the AI grid directly from the physics world.
+    // Every static body in wallBodies (walls, chain walls, electric fences, etc)
+    // and terrainResult.colliders (trees, stones) becomes an unwalkable tile.
+    // No hardcoded structure-id list, no drift between physics and AI.
+    this.pathGrid.rebuildFromPhysics([this.wallBodies, this.terrainResult.colliders]);
+    // Natural blocker rects (city ruins, military bunkers) don't have Phaser bodies
+    // -- they're AABBs from TerrainGenerator. Register them too.
     this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
-    // Register every static physics collider from terrain (trees, large stones).
-    // Without this, A* plots paths straight through trees and zombies get stuck
-    // colliding with them in a tight loop. This was the second half of the AI bug.
-    this.pathGrid.addColliderGroup(this.terrainResult.colliders);
-    // Compute BFS flowfield from the base center -- zombies use this to navigate around walls.
+    // Compute flow from base center -- zombies use this as their default target.
     // baseCenterX/Y are set inside createTerrain() which runs before this block.
     this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
     this.createFogOfWar();
@@ -1849,10 +1850,9 @@ export class NightScene extends Phaser.Scene {
                 y: wallRef.structureInstance.y,
               });
               wallBody.destroy();
-              // Rebuild BFS flowfield: a blocking cell was removed, so zombie paths change.
-              // updateFromStructures re-reads the live structures array; addNaturalBlockers
-              // re-marks terrain. Then recompute from the current base center.
-              this.pathGrid.updateFromStructures(this.gameState.base.structures);
+              // Rebuild grid directly from remaining physics bodies.
+              // This automatically picks up the destroyed body being gone.
+              this.pathGrid.rebuildFromPhysics([this.wallBodies, this.terrainResult.colliders]);
               this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
               this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
             } else {
