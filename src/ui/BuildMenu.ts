@@ -48,33 +48,74 @@ const FONT_RED      = '#FF4444';
 const FONT_ORANGE   = '#FF8800';
 const FONT_GREEN    = '#4CAF50';
 
-// Emoji icons per structureId -- placeholder visuals
+// Emoji icons per structureId. Covers every structure in structures.json so
+// none fall back to the "?" placeholder in the build menu. Each icon is
+// chosen to be distinct from every other so the same structure always reads
+// the same across all UI contexts.
 const STRUCTURE_ICONS: Record<string, string> = {
-  barricade:      '🪵',
-  wall:           '🧱',
-  trap:           '⚙️',
-  spike_strip:    '📌',
-  sandbags:       '🪨',
-  cart_wall:      '🛒',
-  pit_trap:       '🕳️',
-  blade_spinner:  '🔪',
-  fire_pit:       '🔥',
-  propane_geyser: '💨',
-  washing_cannon: '💧',
-  pillbox:        '🏠',
-  shelter:        '⛺',
-  storage:        '📦',
-  farm:           '🌱',
-  bear_trap:      '🐻',
-  landmine:       '💣',
-  oil_slick:      '🛢️',
-  nail_board:     '🪵',
-  trip_wire:      '🪢',
-  glass_shards:   '🔷',
-  tar_pit:        '🟤',
-  shock_wire:     '⚡',
-  spring_launcher:'🔩',
-  chain_wall:     '⛓️',
+  // Primitives / walls
+  barricade:            '🚧',
+  wall:                 '🧱',
+  cart_wall:            '🛒',
+  chain_wall:           '⛓️',
+  electric_fence:       '⚡',
+  shopping_cart_wall:   '🛍️',
+  car_wreck_barrier:    '🚗',
+  dumpster_fortress:    '🗑️',
+  glue_floor:           '🟡',
+  // Basic traps
+  trap:                 '⚙️',
+  spike_strip:          '📌',
+  sandbags:             '🪨',
+  pit_trap:             '🕳️',
+  bear_trap:            '🐻',
+  landmine:             '💣',
+  oil_slick:            '🛢️',
+  nail_board:           '🪵',
+  trip_wire:            '🪢',
+  glass_shards:         '🔷',
+  tar_pit:              '🟤',
+  // Tier 1 machines
+  blade_spinner:        '🔪',
+  fire_pit:             '🔥',
+  propane_geyser:       '💨',
+  washing_cannon:       '💧',
+  shock_wire:           '🔌',
+  spring_launcher:      '🔩',
+  // Tier 2 machines
+  circle_saw_trap:      '🪚',
+  razor_wire_carousel:  '🌀',
+  lawnmower_lane:       '🚜',
+  treadmill_of_doom:    '🏃',
+  pendulum_axe:         '🪓',
+  garage_door_smasher:  '🚪',
+  bug_zapper_xl:        '✨',
+  car_battery_grid:     '🔋',
+  net_launcher:         '🕸️',
+  // Tier 3 slaughter machines
+  meat_grinder:         '🥩',
+  belt_sander_gauntlet: '🧤',
+  power_drill_press:    '🛠️',
+  piano_wire_web:       '🎹',
+  combine_harvester:    '🌾',
+  car_bomb:             '💥',
+  napalm_sprinkler:     '🧨',
+  gas_main_igniter:     '🔥',
+  flamethrower_post:    '🌋',
+  // Crazy / endless
+  tractor_wheel_roller: '⚪',
+  wrecking_ball:        '🏗️',
+  log_avalanche:        '🌲',
+  falling_car:          '🚙',
+  treadmill_blades:     '⚔️',
+  fan_glass:            '🌬️',
+  elevator_shaft:       '🛗',
+  rube_goldberg:        '🎲',
+  // Special / passive
+  pillbox:              '🏠',
+  shelter:              '⛺',
+  storage:              '📦',
+  farm:                 '🌱',
 };
 
 // BASIC tab: primitive traps (no mechanical systems).
