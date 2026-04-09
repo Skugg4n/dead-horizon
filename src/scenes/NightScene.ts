@@ -385,6 +385,15 @@ export class NightScene extends Phaser.Scene {
       }
     }
 
+    // ResourceManager MUST exist before createStructures() because fuelled
+    // traps (circle_saw_trap, razor_wire_carousel, lawnmower_lane, ...) call
+    // resourceManager.canAfford() during init to deduct nightly fuel.
+    // Previously this was initialized after createStructures, which threw
+    // "Cannot read properties of undefined (reading 'canAfford')" and left
+    // those traps missing from the save.
+    this.resourceManager = new ResourceManager(this, this.gameState);
+    this.weaponManager = new WeaponManager(this, this.gameState);
+
     this.createStructures();
 
     // Build path grid directly from the collision tilemap.
@@ -401,9 +410,6 @@ export class NightScene extends Phaser.Scene {
     this.setupCollisions();
     this.setupCamera();
     this.setupEvents();
-
-    this.resourceManager = new ResourceManager(this, this.gameState);
-    this.weaponManager = new WeaponManager(this, this.gameState);
 
     // Auto-equip the two best weapons if the player has not manually equipped.
     // This runs every night so newly found weapons are considered.
