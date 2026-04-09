@@ -109,9 +109,41 @@ export class BuildingManager {
     return currentAP >= data.apCost;
   }
 
-  /** Check if a grid position is free of other structures */
-  isPositionFree(x: number, y: number): boolean {
-    return !this.gameState.base.structures.some(s => s.x === x && s.y === y);
+  /**
+   * Check if a structure can be placed at (x, y) with the given rotation.
+   * For multi-tile structures (widthTiles > 1) all covered tiles must be free.
+   * Checks against every existing structure's full footprint too, so two
+   * multi-tile structures can't partially overlap.
+   */
+  isPositionFree(x: number, y: number, structureId?: string, rotation: 0 | 1 = 0): boolean {
+    const data = structureId ? this.structureDataMap.get(structureId) : undefined;
+    const tiles = data?.widthTiles ?? 1;
+    const placeW = rotation === 1 ? 1 : tiles;
+    const placeH = rotation === 1 ? tiles : 1;
+
+    // Tile ranges covered by the new structure
+    const newLeft = x;
+    const newTop = y;
+    const newRight = x + placeW * TILE_SIZE;
+    const newBot = y + placeH * TILE_SIZE;
+
+    for (const s of this.gameState.base.structures) {
+      const sData = this.structureDataMap.get(s.structureId);
+      const sTiles = sData?.widthTiles ?? 1;
+      const sRot = s.rotation ?? 0;
+      const sW = sRot === 1 ? 1 : sTiles;
+      const sH = sRot === 1 ? sTiles : 1;
+      const sLeft = s.x;
+      const sTop = s.y;
+      const sRight = s.x + sW * TILE_SIZE;
+      const sBot = s.y + sH * TILE_SIZE;
+
+      // AABB overlap
+      if (newLeft < sRight && newRight > sLeft && newTop < sBot && newBot > sTop) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -151,7 +183,7 @@ export class BuildingManager {
 
     if (currentAP < data.apCost) return null;
     if (!this.canAfford(structureId)) return null;
-    if (!this.isPositionFree(gridX, gridY)) return null;
+    if (!this.isPositionFree(gridX, gridY, structureId, rotation)) return null;
 
     // Deduct resources
     for (const [resource, amount] of Object.entries(data.cost)) {

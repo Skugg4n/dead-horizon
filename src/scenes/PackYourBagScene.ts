@@ -303,21 +303,21 @@ export class PackYourBagScene extends Phaser.Scene {
       }).setOrigin(0, 0);
       this.scrollContainer.add(nameText);
 
-      // Rarity tag
-      const rarityTag = this.add.text(GAME_WIDTH - 110, slotY + 2, `[${rarity}]`, {
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: '7px',
-        color: rarityColorHex,
-      }).setOrigin(0, 0);
-      this.scrollContainer.add(rarityTag);
-
-      // Damage stat
-      const dmgText = this.add.text(GAME_WIDTH - 60, slotY + 2, `dmg:${damage}`, {
+      // Damage stat (right-aligned, anchors to the right edge)
+      const dmgText = this.add.text(GAME_WIDTH - 24, slotY + 2, `dmg:${damage}`, {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: '#888888',
-      }).setOrigin(0, 0);
+      }).setOrigin(1, 0);
       this.scrollContainer.add(dmgText);
+
+      // Rarity tag (right-aligned, sits just left of damage stat)
+      const rarityTag = this.add.text(GAME_WIDTH - 24 - dmgText.width - 10, slotY + 2, `[${rarity}]`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '7px',
+        color: rarityColorHex,
+      }).setOrigin(1, 0);
+      this.scrollContainer.add(rarityTag);
 
       // Container groups objects logically but they're already added to scrollContainer
       const container = this.add.container(0, 0);
@@ -533,6 +533,10 @@ export class PackYourBagScene extends Phaser.Scene {
     }).setOrigin(0, 0);
     this.scrollContainer.add(refugeeHeader);
 
+    // Track the bottom Y of the refugee block so SKILLS goes below it
+    // regardless of how many refugees there are.
+    let refugeeBottomY = startY + 16;
+
     if (refugees.length === 0) {
       const noneText = this.add.text(24, startY + 16, 'None', {
         fontFamily: '"Press Start 2P", monospace',
@@ -540,8 +544,8 @@ export class PackYourBagScene extends Phaser.Scene {
         color: '#445544',
       }).setOrigin(0, 0);
       this.scrollContainer.add(noneText);
+      refugeeBottomY = noneText.y + noneText.height;
     } else {
-      // Show refugees as a comma-separated list, wrapping at GAME_WIDTH - 48
       const refugeeText = refugees
         .map(r => `${r.name} [${r.status}]`)
         .join('  ');
@@ -552,10 +556,11 @@ export class PackYourBagScene extends Phaser.Scene {
         wordWrap: { width: GAME_WIDTH - 48 },
       }).setOrigin(0, 0);
       this.scrollContainer.add(refugeeList);
+      refugeeBottomY = refugeeList.y + refugeeList.height;
     }
 
-    // --- Skills ---
-    const skillsY = startY + (refugees.length > 0 ? 44 : 32);
+    // --- Skills --- position dynamically below the refugee block
+    const skillsY = refugeeBottomY + 12;
 
     const skillHeader = this.add.text(24, skillsY, 'SKILLS: (all kept)', {
       fontFamily: '"Press Start 2P", monospace',
