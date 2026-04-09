@@ -819,33 +819,20 @@ export class NightScene extends Phaser.Scene {
     const baseFillColor   = parseInt(baseLevelData.visual.color.replace('0x', ''), 16);
     const baseStrokeColor = parseInt(baseLevelData.visual.strokeColor.replace('0x', ''), 16);
 
-    // Draw a darker, solid foundation under the base so it visually anchors
-    // the tent to the ground. This also makes the base footprint obvious as
-    // a distinct shape on the terrain.
+    // Dim floor patch under the base so the sprite reads clearly against
+    // whatever terrain color is underneath. Outline only at the edges.
     const foundation = this.add.graphics();
-    foundation.fillStyle(0x2A1A0A, 0.85);
-    foundation.fillRoundedRect(
-      centerX - halfSize - 4,
-      centerY - halfSize - 4,
-      baseSize + 8,
-      baseSize + 8,
-      6,
-    );
-    foundation.lineStyle(3, 0xC5A030, 0.9);
-    foundation.strokeRoundedRect(
-      centerX - halfSize - 4,
-      centerY - halfSize - 4,
-      baseSize + 8,
-      baseSize + 8,
-      6,
-    );
+    foundation.fillStyle(0x1A1108, 0.6);
+    foundation.fillCircle(centerX, centerY, halfSize + 6);
     foundation.setDepth(1);
 
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
     if (baseSpriteKey) {
+      // Scale up 25% beyond baseSize so the tent actually fills its
+      // collision footprint visually (source PNG has transparent padding).
       const baseImg = this.add.image(centerX, centerY, baseSpriteKey);
-      baseImg.setDisplaySize(baseSize, baseSize);
-      baseImg.setDepth(2);
+      baseImg.setDisplaySize(baseSize * 1.25, baseSize * 1.25);
+      baseImg.setDepth(3);
     } else {
       const tent = this.add.graphics();
       tent.fillStyle(baseFillColor);

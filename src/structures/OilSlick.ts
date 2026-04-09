@@ -31,6 +31,12 @@ export class OilSlick extends Phaser.GameObjects.Graphics {
 
     scene.add.existing(this);
 
+    // Rotate vertical if needed
+    if (instance.rotation === 1) {
+      this.setRotation(Math.PI / 2);
+      this.setPosition(instance.x + TILE_SIZE, instance.y);
+    }
+
     // Idle iridescent shimmer: subtle alpha variation simulates liquid surface
     scene.tweens.add({
       targets: this,
@@ -82,6 +88,12 @@ export class OilSlick extends Phaser.GameObjects.Graphics {
   containsPoint(worldX: number, worldY: number): boolean {
     const ox = this.structureInstance.x;
     const oy = this.structureInstance.y;
+    if (this.structureInstance.rotation === 1) {
+      return (
+        worldX >= ox && worldX <= ox + TILE_SIZE &&
+        worldY >= oy && worldY <= oy + this.widthTiles * TILE_SIZE
+      );
+    }
     return (
       worldX >= ox &&
       worldX <= ox + this.widthTiles * TILE_SIZE &&

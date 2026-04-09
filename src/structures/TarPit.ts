@@ -51,6 +51,11 @@ export class TarPit extends Phaser.GameObjects.Graphics {
     this.draw();
 
     scene.add.existing(this);
+
+    if (instance.rotation === 1) {
+      this.setRotation(Math.PI / 2);
+      this.setPosition(instance.x + TILE_SIZE, instance.y);
+    }
   }
 
   private draw(): void {
@@ -133,7 +138,11 @@ export class TarPit extends Phaser.GameObjects.Graphics {
   containsPoint(px: number, py: number): boolean {
     const x0 = this.structureInstance.x;
     const y0 = this.structureInstance.y;
-    const w  = TILE_SIZE * this.widthTiles;
+    if (this.structureInstance.rotation === 1) {
+      const h = TILE_SIZE * this.widthTiles;
+      return px >= x0 && px <= x0 + TILE_SIZE && py >= y0 && py <= y0 + h;
+    }
+    const w = TILE_SIZE * this.widthTiles;
     return px >= x0 && px <= x0 + w && py >= y0 && py <= y0 + TILE_SIZE;
   }
 

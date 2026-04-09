@@ -39,6 +39,16 @@ export class LawnmowerLane extends TrapBase {
       -1,     // uses (-1 = unlimited)
       2,      // fuelPerNight (2 food -- gas-powered)
     );
+
+    // Vertical rotation: the draw() method always draws horizontally from
+    // local (0,0) to (width, TILE_SIZE). To render vertical we rotate the
+    // whole Graphics 90 degrees clockwise around its top-left and nudge the
+    // position by +TILE_SIZE on X so the rotated footprint still starts at
+    // (instance.x, instance.y) and extends DOWN.
+    if (instance.rotation === 1) {
+      this.setRotation(Math.PI / 2);
+      this.setPosition(instance.x + TILE_SIZE, instance.y);
+    }
   }
 
   protected draw(): void {
@@ -124,6 +134,11 @@ export class LawnmowerLane extends TrapBase {
   containsPoint(wx: number, wy: number): boolean {
     const x0 = this.structureInstance.x;
     const y0 = this.structureInstance.y;
+    if (this.structureInstance.rotation === 1) {
+      // Vertical lane: 1 tile wide, widthTiles tall
+      return wx >= x0 && wx <= x0 + TILE_SIZE &&
+             wy >= y0 && wy <= y0 + this.widthTiles * TILE_SIZE;
+    }
     return wx >= x0 && wx <= x0 + this.widthTiles * TILE_SIZE &&
            wy >= y0 && wy <= y0 + TILE_SIZE;
   }

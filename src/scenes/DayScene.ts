@@ -2002,13 +2002,11 @@ export class DayScene extends Phaser.Scene {
     const size = levelData.visual.size;
     const halfSize = size / 2;
 
-    // Foundation ring: dark rounded rect + gold border so the base footprint
-    // is obvious against the terrain. Drawn first so sprite/tent sit on top.
+    // Dim circular floor patch under the base. Outline-free so the tent
+    // sprite reads without heavy border noise.
     graphics.clear();
-    graphics.fillStyle(0x2A1A0A, 0.85);
-    graphics.fillRoundedRect(centerX - halfSize - 4, centerY - halfSize - 4, size + 8, size + 8, 6);
-    graphics.lineStyle(3, 0xC5A030, 0.9);
-    graphics.strokeRoundedRect(centerX - halfSize - 4, centerY - halfSize - 4, size + 8, size + 8, 6);
+    graphics.fillStyle(0x1A1108, 0.55);
+    graphics.fillCircle(centerX, centerY, halfSize + 6);
 
     // Try sprite-based rendering
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
@@ -2016,9 +2014,10 @@ export class DayScene extends Phaser.Scene {
       if (this.baseSpriteImage) {
         this.baseSpriteImage.destroy();
       }
+      // Scale up 25% so the tent actually fills its footprint visually
       this.baseSpriteImage = this.add.image(centerX, centerY, baseSpriteKey);
-      this.baseSpriteImage.setDisplaySize(size, size);
-      this.baseSpriteImage.setDepth(2);
+      this.baseSpriteImage.setDisplaySize(size * 1.25, size * 1.25);
+      this.baseSpriteImage.setDepth(3);
       this.mapContainer.add(this.baseSpriteImage);
       return;
     }
