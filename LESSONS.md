@@ -4,6 +4,28 @@ Kanda problem och losningar. Kolla har innan du debuggar.
 
 ---
 
+## AI och pathfinding i tile-baserade spel
+
+### Steering racker inte -- anvand path following med waypoints
+**Problem:** Zombies fastnade pa vaggar i 15-20 iterationer (v5.9 - v6.7). Vi provade BFS, 8-dir BFS, PathFinding.js, krympa physics bodies, cirkulara bodies, stuck detection + nudge, "slide along wall" hack. Ingenting fungerade. Rotorsaken var arkitekturell: AI:n anvande **steering** -- en riktningsvektor per frame fran A* mot "next tile center". Nar vektorn pekade in i en vagg gled cirkelbodyn lite parallellt med muren, men nasta frame gav A* samma vektor (samma tile -> samma tile), sa zombien tryckte in i muren igen. Ingen exit ur loopen.
+
+**Losning:** Byt fran steering till **path following med waypoints**. Varje zombie har en lista waypoints (varldskoordinater i mitten av walkable tiles). Den siktar alltid pa en waypoint som ar i en garanterat walkable tile. Den kan aldrig sikta rakt in i en vagg for varje waypoint AR i en oppning. Implementerat i v6.8.0:
+- `PathGrid.findPath(fx, fy, tx, ty)` returnerar `{x,y}[]` tile-center waypoints
+- `Zombie.path`, `pathIndex`, `pathRecomputeTimer` -- per-zombie state
+- `Zombie.updateWalker` siktar pa `path[pathIndex]`, advanceras nar < 10px fran waypoint
+- `invalidatePath()` forces recompute; anropas vid wall-destroy + setPathGrid
+
+**Regel:** For tile-baserade korridor-spel (fort defense, lab-yrint, navigation genom narrow passages): **steering-based AI fungerar inte**. Det MASTE vara path following dar waypoints stamplas mot en walkable grid. Gor aldrig ett "steer toward target" loop i en miljo med tajta vaggar -- det kraver endless hacks och galler aldrig helt.
+
+### PathGrid och physics maste dela sanning
+**Problem:** Manga AI-buggar kom fran att vi hade TVA oberoende datastrukturer som beskrev samma varld -- `wallBodies` (Phaser StaticGroup for fysik) och `PathGrid` (PF.Grid for A*). Varje patch forsokte hand-synka dem. De kunde inte matcha perfekt. Varje fix loste en symptom och avslojade en ny driftbug.
+
+**Losning:** Single source of truth via **Phaser Tilemap collision layer**. Walls + naturalBlockers stampas som tiles i layern. Bade Arcade Physics colliders OCH PathGrid laser fran samma layer. Det finns inget annat satt att halla dem konsistenta. Implementerat i v6.6.0.
+
+**Regel:** Aldrig tva oberoende datastrukturer for samma varld. Antingen (a) en struktur harleder sig fran en annan runtime, eller (b) en gemensam kalla (tilemap) anvands av bada.
+
+---
+
 ## Zombie death-animation
 
 ### Komplexa death-tweens skapar svarta skuggor

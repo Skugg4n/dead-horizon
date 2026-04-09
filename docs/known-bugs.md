@@ -7,6 +7,23 @@ Uppdaterad: 2026-04-09, v6.1.2
 
 ## AKTIVA (2026-04-09)
 
+### BG8: shock_wire duplicerar vid placement (4x istallet for 1x)
+- Nar spelaren bygger en shock_wire blir det 4 instanser i gameState, 3 pa olika
+  position an dar spelaren klickade. Alla 3 extras hamnar pa vanstra sidan av
+  kartan i positioner som spelaren inte valt.
+- Exempel ur debug-logg: `shock_wire placed 4x: (512,704) (448,416) (256,416) (448,832)`.
+  Spelaren klickade pa (512,704). De andra 3 dok upp av sig sjalva.
+- BuildingManager.place() pushar bara EN instance. Nagot annat matar in de extra.
+  Troligt: event-handler, auto-link-logik for trap-network, eller en bug i
+  ghost-preview som konverterar previews till riktiga instances.
+- Startpunkter: grep for 'shock_wire' + 'structures.push' i src/, och verifiera
+  att inget i structure-placement flowet skapar flera instances per click.
+- Reproduktion: starta ny run, bygg en shock_wire, starta natten, oppna console,
+  leta efter "shock_wire placed Nx" dar N > antal intentionella clicks.
+- Status: EJ FIXAD.
+
+
+
 ### BG4: Collider matchar inte visuella hål i muren ✅ FIXAD v6.3.0
 - Rotorsak: Player och Zombie hade default physics body = 32x32 = exakt lika stort som en
   vägg-tile (32px). Ett 1-tile-gap var exakt lika brett som spelarens/zombiens kropp, så
