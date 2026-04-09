@@ -378,7 +378,8 @@ export class NightScene extends Phaser.Scene {
       for (let ty = tileTop; ty <= tileBot; ty++) {
         for (let tx = tileLeft; tx <= tileRight; tx++) {
           if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT) {
-            this.collisionLayer.putTileAt(1, tx, ty);
+            const tile = this.collisionLayer.putTileAt(1, tx, ty);
+            if (tile) tile.setCollision(true, true, true, true);
           }
         }
       }
@@ -1672,24 +1673,27 @@ export class NightScene extends Phaser.Scene {
     const layer = map.createBlankLayer('collision', tileset, 0, 0);
     if (!layer) throw new Error('Failed to create collision layer');
     layer.setVisible(false);
-    layer.setCollision(1);
-    // Bring to a low depth so debug overlays can render above it.
     layer.setDepth(0);
     this.collisionLayer = layer;
     this.tileToWall.clear();
   }
 
-  /** Mark a tile as a physical blocker and remember which Wall lives there. */
+  /**
+   * Mark a tile as a physical blocker and remember which Wall lives there.
+   * Sets per-tile collision directly on the Tile instance (more robust than
+   * relying on layer.setCollision which only snapshots existing tiles).
+   */
   private setBlockingTile(
     tileX: number,
     tileY: number,
     wall: Wall | ChainWall | ElectricFence | CartWall | ShoppingCartWall | CarWreckBarrier | DumpsterFortress,
   ): void {
     if (tileX < 0 || tileY < 0 || tileX >= MAP_WIDTH || tileY >= MAP_HEIGHT) return;
-    this.collisionLayer.putTileAt(1, tileX, tileY);
-    // Recalculate face flags for the placed tile's neighbourhood so setCollision
-    // actually kicks in for this freshly-placed tile.
-    this.collisionLayer.calculateFacesWithin(Math.max(0, tileX - 1), Math.max(0, tileY - 1), 3, 3);
+    const tile = this.collisionLayer.putTileAt(1, tileX, tileY);
+    if (tile) {
+      // Enable collision on all four sides of this individual tile.
+      tile.setCollision(true, true, true, true);
+    }
     this.tileToWall.set(`${tileX},${tileY}`, wall);
   }
 
@@ -1697,7 +1701,6 @@ export class NightScene extends Phaser.Scene {
   private clearBlockingTile(tileX: number, tileY: number): void {
     if (tileX < 0 || tileY < 0 || tileX >= MAP_WIDTH || tileY >= MAP_HEIGHT) return;
     this.collisionLayer.removeTileAt(tileX, tileY);
-    this.collisionLayer.calculateFacesWithin(Math.max(0, tileX - 1), Math.max(0, tileY - 1), 3, 3);
     this.tileToWall.delete(`${tileX},${tileY}`);
   }
 
