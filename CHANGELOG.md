@@ -1,5 +1,77 @@
 # Dead Horizon -- Changelog
 
+## [v6.6.0] - 2026-04-09 14:45 -- Tilemap rewrite: one source of truth for fysik och AI
+
+### Varfor
+Efter 15+ iterationer av AI-patchar sa insag vi att problemet var arkitekturellt:
+det fanns TVA oberoende datastrukturer som beskrev samma varld -- `wallBodies`
+(Phaser StaticGroup for fysik) och `PathGrid` (A* grid). Varje "fix" forsokte
+halla dem synkade hand-rolled, men de kunde inte matcha perfekt. Varje patch
+loste en symptom men avslojade en ny driftbug.
+
+Losningen: EN Phaser Tilemap-layer som ar sanning for bade Arcade Physics
+*och* A*. Kan inte drifta for det finns bara en datastruktur.
+
+### Arkitekturandring
+- **`collisionLayer`:** ny Phaser.Tilemaps.TilemapLayer, 40x30 tiles, osynlig.
+  Tile-index 1 = blockerande, allt annat walkable. `setCollision(1)` gor att
+  Arcade Physics automatiskt blockerar vid dessa tiles.
+- **`tileToWall: Map<string, Wall | ...>`:** map fran "tx,ty" till Wall/ChainWall/
+  ElectricFence/... instanser. Ersatter tidigare `wallBody.getData('wallRef')`.
+- **`setBlockingTile(tx, ty, wall)` / `clearBlockingTile(tx, ty)`:** hjalpfunktioner
+  i NightScene som stampar/tar bort tiles och synkar tileToWall.
+- **`PathGrid.rebuildFromTilemap(layer)`:** lases fran layer.getTileAt().collides.
+  Enda API:t som anvands nu -- rebuildFromPhysics + addColliderGroup ar legacy.
+
+### Andrat
+- **NightScene:**
+  - `wallBodies` fielden borttagen. Ersatt av `collisionLayer`.
+  - `createGroups()` skapar inte langre en static group -- istallet anropas
+    `createCollisionTilemap()` som skapar tilemap-layern.
+  - Alla 7 `case '<wall_type>'` i createStructures: `wallBodies.create(...) + getData()`
+    ersatt av `setBlockingTile(tx, ty, wallInstance)`.
+  - `naturalBlockerRects` (city ruins, bunkers) stampas in i tilemapen direkt
+    efter createTerrain(). Gameplay-andring: ruins blockerar nu ocksa fysiskt
+    (tidigare var de bara markerade i PathGrid, vilket gjorde att spelare kunde
+    ga igenom dem men AI trodde de var blockerade -- en mismatch).
+  - Physics colliders: `(zombieGroup, wallBodies)` och `(player, wallBodies)`
+    ersatt av `(zombieGroup, collisionLayer)` och `(player, collisionLayer)`.
+  - Collider callback laser upp Wall-instansen via `tileToWall.get(...)` istallet
+    for `wallBody.getData('wallRef')`. Exakt samma beteende for brute-damage,
+    ChainWall contact-damage, destruction + path rebuild.
+  - Vid wall-destroy: `clearBlockingTile(tx, ty)` + `pathGrid.rebuildFromTilemap(layer)`.
+- **PathGrid:**
+  - `rebuildFromTilemap(layer)`: ny och preferred API.
+  - `rebuildFromPhysics`, `addColliderGroup`, `addNaturalBlockers` och `BLOCKING_STRUCTURE_IDS`
+    behalls som legacy/unused -- kan rensas bort i framtida commit om inget anvander dem.
+- **Trees/stones:** forblir overlap-only (slow-zones via terrainResult.colliders).
+  De stampas INTE in i tilemapen eftersom de inte blockerar fysiken. A* vet inte
+  heller om dem; zombies plowar igenom trad saktare men fastnar inte pa dem
+  (ingen permanent blockering).
+
+### Checklist som kordes
+1. Recon av alla wallBodies + PathGrid call sites: DONE
+2. Design av tilemap-datamodel: DONE
+3. Tilemap-infrastruktur (createCollisionTilemap, setBlockingTile, clearBlockingTile): DONE
+4. Stampa naturalBlockerRects i tilemapen: DONE
+5. Ersatta alla 7 wallBodies.create i createStructures: DONE
+6. Physics colliders wiradte om till tilemapen: DONE
+7. PathGrid.rebuildFromTilemap + anvandning i NightScene: DONE
+8. Brute-damage-wall logik flyttad till tileToWall lookup: DONE
+9. wallBodies-feltet + alla referenser borttagna: DONE
+10. npx tsc --noEmit: 0 fel
+11. npm run lint: 0 warnings
+12. npx vitest run: 1127/1127 pass
+13. Version bump + changelog + commit: DONE
+
+### Testplan for anvandaren
+1. Klicka [GRID]-knappen nere till vanster: alla walls + naturalBlockers ska vara rooda,
+   INGET annat. Interior av fort ska vara walkable (inte rod).
+2. Zombies ska kunna folja korridoren in i fortet utan att fastna.
+3. Spelaren ska blockeras av egna murar. Kan ga ut genom oppningar.
+4. Brutes ska kunna slo sonder vaggar (HP minskar, sedan destroyed).
+5. Nar en vagg forstors mitt i natten ska tilen direkt bli walkable for zombies.
+
 ## [v6.5.0] - 2026-04-09 13:55 -- AI: single source of truth fran physics world
 
 ### Varfor

@@ -66,6 +66,23 @@ export class PathGrid {
   }
 
   /**
+   * Rebuild the grid from a Phaser collision tilemap layer. Every tile with
+   * `collides === true` is unwalkable. Preferred API in v6.6+: the tilemap
+   * is the single source of truth for both Arcade Physics collisions and
+   * A* pathfinding, so they cannot drift.
+   */
+  rebuildFromTilemap(layer: Phaser.Tilemaps.TilemapLayer): void {
+    for (let y = 0; y < this.gridHeight; y++) {
+      for (let x = 0; x < this.gridWidth; x++) {
+        const tile = layer.getTileAt(x, y, true);
+        const blocked = tile != null && tile.collides;
+        this.pfGrid.setWalkableAt(x, y, !blocked);
+      }
+    }
+    this.directionCache.clear();
+  }
+
+  /**
    * Rebuild the entire grid from the live Phaser physics world.
    *
    * This is the SINGLE SOURCE OF TRUTH path: the grid is derived from whatever

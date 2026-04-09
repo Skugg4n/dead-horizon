@@ -246,7 +246,13 @@ export class NightScene extends Phaser.Scene {
   private _repairTarget: TrapBase | null = null;
   private _repairProgressBar: Phaser.GameObjects.Graphics | null = null;
   private _repairKey: Phaser.Input.Keyboard.Key | null = null;
-  private wallBodies!: Phaser.Physics.Arcade.StaticGroup;
+  // Single source of truth for both physics collision and A* pathfinding.
+  // Every wall-like structure and natural blocker stamps a tile into this layer.
+  // Arcade Physics colliders and PathGrid both read from it.
+  private collisionLayer!: Phaser.Tilemaps.TilemapLayer;
+  // Map of "tileX,tileY" -> Wall instance, used to look up the HP-tracking
+  // GameObject when a zombie collides with a blocking tile.
+  private tileToWall: Map<string, Wall | ChainWall | ElectricFence | CartWall | ShoppingCartWall | CarWreckBarrier | DumpsterFortress> = new Map();
   private fogOfWar!: FogOfWar;
   private fpsText: Phaser.GameObjects.Text | null = null;
   // Visual effects
@@ -357,21 +363,32 @@ export class NightScene extends Phaser.Scene {
 
     this.createTerrain();
 
-    // createGroups MUST come before createStructures -- structures add to wallBodies
+    // createGroups creates the tilemap collision layer. MUST come before
+    // createStructures since structures stamp tiles into the tilemap.
     this.createGroups();
+
+    // Stamp natural terrain blockers (city ruins, military bunkers) into the
+    // tilemap so they block BOTH physics and AI. Trees and stones are NOT
+    // stamped -- they remain overlap-only slow zones via terrainResult.colliders.
+    for (const rect of this.terrainResult.naturalBlockerRects) {
+      const tileLeft = Math.floor((rect.x - rect.w / 2) / TILE_SIZE);
+      const tileRight = Math.floor((rect.x + rect.w / 2 - 0.01) / TILE_SIZE);
+      const tileTop = Math.floor((rect.y - rect.h / 2) / TILE_SIZE);
+      const tileBot = Math.floor((rect.y + rect.h / 2 - 0.01) / TILE_SIZE);
+      for (let ty = tileTop; ty <= tileBot; ty++) {
+        for (let tx = tileLeft; tx <= tileRight; tx++) {
+          if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT) {
+            this.collisionLayer.putTileAt(1, tx, ty);
+          }
+        }
+      }
+    }
+
     this.createStructures();
-    // Build path grid after structures are placed so walls are registered
+
+    // Build path grid directly from the collision tilemap.
     this.pathGrid = new PathGrid();
-    // Single source of truth: build the AI grid directly from the physics world.
-    // Every static body in wallBodies (walls, chain walls, electric fences, etc)
-    // and terrainResult.colliders (trees, stones) becomes an unwalkable tile.
-    // No hardcoded structure-id list, no drift between physics and AI.
-    this.pathGrid.rebuildFromPhysics([this.wallBodies, this.terrainResult.colliders]);
-    // Natural blocker rects (city ruins, military bunkers) don't have Phaser bodies
-    // -- they're AABBs from TerrainGenerator. Register them too.
-    this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
-    // Compute flow from base center -- zombies use this as their default target.
-    // baseCenterX/Y are set inside createTerrain() which runs before this block.
+    this.pathGrid.rebuildFromTilemap(this.collisionLayer);
     this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
     this.createFogOfWar();
     this.createPlayer();
@@ -958,16 +975,8 @@ export class NightScene extends Phaser.Scene {
         case 'wall': {
           const wall = new Wall(this, structure);
           this.walls.push(wall);
-          // Add physics body for wall collision
-          const wallBody = this.wallBodies.create(
-            structure.x + TILE_SIZE / 2,
-            structure.y + TILE_SIZE / 2,
-            ''
-          ) as Phaser.Physics.Arcade.Sprite;
-          wallBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          wallBody.setVisible(false);
-          wallBody.refreshBody();
-          wallBody.setData('wallRef', wall);
+          // Stamp tilemap tile so physics + A* both see it as a blocker.
+          this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), wall);
           break;
         }
         case 'trap': {
@@ -1064,18 +1073,9 @@ export class NightScene extends Phaser.Scene {
           break;
         }
         case 'cart_wall': {
-          // Cart Wall is a passive blocker -- add physics body like Wall
           const cw = new CartWall(this, structure);
           this._cartWalls.push(cw);
-          const cwBody = this.wallBodies.create(
-            structure.x + TILE_SIZE / 2,
-            structure.y + TILE_SIZE / 2,
-            '',
-          ) as Phaser.Physics.Arcade.Sprite;
-          cwBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          cwBody.setVisible(false);
-          cwBody.refreshBody();
-          cwBody.setData('cartWallRef', cw);
+          this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), cw);
           break;
         }
         case 'washing_cannon': {
@@ -1146,16 +1146,7 @@ export class NightScene extends Phaser.Scene {
             cwall.malfunctioned = true;
           }
           this._chainWalls.push(cwall);
-          // Add physics body so zombies are blocked (same pattern as Wall/CartWall)
-          const cwallBody = this.wallBodies.create(
-            structure.x + TILE_SIZE / 2,
-            structure.y + TILE_SIZE / 2,
-            '',
-          ) as Phaser.Physics.Arcade.Sprite;
-          cwallBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          cwallBody.setVisible(false);
-          cwallBody.refreshBody();
-          cwallBody.setData('chainWallRef', cwall);
+          this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), cwall);
           break;
         }
         case 'circle_saw_trap': {
@@ -1266,16 +1257,7 @@ export class NightScene extends Phaser.Scene {
             }
           }
           this._electricFences.push(ef);
-          // Add physics body so zombies are blocked (same pattern as ChainWall)
-          const efBody = this.wallBodies.create(
-            structure.x + TILE_SIZE / 2,
-            structure.y + TILE_SIZE / 2,
-            '',
-          ) as Phaser.Physics.Arcade.Sprite;
-          efBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          efBody.setVisible(false);
-          efBody.refreshBody();
-          efBody.setData('electricFenceRef', ef);
+          this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), ef);
           break;
         }
         case 'net_launcher': {
@@ -1406,43 +1388,19 @@ export class NightScene extends Phaser.Scene {
         case 'shopping_cart_wall': {
           const scw = new ShoppingCartWall(this, structure);
           this._shoppingCartWalls.push(scw);
-          const scwBody = this.wallBodies.create(
-            structure.x + TILE_SIZE / 2,
-            structure.y + TILE_SIZE / 2,
-            '',
-          ) as Phaser.Physics.Arcade.Sprite;
-          scwBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          scwBody.setVisible(false);
-          scwBody.refreshBody();
-          scwBody.setData('shoppingCartWallRef', scw);
+          this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), scw);
           break;
         }
         case 'car_wreck_barrier': {
           const cwb = new CarWreckBarrier(this, structure);
           this._carWreckBarriers.push(cwb);
-          const cwbBody = this.wallBodies.create(
-            structure.x + TILE_SIZE / 2,
-            structure.y + TILE_SIZE / 2,
-            '',
-          ) as Phaser.Physics.Arcade.Sprite;
-          cwbBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          cwbBody.setVisible(false);
-          cwbBody.refreshBody();
-          cwbBody.setData('carWreckBarrierRef', cwb);
+          this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), cwb);
           break;
         }
         case 'dumpster_fortress': {
           const df = new DumpsterFortress(this, structure);
           this._dumpsterFortresses.push(df);
-          const dfBody = this.wallBodies.create(
-            structure.x + TILE_SIZE / 2,
-            structure.y + TILE_SIZE / 2,
-            '',
-          ) as Phaser.Physics.Arcade.Sprite;
-          dfBody.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          dfBody.setVisible(false);
-          dfBody.refreshBody();
-          dfBody.setData('dumpsterFortressRef', df);
+          this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), df);
           break;
         }
         // --- Tier 3 heavy/gravity traps ---
@@ -1681,6 +1639,68 @@ export class NightScene extends Phaser.Scene {
     this.player.equip(armorReduction, totalSpeedPenalty, shieldBlockHits, shieldCooldownMs);
   }
 
+  /**
+   * Create the collision tilemap that is the single source of truth for both
+   * Arcade Physics collisions (walls blocking zombies/player) and A*
+   * pathfinding (zombies routing around walls).
+   *
+   * Tile index 1 = blocking. Anything else = walkable.
+   * Structures stamp tiles via setBlockingTile(); destruction clears them
+   * via clearBlockingTile(). The layer is invisible -- walls have their own
+   * visual GameObjects.
+   */
+  private createCollisionTilemap(): void {
+    // Generate a 32x32 white texture once per run to use as the tileset image.
+    // Invisible layer -- player never sees it.
+    const TILESET_KEY = 'collision_tile_texture';
+    if (!this.textures.exists(TILESET_KEY)) {
+      const gfx = this.make.graphics({ x: 0, y: 0 }, false);
+      gfx.fillStyle(0xFFFFFF, 1);
+      gfx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+      gfx.generateTexture(TILESET_KEY, TILE_SIZE, TILE_SIZE);
+      gfx.destroy();
+    }
+
+    const map = this.make.tilemap({
+      width: MAP_WIDTH,
+      height: MAP_HEIGHT,
+      tileWidth: TILE_SIZE,
+      tileHeight: TILE_SIZE,
+    });
+    const tileset = map.addTilesetImage(TILESET_KEY, TILESET_KEY, TILE_SIZE, TILE_SIZE, 0, 0);
+    if (!tileset) throw new Error('Failed to create collision tileset');
+    const layer = map.createBlankLayer('collision', tileset, 0, 0);
+    if (!layer) throw new Error('Failed to create collision layer');
+    layer.setVisible(false);
+    layer.setCollision(1);
+    // Bring to a low depth so debug overlays can render above it.
+    layer.setDepth(0);
+    this.collisionLayer = layer;
+    this.tileToWall.clear();
+  }
+
+  /** Mark a tile as a physical blocker and remember which Wall lives there. */
+  private setBlockingTile(
+    tileX: number,
+    tileY: number,
+    wall: Wall | ChainWall | ElectricFence | CartWall | ShoppingCartWall | CarWreckBarrier | DumpsterFortress,
+  ): void {
+    if (tileX < 0 || tileY < 0 || tileX >= MAP_WIDTH || tileY >= MAP_HEIGHT) return;
+    this.collisionLayer.putTileAt(1, tileX, tileY);
+    // Recalculate face flags for the placed tile's neighbourhood so setCollision
+    // actually kicks in for this freshly-placed tile.
+    this.collisionLayer.calculateFacesWithin(Math.max(0, tileX - 1), Math.max(0, tileY - 1), 3, 3);
+    this.tileToWall.set(`${tileX},${tileY}`, wall);
+  }
+
+  /** Remove a blocker (e.g. destroyed wall). */
+  private clearBlockingTile(tileX: number, tileY: number): void {
+    if (tileX < 0 || tileY < 0 || tileX >= MAP_WIDTH || tileY >= MAP_HEIGHT) return;
+    this.collisionLayer.removeTileAt(tileX, tileY);
+    this.collisionLayer.calculateFacesWithin(Math.max(0, tileX - 1), Math.max(0, tileY - 1), 3, 3);
+    this.tileToWall.delete(`${tileX},${tileY}`);
+  }
+
   private createGroups(): void {
     this.zombieGroup = this.physics.add.group({
       classType: Zombie,
@@ -1692,7 +1712,9 @@ export class NightScene extends Phaser.Scene {
       runChildUpdate: false,
     });
 
-    this.wallBodies = this.physics.add.staticGroup();
+    // Create the collision tilemap BEFORE structures stamp into it.
+    // This is the single source of truth for BOTH physics and AI pathfinding.
+    this.createCollisionTilemap();
 
     // Spitter projectile pool (enemy projectiles)
     this.spitterProjectileGroup = this.physics.add.group({
@@ -1821,60 +1843,61 @@ export class NightScene extends Phaser.Scene {
       },
     );
 
-    // Walls block zombies (collider, not overlap)
+    // Walls block zombies via the collision tilemap. Tile lookup routes to
+    // the Wall HP instance through tileToWall so brutes can damage them.
     this.physics.add.collider(
       this.zombieGroup,
-      this.wallBodies,
-      (_zombie, _wallBody) => {
+      this.collisionLayer,
+      (_zombie, _tile) => {
         const zombie = _zombie as Zombie;
-        const wallBody = _wallBody as Phaser.Physics.Arcade.Sprite;
-        if (!zombie.active) return;
+        const tile = _tile as Phaser.Tilemaps.Tile;
+        if (!zombie.active || !tile) return;
+        if (!zombie.canAttackStructure()) return;
 
-        // Brutes damage walls on collision -- rate-limited by structureAttackCooldown (1 hit/s).
-        // Cap damage per hit to prevent very high-damage bosses from bypassing the wall
-        // in a single frame (Bug 5): max 15 damage per hit regardless of zombie.structureDamage.
-        if (zombie.canAttackStructure()) {
-          const wallData = wallBody.getData('wallRef');
-          const wallRef = wallData instanceof Wall ? wallData : undefined;
-          if (wallRef && wallRef.active) {
-            // Cap per-hit wall damage to 15 so even the military_tank (20 dmg) needs multiple hits
-            const cappedDamage = Math.min(zombie.structureDamage, 15);
-            const destroyed = wallRef.takeDamage(cappedDamage);
-            zombie.resetStructureAttackCooldown();
-            if (destroyed) {
-              AudioManager.play('structure_break');
-              // Debrief: record structure destruction
+        const wall = this.tileToWall.get(`${tile.x},${tile.y}`);
+        if (!wall) return;
+
+        // Wall / CartWall / ShoppingCartWall / CarWreckBarrier / DumpsterFortress
+        // all expose takeDamage(). ChainWall + ElectricFence have their own contact
+        // behaviour and no HP here; we only apply damage when the wall has takeDamage.
+        const damageable = wall as unknown as {
+          active?: boolean;
+          takeDamage?: (n: number) => boolean;
+          structureInstance?: { structureId: string; x: number; y: number };
+        };
+        if (damageable.takeDamage && damageable.active !== false) {
+          const cappedDamage = Math.min(zombie.structureDamage, 15);
+          const destroyed = damageable.takeDamage(cappedDamage);
+          zombie.resetStructureAttackCooldown();
+          if (destroyed) {
+            AudioManager.play('structure_break');
+            if (damageable.structureInstance) {
               this.destroyedStructures.push({
-                structureId: wallRef.structureInstance.structureId,
-                x: wallRef.structureInstance.x,
-                y: wallRef.structureInstance.y,
+                structureId: damageable.structureInstance.structureId,
+                x: damageable.structureInstance.x,
+                y: damageable.structureInstance.y,
               });
-              wallBody.destroy();
-              // Rebuild grid directly from remaining physics bodies.
-              // This automatically picks up the destroyed body being gone.
-              this.pathGrid.rebuildFromPhysics([this.wallBodies, this.terrainResult.colliders]);
-              this.pathGrid.addNaturalBlockers(this.terrainResult.naturalBlockerRects);
-              this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
-            } else {
-              // F4: Structure creak/crack on damage
-              AudioManager.play('structure_damage');
             }
+            // Remove tile + refresh grid. PathGrid rebuilds directly from
+            // the tilemap so the cell is now walkable to zombies.
+            this.clearBlockingTile(tile.x, tile.y);
+            this.pathGrid.rebuildFromTilemap(this.collisionLayer);
+            this.pathGrid.rebuildFlowfield(this.baseCenterX, this.baseCenterY);
+          } else {
+            AudioManager.play('structure_damage');
           }
+        }
 
-          // Chain Wall: deal contact damage and play chain rattle sound
-          const chainWallData = wallBody.getData('chainWallRef');
-          const chainWallRef = chainWallData instanceof ChainWall ? chainWallData : undefined;
-          if (chainWallRef) {
-            chainWallRef.onZombieContact(zombie);
-            // Chain rattle on contact (throttled by 300ms cooldown in AudioManager)
-            AudioManager.play('trap_chain_wall');
-          }
+        // Chain Wall special: contact damage to zombie
+        if (wall instanceof ChainWall) {
+          wall.onZombieContact(zombie);
+          AudioManager.play('trap_chain_wall');
         }
       },
     );
 
-    // Walls also block player
-    this.physics.add.collider(this.player, this.wallBodies);
+    // Walls also block the player.
+    this.physics.add.collider(this.player, this.collisionLayer);
 
     // Terrain slows zombies (overlap, not collider -- they push through but slowly)
     this.physics.add.overlap(
@@ -4903,7 +4926,7 @@ export class NightScene extends Phaser.Scene {
       }
     }
 
-    // --- Electric Fence: continuous damage + physics block via wallBodies ---
+    // --- Electric Fence: continuous damage + physics block via collision tilemap ---
     for (const ef of this._electricFences) {
       ef.update(delta);
       // Power Outage: electric trap is disabled
