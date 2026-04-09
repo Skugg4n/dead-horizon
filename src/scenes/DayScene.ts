@@ -62,6 +62,7 @@ export class DayScene extends Phaser.Scene {
   // Placement mode state
   private placementMode: boolean = false;
   private placementStructureId: string | null = null;
+  private placementRotation: 0 | 1 = 0; // 0 = horizontal (default), 1 = vertical
   private scrapMode: boolean = false;
   private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
   private placementJustStarted: boolean = false;
@@ -535,35 +536,39 @@ export class DayScene extends Phaser.Scene {
 
   private drawStructure(structure: StructureInstance): void {
     const spriteKey = getStructureSpriteKey(this, structure.structureId);
+    const data = this.buildingManager.getStructureData(structure.structureId);
+    const tiles = data?.widthTiles ?? 1;
+    const isVertical = structure.rotation === 1;
+    // Footprint in pixels, respecting rotation
+    const footW = isVertical ? TILE_SIZE : tiles * TILE_SIZE;
+    const footH = isVertical ? tiles * TILE_SIZE : TILE_SIZE;
 
     if (spriteKey) {
-      // Use loaded sprite
       const img = this.add.image(
-        structure.x + TILE_SIZE / 2,
-        structure.y + TILE_SIZE / 2,
+        structure.x + footW / 2,
+        structure.y + footH / 2,
         spriteKey,
       );
-      img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+      img.setDisplaySize(footW, footH);
+      if (isVertical) img.setRotation(Math.PI / 2);
       this.addToWorld(img);
       this.structureSprites.push(img);
     } else {
       // Programmatic fallback with colored tile + short label
       const color = STRUCTURE_COLORS[structure.structureId] ?? 0x888888;
-      const data = this.buildingManager.getStructureData(structure.structureId);
-      const w = (data?.widthTiles ?? 1) * TILE_SIZE;
       const g = this.add.graphics();
       g.fillStyle(color);
-      g.fillRect(structure.x, structure.y, w, TILE_SIZE);
+      g.fillRect(structure.x, structure.y, footW, footH);
       g.lineStyle(1, 0xE8DCC8, 0.6);
-      g.strokeRect(structure.x, structure.y, w, TILE_SIZE);
+      g.strokeRect(structure.x, structure.y, footW, footH);
       this.addToWorld(g);
       this.structureSprites.push(g);
 
       // Short name label so player can identify structures
       const shortName = (data?.name ?? structure.structureId).split(' ').map(s => s[0]).join('');
       const label = this.add.text(
-        structure.x + w / 2,
-        structure.y + TILE_SIZE / 2,
+        structure.x + footW / 2,
+        structure.y + footH / 2,
         shortName,
         { fontFamily: '"Press Start 2P", monospace', fontSize: '6px', color: '#FFFFFF', stroke: '#000000', strokeThickness: 2 }
       ).setOrigin(0.5).setDepth(5);
@@ -1098,6 +1103,7 @@ export class DayScene extends Phaser.Scene {
   private startPlacement(structureId: string): void {
     this.placementMode = true;
     this.placementStructureId = structureId;
+    this.placementRotation = 0;
     // Prevent the same click that selected the menu item from placing the structure.
     // Reset on next tick so only the originating pointer event is skipped, not the
     // first real map click.
@@ -1109,35 +1115,62 @@ export class DayScene extends Phaser.Scene {
     // Create ghost preview (world-space element, only on main camera).
     // For multi-tile structures (widthTiles > 1 or zoneRadius > TILE_SIZE/2)
     // we draw a ghost that covers the actual footprint so the player can see
-    // what area will be affected.
+    this.redrawGhost();
+
+    // Keep build menu visible so player can switch structures or close to exit
+    const data = this.buildingManager.getStructureData(structureId);
+    const rotHint = (data?.widthTiles ?? 1) > 1 ? ' [R] rotate.' : '';
+    this.showInfo(`Click to place ${data?.name ?? structureId}.${rotHint} ESC/right-click to cancel.`);
+  }
+
+  /**
+   * Compute ghost footprint dimensions in PIXEL space, applying the current
+   * placementRotation for multi-tile structures. widthTiles is stored as the
+   * horizontal length in structures.json; rotation=1 swaps width and height.
+   */
+  private getGhostDimensions(structureId: string): { w: number; h: number } {
+    const structData = this.buildingManager.getStructureData(structureId);
+    const tiles = structData?.widthTiles ?? 1;
+    if (tiles <= 1) return { w: TILE_SIZE, h: TILE_SIZE };
+    if (this.placementRotation === 1) {
+      return { w: TILE_SIZE, h: tiles * TILE_SIZE };
+    }
+    return { w: tiles * TILE_SIZE, h: TILE_SIZE };
+  }
+
+  private redrawGhost(): void {
+    if (!this.placementStructureId) return;
     if (this.ghostGraphics) {
       this.ghostGraphics.destroy();
+      this.ghostGraphics = null;
     }
-    const color = STRUCTURE_COLORS[structureId] ?? 0x888888;
-    const structData = this.buildingManager.getStructureData(structureId);
-
-    // Determine ghost pixel dimensions from structure data.
-    // Priority: widthTiles field -> zoneRadius field -> default 1 tile.
-    let ghostW = TILE_SIZE;
-    const ghostH = TILE_SIZE;
-    if (structData) {
-      if (structData.widthTiles && structData.widthTiles > 1) {
-        ghostW = structData.widthTiles * TILE_SIZE;
-        // Height stays 1 tile -- these are wide structures, not squares
-      }
-    }
+    const color = STRUCTURE_COLORS[this.placementStructureId] ?? 0x888888;
+    const { w: ghostW, h: ghostH } = this.getGhostDimensions(this.placementStructureId);
 
     this.ghostGraphics = this.add.graphics();
     this.ghostGraphics.fillStyle(color, 0.5);
     this.ghostGraphics.fillRect(0, 0, ghostW, ghostH);
     this.ghostGraphics.lineStyle(2, 0xFFD700, 0.9);
     this.ghostGraphics.strokeRect(0, 0, ghostW, ghostH);
+    // Draw tile grid inside the footprint so the player sees how many tiles it takes
+    this.ghostGraphics.lineStyle(1, 0xFFD700, 0.5);
+    for (let x = TILE_SIZE; x < ghostW; x += TILE_SIZE) {
+      this.ghostGraphics.lineBetween(x, 0, x, ghostH);
+    }
+    for (let y = TILE_SIZE; y < ghostH; y += TILE_SIZE) {
+      this.ghostGraphics.lineBetween(0, y, ghostW, y);
+    }
     this.ghostGraphics.setDepth(50);
     this.addToWorld(this.ghostGraphics);
+  }
 
-    // Keep build menu visible so player can switch structures or close to exit
-    const data = this.buildingManager.getStructureData(structureId);
-    this.showInfo(`Click to place ${data?.name ?? structureId}. ESC/right-click to cancel.`);
+  /** Rotate the current placement ghost 90 degrees. Called by the R key. */
+  private rotatePlacement(): void {
+    if (!this.placementMode || !this.placementStructureId) return;
+    const data = this.buildingManager.getStructureData(this.placementStructureId);
+    if (!data?.widthTiles || data.widthTiles <= 1) return;
+    this.placementRotation = this.placementRotation === 0 ? 1 : 0;
+    this.redrawGhost();
   }
 
   private cancelPlacement(): void {
@@ -1342,6 +1375,10 @@ export class DayScene extends Phaser.Scene {
             this.cancelPlacement();
             return;
           }
+          if (key.toUpperCase() === 'R') {
+            this.rotatePlacement();
+            return;
+          }
           return;
         }
 
@@ -1483,7 +1520,7 @@ export class DayScene extends Phaser.Scene {
   }
 
   private placeStructure(structureId: string, x: number, y: number): void {
-    const result = this.buildingManager.place(structureId, x, y, this.currentAP);
+    const result = this.buildingManager.place(structureId, x, y, this.currentAP, this.placementRotation);
 
     if (result) {
       this.currentAP = result.apRemaining;

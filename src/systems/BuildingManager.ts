@@ -130,12 +130,14 @@ export class BuildingManager {
   /**
    * Place a structure. Returns the instance if successful, null otherwise.
    * Deducts resources and AP cost from currentAP (returned as new value).
+   * `rotation` is stored on multi-tile instances (0 = horizontal, 1 = vertical).
    */
   place(
     structureId: string,
     gridX: number,
     gridY: number,
-    currentAP: number
+    currentAP: number,
+    rotation: 0 | 1 = 0,
   ): { instance: StructureInstance; apRemaining: number } | null {
     const data = this.structureDataMap.get(structureId);
     if (!data) return null;
@@ -165,6 +167,7 @@ export class BuildingManager {
       maxHp: data.hp,
       x: gridX,
       y: gridY,
+      rotation: (data.widthTiles && data.widthTiles > 1) ? rotation : 0,
     };
 
     this.gameState.base.structures.push(instance);
