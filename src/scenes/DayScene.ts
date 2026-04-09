@@ -1331,6 +1331,14 @@ export class DayScene extends Phaser.Scene {
         // 0. Block ALL shortcuts while tutorial is showing
         if (this.tutorialShowing) return;
 
+        // 0a. Placement mode R = rotate (highest priority so build menu
+        // being open doesn't swallow the rotate key). Only fires if a
+        // multi-tile structure is being placed.
+        if (this.placementMode && key.toUpperCase() === 'R') {
+          this.rotatePlacement();
+          return;
+        }
+
         // 1. Dialogs take priority (EventDialog, EncounterDialog)
         if (this.eventDialog.isShowing()) {
           if (this.eventDialog.handleKey(key)) return;
