@@ -107,17 +107,20 @@ export abstract class TrapBase extends Phaser.GameObjects.Graphics {
 
     this.setPosition(instance.x, instance.y);
 
-    // Status text: positioned above the trap tile, world-space
+    // Status text: centered ON the trap so the [E] prompt visually sits on
+    // the broken trap, not floating above another structure above it.
     this.statusText = scene.add.text(
       instance.x + TILE_SIZE / 2,
-      instance.y - 12,
+      instance.y + TILE_SIZE / 2,
       '',
       {
         fontFamily: '"Press Start 2P", monospace',
         fontSize: '7px',
         color: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: 3,
       },
-    ).setOrigin(0.5, 1).setDepth(50);
+    ).setOrigin(0.5, 0.5).setDepth(50);
 
     this.draw();
     scene.add.existing(this);

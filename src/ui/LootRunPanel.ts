@@ -426,7 +426,7 @@ export class LootRunPanel {
       }
     }
 
-    const result = this.lootManager.executeLootRun(this.selectedDestination.id);
+    const result = this.lootManager.executeLootRun(this.selectedDestination.id, this.selectedCompanions.length);
 
     if (result.encounter) {
       // Use equipped weapons for encounter strength calculation

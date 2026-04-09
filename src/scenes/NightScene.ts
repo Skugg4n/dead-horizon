@@ -2230,6 +2230,9 @@ export class NightScene extends Phaser.Scene {
       this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
       this.gameState.inventory.loadedAmmo = 0;
       this.loadedAmmo = 0;
+      // Remove destroyed structures from save so dead walls don't linger as
+      // ghosts in the next day's view. Keeps damaged-but-alive ones.
+      this.gameState.base.structures = this.gameState.base.structures.filter(s => s.hp > 0);
       this.decreaseUsedWeaponDurability();
       this.decreaseArmorDurability();
       this.skillManager.syncToState(this.gameState);
@@ -2371,6 +2374,8 @@ export class NightScene extends Phaser.Scene {
       this.gameState.inventory.resources.ammo += Math.max(0, this.loadedAmmo);
       this.gameState.inventory.loadedAmmo = 0;
       this.loadedAmmo = 0;
+      // Remove destroyed structures from save
+      this.gameState.base.structures = this.gameState.base.structures.filter(s => s.hp > 0);
       this.decreaseUsedWeaponDurability();
       this.decreaseArmorDurability();
       this.skillManager.syncToState(this.gameState);

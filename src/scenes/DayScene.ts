@@ -589,6 +589,42 @@ export class DayScene extends Phaser.Scene {
       this.addToWorld(lvlText);
       this.structureSprites.push(lvlText);
     }
+
+    // Damage visualization: any structure below full HP gets a visible HP bar
+    // above it and a crack overlay that scales with damage. Lets the player
+    // see at-a-glance which walls need repair without having to click each one.
+    const hpRatio = structure.hp / Math.max(1, structure.maxHp);
+    if (hpRatio < 1 && structure.hp > 0) {
+      const dmgGfx = this.add.graphics();
+      dmgGfx.setDepth(6);
+
+      // Crack overlay: more cracks at lower HP
+      const crackCount = hpRatio < 0.33 ? 5 : hpRatio < 0.66 ? 3 : 1;
+      dmgGfx.lineStyle(1, 0x1A0A04, 0.85);
+      for (let i = 0; i < crackCount; i++) {
+        const x1 = structure.x + 4 + (i * 7) % (TILE_SIZE - 8);
+        const y1 = structure.y + 4;
+        const x2 = x1 + ((i % 2 === 0) ? 6 : -4);
+        const y2 = structure.y + TILE_SIZE - 4;
+        dmgGfx.lineBetween(x1, y1, x2, y2);
+      }
+
+      // HP bar above the structure
+      const BAR_W = TILE_SIZE - 6;
+      const BAR_H = 3;
+      const BAR_X = structure.x + 3;
+      const BAR_Y = structure.y - 5;
+      dmgGfx.fillStyle(0x000000, 0.7);
+      dmgGfx.fillRect(BAR_X - 1, BAR_Y - 1, BAR_W + 2, BAR_H + 2);
+      let fillColor = 0x4CAF50;
+      if (hpRatio < 0.66) fillColor = 0xFFC107;
+      if (hpRatio < 0.33) fillColor = 0xF44336;
+      dmgGfx.fillStyle(fillColor, 1);
+      dmgGfx.fillRect(BAR_X, BAR_Y, Math.floor(BAR_W * hpRatio), BAR_H);
+
+      this.addToWorld(dmgGfx);
+      this.structureSprites.push(dmgGfx);
+    }
   }
 
   private setupCameras(): void {

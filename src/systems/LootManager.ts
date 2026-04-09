@@ -202,7 +202,7 @@ export class LootManager {
   }
 
   /** Execute a full loot run (rolls loot, checks encounter, does NOT resolve encounter) */
-  executeLootRun(destinationId: string): LootResult {
+  executeLootRun(destinationId: string, companionCount: number = 0): LootResult {
     const destination = destinations.find(d => d.id === destinationId);
     if (!destination) {
       throw new Error(`Unknown destination: ${destinationId}`);
@@ -210,6 +210,19 @@ export class LootManager {
 
     // Roll base loot
     const loot = this.rollLoot(destination);
+
+    // Companion loot bonus: +15% loot per companion (maxes out around +60% with 4+).
+    // Makes bringing more refugees meaningfully better for loot yield while still
+    // having the risk of injury on a lost encounter.
+    if (companionCount > 0) {
+      const multiplier = 1 + 0.15 * companionCount;
+      for (const key of Object.keys(loot) as ResourceType[]) {
+        const val = loot[key];
+        if (val !== undefined) {
+          loot[key] = Math.round(val * multiplier);
+        }
+      }
+    }
 
     // Roll for weapon drop (independent of resource loot)
     const weaponDropId = this.rollWeaponDrop(destinationId);
