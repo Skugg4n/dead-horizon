@@ -234,6 +234,8 @@ export interface StructureInstance {
   maxHp: number;
   x: number;
   y: number;
+  /** 0 = horizontal (default widthTiles extends right), 1 = vertical (extends down). Only meaningful for widthTiles > 1 structures. */
+  rotation?: 0 | 1;
 }
 
 /**
