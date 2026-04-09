@@ -353,14 +353,22 @@ export class DayScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    // Update ghost position during placement mode
-    if (this.placementMode && this.ghostGraphics) {
+    // Update ghost position + color during placement mode
+    if (this.placementMode && this.ghostGraphics && this.placementStructureId) {
       const pointer = this.input.activePointer;
       const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-      // Snap to grid
       const snappedX = Math.floor(worldPoint.x / TILE_SIZE) * TILE_SIZE;
       const snappedY = Math.floor(worldPoint.y / TILE_SIZE) * TILE_SIZE;
       this.ghostGraphics.setPosition(snappedX, snappedY);
+      // Red if the placement would fail here, green otherwise.
+      // Re-checked every frame so the player sees VALID/INVALID before clicking.
+      const canPlace = this.buildingManager.isPositionFree(
+        snappedX,
+        snappedY,
+        this.placementStructureId,
+        this.placementRotation,
+      ) && !this.isInsideBase(snappedX, snappedY);
+      this.redrawGhostTint(canPlace);
     }
 
     // Speed Run: accumulate day-phase time into the persistent timer
@@ -552,13 +560,16 @@ export class DayScene extends Phaser.Scene {
     const footH = isVertical ? tiles * TILE_SIZE : TILE_SIZE;
 
     if (spriteKey) {
-      const img = this.add.image(
-        structure.x + footW / 2,
-        structure.y + footH / 2,
-        spriteKey,
-      );
-      img.setDisplaySize(footW, footH);
-      if (isVertical) img.setRotation(Math.PI / 2);
+      // Sprite is stored at NATURAL horizontal orientation (tiles*TILE_SIZE x TILE_SIZE).
+      // For vertical placements we keep the display size natural and rotate 90 deg,
+      // then position the sprite at the CENTER of the rotated footprint.
+      const cx = structure.x + footW / 2;
+      const cy = structure.y + footH / 2;
+      const img = this.add.image(cx, cy, spriteKey);
+      img.setDisplaySize(tiles * TILE_SIZE, TILE_SIZE);
+      if (isVertical) {
+        img.setRotation(Math.PI / 2);
+      }
       this.addToWorld(img);
       this.structureSprites.push(img);
     } else {
@@ -1214,6 +1225,9 @@ export class DayScene extends Phaser.Scene {
     return { w: tiles * TILE_SIZE, h: TILE_SIZE };
   }
 
+  /** Track last drawn validity so we don't redraw every frame unnecessarily. */
+  private ghostLastValid: boolean | null = null;
+
   private redrawGhost(): void {
     if (!this.placementStructureId) return;
     if (this.ghostGraphics) {
@@ -1227,24 +1241,56 @@ export class DayScene extends Phaser.Scene {
     } else {
       this.hideRotateButton();
     }
-    const color = STRUCTURE_COLORS[this.placementStructureId] ?? 0x888888;
-    const { w: ghostW, h: ghostH } = this.getGhostDimensions(this.placementStructureId);
+    // Start in "valid" state until update() proves otherwise
+    this.ghostLastValid = null;
+    this.redrawGhostTint(true);
+  }
 
-    this.ghostGraphics = this.add.graphics();
-    this.ghostGraphics.fillStyle(color, 0.5);
-    this.ghostGraphics.fillRect(0, 0, ghostW, ghostH);
-    this.ghostGraphics.lineStyle(2, 0xFFD700, 0.9);
-    this.ghostGraphics.strokeRect(0, 0, ghostW, ghostH);
-    // Draw tile grid inside the footprint so the player sees how many tiles it takes
-    this.ghostGraphics.lineStyle(1, 0xFFD700, 0.5);
+  /** Rebuild the ghost graphics with a fill + outline color based on validity. */
+  private redrawGhostTint(valid: boolean): void {
+    if (this.ghostLastValid === valid && this.ghostGraphics) return;
+    if (!this.placementStructureId) return;
+    if (this.ghostGraphics) {
+      this.ghostGraphics.destroy();
+      this.ghostGraphics = null;
+    }
+
+    const { w: ghostW, h: ghostH } = this.getGhostDimensions(this.placementStructureId);
+    const fillColor = valid ? 0x4CAF50 : 0xF44336; // green or red
+    const outlineColor = valid ? 0xFFD700 : 0xFF4444;
+
+    const g = this.add.graphics();
+    g.fillStyle(fillColor, 0.4);
+    g.fillRect(0, 0, ghostW, ghostH);
+    g.lineStyle(2, outlineColor, 0.9);
+    g.strokeRect(0, 0, ghostW, ghostH);
+    // Tile grid inside the footprint
+    g.lineStyle(1, outlineColor, 0.5);
     for (let x = TILE_SIZE; x < ghostW; x += TILE_SIZE) {
-      this.ghostGraphics.lineBetween(x, 0, x, ghostH);
+      g.lineBetween(x, 0, x, ghostH);
     }
     for (let y = TILE_SIZE; y < ghostH; y += TILE_SIZE) {
-      this.ghostGraphics.lineBetween(0, y, ghostW, y);
+      g.lineBetween(0, y, ghostW, y);
     }
-    this.ghostGraphics.setDepth(50);
-    this.addToWorld(this.ghostGraphics);
+    g.setDepth(50);
+    this.addToWorld(g);
+    this.ghostGraphics = g;
+    this.ghostLastValid = valid;
+  }
+
+  /** Does an AABB starting at (x, y) with one tile size overlap the base tent? */
+  private isInsideBase(x: number, y: number): boolean {
+    const mapPixW = MAP_WIDTH * TILE_SIZE;
+    const mapPixH = MAP_HEIGHT * TILE_SIZE;
+    const baseLd = this.getBaseLevelData();
+    const halfSize = baseLd.visual.size / 2;
+    const baseCx = mapPixW / 2;
+    const baseCy = mapPixH / 2;
+    const baseLeft = baseCx - halfSize;
+    const baseRight = baseCx + halfSize;
+    const baseTop = baseCy - halfSize;
+    const baseBot = baseCy + halfSize;
+    return (x + TILE_SIZE > baseLeft && x < baseRight && y + TILE_SIZE > baseTop && y < baseBot);
   }
 
   /** Rotate the current placement ghost 90 degrees. Called by the R key. */
