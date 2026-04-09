@@ -122,6 +122,11 @@ export class PathGrid {
     return !this.pfGrid.isWalkableAt(tileX, tileY);
   }
 
+  /** Expose grid dimensions for debug overlays */
+  getGridDimensions(): { width: number; height: number } {
+    return { width: this.gridWidth, height: this.gridHeight };
+  }
+
   /** Clear direction cache -- called when structures change */
   rebuildFlowfield(_baseCenterX: number, _baseCenterY: number): void {
     this.directionCache.clear();

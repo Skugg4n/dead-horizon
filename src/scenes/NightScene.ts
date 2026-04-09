@@ -2770,6 +2770,38 @@ export class NightScene extends Phaser.Scene {
     mKey.on('down', () => {
       this.minimap.toggle();
     });
+
+    // F10: toggle PathGrid debug overlay (blocked tiles rendered red)
+    const f10Key = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F10);
+    f10Key.on('down', () => {
+      this.togglePathGridDebug();
+    });
+  }
+
+  private _pathGridDebugGfx: Phaser.GameObjects.Graphics | null = null;
+
+  private togglePathGridDebug(): void {
+    if (this._pathGridDebugGfx) {
+      this._pathGridDebugGfx.destroy();
+      this._pathGridDebugGfx = null;
+      console.log('[DEBUG] PathGrid overlay OFF');
+      return;
+    }
+    const gfx = this.add.graphics();
+    gfx.setDepth(500);
+    const { width, height } = this.pathGrid.getGridDimensions();
+    for (let ty = 0; ty < height; ty++) {
+      for (let tx = 0; tx < width; tx++) {
+        if (this.pathGrid.isCellBlocked(tx, ty)) {
+          gfx.fillStyle(0xFF0000, 0.35);
+          gfx.fillRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          gfx.lineStyle(1, 0xFF0000, 0.7);
+          gfx.strokeRect(tx * TILE_SIZE, ty * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+      }
+    }
+    this._pathGridDebugGfx = gfx;
+    console.log('[DEBUG] PathGrid overlay ON -- red = blocked');
   }
 
   /**
