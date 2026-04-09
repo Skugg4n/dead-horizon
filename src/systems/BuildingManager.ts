@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from './SaveManager';
-import { TILE_SIZE } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT } from '../config/constants';
+import baseLevelsJson from '../data/base-levels.json';
 import type { GameState, StructureInstance, ResourceType } from '../config/types';
 
 /** Per-level upgrade definition loaded from structures.json upgrades field. */
@@ -114,6 +115,7 @@ export class BuildingManager {
    * For multi-tile structures (widthTiles > 1) all covered tiles must be free.
    * Checks against every existing structure's full footprint too, so two
    * multi-tile structures can't partially overlap.
+   * Also rejects anything overlapping the base tent footprint.
    */
   isPositionFree(x: number, y: number, structureId?: string, rotation: 0 | 1 = 0): boolean {
     const data = structureId ? this.structureDataMap.get(structureId) : undefined;
@@ -126,6 +128,25 @@ export class BuildingManager {
     const newTop = y;
     const newRight = x + placeW * TILE_SIZE;
     const newBot = y + placeH * TILE_SIZE;
+
+    // --- Base tent footprint check ---
+    // Reject placement that overlaps the base tent square at the map center.
+    // Base size scales with current base level from base-levels.json.
+    const baseLvlIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
+    const baseLvlData = baseLevelsJson.baseLevels[baseLvlIdx];
+    if (baseLvlData) {
+      const bSize = baseLvlData.visual.size;
+      const bHalf = bSize / 2;
+      const bCx = (MAP_WIDTH * TILE_SIZE) / 2;
+      const bCy = (MAP_HEIGHT * TILE_SIZE) / 2;
+      const baseLeft = bCx - bHalf;
+      const baseRight = bCx + bHalf;
+      const baseTop = bCy - bHalf;
+      const baseBot = bCy + bHalf;
+      if (newLeft < baseRight && newRight > baseLeft && newTop < baseBot && newBot > baseTop) {
+        return false;
+      }
+    }
 
     for (const s of this.gameState.base.structures) {
       const sData = this.structureDataMap.get(s.structureId);
