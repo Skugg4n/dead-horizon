@@ -2776,6 +2776,28 @@ export class NightScene extends Phaser.Scene {
     f10Key.on('down', () => {
       this.togglePathGridDebug();
     });
+
+    // Always-visible clickable debug button in case F10 is captured by the browser
+    this.createPathGridDebugButton();
+  }
+
+  private createPathGridDebugButton(): void {
+    const btn = this.add.text(10, GAME_HEIGHT - 24, '[GRID]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: '#FF6666',
+      backgroundColor: '#1A0808',
+      padding: { left: 6, right: 6, top: 3, bottom: 3 },
+    }).setScrollFactor(0).setDepth(10000);
+    btn.setInteractive({ useHandCursor: true });
+    btn.on('pointerover', () => btn.setColor('#FFFF00'));
+    btn.on('pointerout', () => btn.setColor('#FF6666'));
+    btn.on('pointerdown', (_pointer: Phaser.Input.Pointer, _lx: number, _ly: number, event: Phaser.Types.Input.EventData) => {
+      event.stopPropagation();
+      // Prevent the shoot-on-click handler from firing
+      this.isShooting = false;
+      this.togglePathGridDebug();
+    });
   }
 
   private _pathGridDebugGfx: Phaser.GameObjects.Graphics | null = null;
