@@ -217,21 +217,25 @@ export class PathGrid {
     const toTileX = Math.max(0, Math.min(this.gridWidth - 1, Math.floor(toX / TILE_SIZE)));
     const toTileY = Math.max(0, Math.min(this.gridHeight - 1, Math.floor(toY / TILE_SIZE)));
 
-    // If target is blocked (base sits on a wall tile), find the closest walkable
+    // If target is blocked (base sits on a wall tile), find the closest walkable.
+    // Search radius bumped from 8 -> 16 tiles because large fort interiors can
+    // completely enclose the base and the nearest walkable is far out.
     let finalX = toTileX;
     let finalY = toTileY;
     if (!this.pfGrid.isWalkableAt(toTileX, toTileY)) {
-      const nearest = this.nearestWalkableTile(toTileX, toTileY, 8);
+      const nearest = this.nearestWalkableTile(toTileX, toTileY, 16);
       if (!nearest) return [];
       finalX = nearest.x;
       finalY = nearest.y;
     }
 
-    // If the zombie's tile is blocked (pushed into wall by physics), start from nearest walkable
+    // If the zombie's tile is blocked (pushed into wall by physics), start from
+    // nearest walkable. Bumped from 4 -> 8 tiles so zombies wedged into corners
+    // find a way out reliably.
     let startX = fromTileX;
     let startY = fromTileY;
     if (!this.pfGrid.isWalkableAt(startX, startY)) {
-      const nearest = this.nearestWalkableTile(startX, startY, 4);
+      const nearest = this.nearestWalkableTile(startX, startY, 8);
       if (!nearest) return [];
       startX = nearest.x;
       startY = nearest.y;

@@ -819,10 +819,33 @@ export class NightScene extends Phaser.Scene {
     const baseFillColor   = parseInt(baseLevelData.visual.color.replace('0x', ''), 16);
     const baseStrokeColor = parseInt(baseLevelData.visual.strokeColor.replace('0x', ''), 16);
 
+    // Draw a darker, solid foundation under the base so it visually anchors
+    // the tent to the ground. This also makes the base footprint obvious as
+    // a distinct shape on the terrain.
+    const foundation = this.add.graphics();
+    foundation.fillStyle(0x2A1A0A, 0.85);
+    foundation.fillRoundedRect(
+      centerX - halfSize - 4,
+      centerY - halfSize - 4,
+      baseSize + 8,
+      baseSize + 8,
+      6,
+    );
+    foundation.lineStyle(3, 0xC5A030, 0.9);
+    foundation.strokeRoundedRect(
+      centerX - halfSize - 4,
+      centerY - halfSize - 4,
+      baseSize + 8,
+      baseSize + 8,
+      6,
+    );
+    foundation.setDepth(1);
+
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
     if (baseSpriteKey) {
       const baseImg = this.add.image(centerX, centerY, baseSpriteKey);
       baseImg.setDisplaySize(baseSize, baseSize);
+      baseImg.setDepth(2);
     } else {
       const tent = this.add.graphics();
       tent.fillStyle(baseFillColor);
@@ -840,9 +863,28 @@ export class NightScene extends Phaser.Scene {
           baseSize - inset * 2
         );
       }
+      tent.setDepth(2);
     }
 
-    // Base label removed -- player already knows where the base is.
+    // Pulsing warm glow aura so the base is always obvious at a glance.
+    const glow = this.add.graphics();
+    glow.setDepth(1);
+    const glowRadius = halfSize + 48;
+    const drawGlow = (alpha: number): void => {
+      glow.clear();
+      glow.fillStyle(0xFFD79C, alpha);
+      glow.fillCircle(centerX, centerY, glowRadius);
+    };
+    drawGlow(0.08);
+    this.tweens.add({
+      targets: { a: 0.08 },
+      a: 0.16,
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      onUpdate: (_tw, target: { a: number }) => drawGlow(target.a),
+    });
 
     // Set world bounds
     this.physics.world.setBounds(0, 0, mapPixelWidth, mapPixelHeight);

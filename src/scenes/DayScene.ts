@@ -1871,27 +1871,34 @@ export class DayScene extends Phaser.Scene {
   private drawBaseTent(graphics: Phaser.GameObjects.Graphics, centerX: number, centerY: number): void {
     const levelData = this.getBaseLevelData();
     const size = levelData.visual.size;
+    const halfSize = size / 2;
+
+    // Foundation ring: dark rounded rect + gold border so the base footprint
+    // is obvious against the terrain. Drawn first so sprite/tent sit on top.
+    graphics.clear();
+    graphics.fillStyle(0x2A1A0A, 0.85);
+    graphics.fillRoundedRect(centerX - halfSize - 4, centerY - halfSize - 4, size + 8, size + 8, 6);
+    graphics.lineStyle(3, 0xC5A030, 0.9);
+    graphics.strokeRoundedRect(centerX - halfSize - 4, centerY - halfSize - 4, size + 8, size + 8, 6);
 
     // Try sprite-based rendering
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
     if (baseSpriteKey) {
-      graphics.clear();
       if (this.baseSpriteImage) {
         this.baseSpriteImage.destroy();
       }
       this.baseSpriteImage = this.add.image(centerX, centerY, baseSpriteKey);
       this.baseSpriteImage.setDisplaySize(size, size);
+      this.baseSpriteImage.setDepth(2);
       this.mapContainer.add(this.baseSpriteImage);
       return;
     }
 
-    // Programmatic fallback
-    const halfSize = size / 2;
+    // Programmatic fallback (foundation already drawn above)
     const fillColor = parseInt(levelData.visual.color.replace('0x', ''), 16);
     const strokeColor = parseInt(levelData.visual.strokeColor.replace('0x', ''), 16);
     const strokeWidth = levelData.visual.strokeWidth;
 
-    graphics.clear();
     graphics.fillStyle(fillColor);
     graphics.fillRect(centerX - halfSize, centerY - halfSize, size, size);
     graphics.lineStyle(strokeWidth, strokeColor);
