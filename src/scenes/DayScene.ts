@@ -64,6 +64,7 @@ export class DayScene extends Phaser.Scene {
   private placementStructureId: string | null = null;
   private placementRotation: 0 | 1 = 0; // 0 = horizontal (default), 1 = vertical
   private scrapMode: boolean = false;
+  private maxApForDay: number = AP_PER_DAY;
   private ghostGraphics: Phaser.GameObjects.Graphics | null = null;
   private placementJustStarted: boolean = false;
 
@@ -103,8 +104,14 @@ export class DayScene extends Phaser.Scene {
   create(): void {
     try {
     this.gameState = SaveManager.load();
-    // Speed Run challenge: only 8 AP per day instead of the default 12
-    this.currentAP = this.gameState.activeChallenge === 'speed_run' ? 8 : AP_PER_DAY;
+    // Workhours per day: base is AP_PER_DAY + 1 per healthy refugee in camp.
+    // More people = more labour gets done, up to a reasonable cap so late
+    // runs don't trivially steamroll. Speed Run cuts the base to 8.
+    const baseAp = this.gameState.activeChallenge === 'speed_run' ? 8 : AP_PER_DAY;
+    const healthyRefugees = (this.gameState.refugees ?? []).filter(r => r.status === 'healthy').length;
+    const refugeeBonus = Math.min(healthyRefugees, 8); // cap at +8
+    this.maxApForDay = baseAp + refugeeBonus;
+    this.currentAP = this.maxApForDay;
 
     // Apply legacy perks on the very first day of a fresh run (totalRuns == 0, wave == 1)
     if (this.gameState.progress.totalRuns === 0 && this.gameState.progress.currentWave === 1) {
@@ -669,7 +676,7 @@ export class DayScene extends Phaser.Scene {
     this.addToUI(topBg);
 
     // AP bar (left side) -- click on "AP X/Y" text to open debug menu (hidden shortcut)
-    this.apBar = new ActionPointBar(this, this.currentAP, () => this.toggleDebugMenu());
+    this.apBar = new ActionPointBar(this, this.currentAP, () => this.toggleDebugMenu(), this.maxApForDay);
     this.addToUI(this.apBar.getContainer());
 
     // DAY counter (centered) -- triple-click to open debug menu
@@ -1031,7 +1038,7 @@ export class DayScene extends Phaser.Scene {
       this,
       this.buildingManager,
       () => this.currentAP,
-      () => AP_PER_DAY,
+      () => this.maxApForDay,
       () => this.gameState.inventory.resources,
       () => (this.getBaseLevelData().unlockedStructures as string[]),
       () => this.gameState.unlockedBlueprints,
@@ -1520,6 +1527,21 @@ export class DayScene extends Phaser.Scene {
   }
 
   private placeStructure(structureId: string, x: number, y: number): void {
+    // Block placement on the base tent footprint so player can't build on the
+    // base itself. Base is a square centered on the map middle.
+    const mapPixW = MAP_WIDTH * TILE_SIZE;
+    const mapPixH = MAP_HEIGHT * TILE_SIZE;
+    const baseLd = this.getBaseLevelData();
+    const baseHalf = baseLd.visual.size / 2;
+    const baseCx = mapPixW / 2;
+    const baseCy = mapPixH / 2;
+    if (x + TILE_SIZE > baseCx - baseHalf && x < baseCx + baseHalf &&
+        y + TILE_SIZE > baseCy - baseHalf && y < baseCy + baseHalf) {
+      this.showInfo('Cannot build on the base!');
+      AudioManager.play('ui_error');
+      return;
+    }
+
     const result = this.buildingManager.place(structureId, x, y, this.currentAP, this.placementRotation);
 
     if (result) {

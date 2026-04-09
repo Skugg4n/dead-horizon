@@ -387,6 +387,30 @@ export class NightScene extends Phaser.Scene {
       }
     }
 
+    // Stamp the base tent footprint so zombies can't walk through the base
+    // and player can't build on top of it. Base size comes from base-levels.json
+    // and is the displayed tent square in pixels.
+    {
+      const baseLvlIdxRange = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
+      const baseLvlData = baseLevelsJson.baseLevels[baseLvlIdxRange];
+      if (baseLvlData) {
+        const bSize = baseLvlData.visual.size;
+        const bHalf = bSize / 2;
+        const bLeft  = Math.floor((this.baseCenterX - bHalf) / TILE_SIZE);
+        const bRight = Math.floor((this.baseCenterX + bHalf - 0.01) / TILE_SIZE);
+        const bTop   = Math.floor((this.baseCenterY - bHalf) / TILE_SIZE);
+        const bBot   = Math.floor((this.baseCenterY + bHalf - 0.01) / TILE_SIZE);
+        for (let ty = bTop; ty <= bBot; ty++) {
+          for (let tx = bLeft; tx <= bRight; tx++) {
+            if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT) {
+              const tile = this.collisionLayer.putTileAt(NightScene.BLOCKER_TILE_INDEX, tx, ty);
+              if (tile) tile.setCollision(true, true, true, true);
+            }
+          }
+        }
+      }
+    }
+
     // ResourceManager MUST exist before createStructures() because fuelled
     // traps (circle_saw_trap, razor_wire_carousel, lawnmower_lane, ...) call
     // resourceManager.canAfford() during init to deduct nightly fuel.

@@ -18,9 +18,9 @@ export class ActionPointBar {
   private maxAP: number;
   private onDebugClick: (() => void) | null = null;
 
-  constructor(scene: Phaser.Scene, startAP: number = AP_PER_DAY, onDebugClick?: () => void) {
+  constructor(scene: Phaser.Scene, startAP: number = AP_PER_DAY, onDebugClick?: () => void, maxAP: number = AP_PER_DAY) {
     this.currentAP = startAP;
-    this.maxAP = AP_PER_DAY;
+    this.maxAP = maxAP;
     this.onDebugClick = onDebugClick ?? null;
 
     this.container = scene.add.container(0, 0);
@@ -45,8 +45,9 @@ export class ActionPointBar {
     this.redraw();
   }
 
-  update(currentAP: number): void {
+  update(currentAP: number, maxAP?: number): void {
     this.currentAP = currentAP;
+    if (maxAP !== undefined) this.maxAP = maxAP;
     this.redraw();
   }
 
