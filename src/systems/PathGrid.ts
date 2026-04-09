@@ -125,15 +125,40 @@ export class PathGrid {
       return len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
     }
 
-    // Check direction cache
+    // Check direction cache (expires after 30 entries to prevent stale data)
     const cacheKey = `${fromTileX},${fromTileY}`;
+    if (this.directionCache.size > 200) this.directionCache.clear();
     const cached = this.directionCache.get(cacheKey);
     if (cached) return cached;
+
+    // If zombie's tile is blocked (pushed into wall by physics), find nearest walkable tile
+    let startX = fromTileX;
+    let startY = fromTileY;
+    if (!this.pfGrid.isWalkableAt(startX, startY)) {
+      // Search 3x3 neighborhood for a walkable cell
+      let found = false;
+      for (let oy = -1; oy <= 1 && !found; oy++) {
+        for (let ox = -1; ox <= 1 && !found; ox++) {
+          const nx = startX + ox;
+          const ny = startY + oy;
+          if (nx >= 0 && nx < this.gridWidth && ny >= 0 && ny < this.gridHeight && this.pfGrid.isWalkableAt(nx, ny)) {
+            startX = nx;
+            startY = ny;
+            found = true;
+          }
+        }
+      }
+      if (!found) {
+        // Fully surrounded -- just go straight and let physics handle it
+        const len = Math.sqrt(dx * dx + dy * dy);
+        return len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
+      }
+    }
 
     // Compute A* path (grid.clone() required -- PathFinding.js mutates the grid)
     try {
       const path = this.finder.findPath(
-        fromTileX, fromTileY,
+        startX, startY,
         toTileX, toTileY,
         this.pfGrid.clone()
       );

@@ -129,10 +129,12 @@ export class LootRunPanel {
           );
           if (availableCompanions.length > 0) {
             this.panelState = 'companions';
-            this.selectedCompanions = [];
+            // Pre-select all healthy companions by default
+            if (this.selectedCompanions.length === 0) {
+              this.selectedCompanions = [...availableCompanions];
+            }
             this.rebuild();
           } else {
-            this.selectedCompanions = [];
             this.startRun();
           }
           return true;
@@ -279,10 +281,12 @@ export class LootRunPanel {
           );
           if (availableCompanions.length > 0) {
             this.panelState = 'companions';
-            this.selectedCompanions = [];
+            // Pre-select all healthy companions by default
+            if (this.selectedCompanions.length === 0) {
+              this.selectedCompanions = [...availableCompanions];
+            }
             this.rebuild();
           } else {
-            this.selectedCompanions = [];
             this.startRun();
           }
         });
