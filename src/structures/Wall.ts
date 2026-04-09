@@ -26,6 +26,12 @@ export class Wall extends Phaser.GameObjects.Graphics {
 
     scene.add.existing(this);
 
+    // If the wall was already damaged before this night started (previous night
+    // damage that didn't break it), show the damage state immediately.
+    if (instance.hp < instance.maxHp) {
+      this.updateDamageVisuals();
+    }
+
     // Subtle idle alpha pulse for visual consistency
     scene.tweens.add({
       targets: this,
@@ -35,6 +41,23 @@ export class Wall extends Phaser.GameObjects.Graphics {
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
+  }
+
+  /**
+   * Restore HP to this wall. Caller provides amount. Caps at maxHp.
+   * Updates visuals so the crack/HP bar shrink or disappear.
+   * Returns true if the wall is now at full HP (caller can clean up).
+   */
+  repair(amount: number): boolean {
+    this.structureInstance.hp = Math.min(this.structureInstance.maxHp, this.structureInstance.hp + amount);
+    if (this.structureInstance.hp >= this.structureInstance.maxHp) {
+      // Fully repaired -- clear damage overlays
+      if (this.crackGfx) { this.crackGfx.destroy(); this.crackGfx = null; }
+      if (this.hpBar)   { this.hpBar.destroy(); this.hpBar = null; }
+      return true;
+    }
+    this.updateDamageVisuals();
+    return false;
   }
 
   private draw(): void {
