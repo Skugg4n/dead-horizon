@@ -1,5 +1,27 @@
 # Dead Horizon -- Changelog
 
+## [v6.3.2] - 2026-04-09 09:18 -- AI: ytterligare body-shrink + duplikerings-debug
+
+### Varfor
+Efter v6.3.1 ser zombies smarta ut pa langt hall (rundar hornen, soker ingang) men
+fastnar fortfarande pa kant-edges nar de ska in i en 1-tile-bred korridor. Med 20x20
+body fanns bara 12px slack i en 32px-korridor -- inte tillrackligt for diagonal
+inkomning utan att skrubba en horn-pixel.
+
+### Andrat
+- **Player + Zombie body: 20x20 -> 16x16.** 16px slack pa varje sida i en
+  tile-bred korridor. Generost nog att spelare/zombie kan komma in fran nagon
+  vinkel utan att snaga.
+- **NightScene debug-dump:** vid varje night-start dumpas alla structures
+  (totalt antal, dubletter pa exakt samma position, och structures med samma id
+  pa flera positioner). Hjalper diagnostisera duplikerings-buggen anvandaren
+  rapporterar (BG7-uppdatering).
+
+### Verifiering
+- npx tsc --noEmit: 0 fel
+- npm run lint: 0 varningar
+- npx vitest run: 1127/1127 pass
+
 ## [v6.3.1] - 2026-04-09 09:10 -- AI del 2: PathGrid kände inte till träd
 
 ### Varfor

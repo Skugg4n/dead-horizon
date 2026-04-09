@@ -909,6 +909,42 @@ export class NightScene extends Phaser.Scene {
 
     const noFuelTraps: string[] = [];
 
+    // ---- DEBUG: dump every structure position to console at night start ----
+    // Helps diagnose duplication bugs (BG7-related: user reports built items
+    // appearing on the wrong side of the map). Look for entries with the same
+    // structureId at coordinates the player did not place.
+    const all = this.gameState.base.structures;
+    console.log(`[NightScene] structures total=${all.length}`);
+    const byPosition = new Map<string, number>();
+    for (const s of all) {
+      const key = `${s.structureId}@${s.x},${s.y}`;
+      byPosition.set(key, (byPosition.get(key) ?? 0) + 1);
+    }
+    let dupes = 0;
+    for (const [key, count] of byPosition.entries()) {
+      if (count > 1) {
+        console.warn(`[NightScene] DUPLICATE STRUCTURE ${key} x${count}`);
+        dupes++;
+      }
+    }
+    if (dupes === 0) {
+      // Group by structureId for a quick summary so duplicate sets at *different*
+      // positions are still visible (same id at multiple unexpected locations).
+      const byId = new Map<string, Array<{ x: number; y: number }>>();
+      for (const s of all) {
+        const arr = byId.get(s.structureId) ?? [];
+        arr.push({ x: s.x, y: s.y });
+        byId.set(s.structureId, arr);
+      }
+      for (const [id, positions] of byId.entries()) {
+        if (positions.length > 1) {
+          console.log(`[NightScene] ${id} placed ${positions.length}x:`,
+            positions.map(p => `(${p.x},${p.y})`).join(' '));
+        }
+      }
+    }
+    // ---- END DEBUG ----
+
     for (const structure of this.gameState.base.structures) {
       // Structure placement logged at debug level only
       try {

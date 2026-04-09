@@ -67,11 +67,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     // Shrink physics body so the player fits through 1-tile (32px) gaps in walls.
-    // A 32x32 body exactly equals a tile gap, which causes the player to snag on
-    // single-wide openings. 20x20 leaves ~6px clearance on each side.
-    const BODY_SIZE = 20;
+    // 16x16 leaves 8px clearance on each side -- generous enough that the player
+    // can thread tile-wide corridors without snagging on wall corners.
+    const BODY_SIZE = 16;
     this.body?.setSize(BODY_SIZE, BODY_SIZE);
-    // Center the smaller body within the 32x32 sprite frame
     this.body?.setOffset((32 - BODY_SIZE) / 2, (32 - BODY_SIZE) / 2);
 
     this.setCollideWorldBounds(true);

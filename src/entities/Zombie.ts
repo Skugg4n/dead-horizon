@@ -237,13 +237,12 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    // Shrink zombie physics body so it fits through 1-tile (32px) wall gaps.
-    // Default body = sprite size (32x32) = exactly equals a tile gap, making
-    // diagonal squeezing through single-wide openings impossible. 20x20 gives
-    // A* paths room to actually be followed without the body snagging on
-    // both sides of a gap at once. This was the real cause of zombies being
-    // "stuck" trying to enter fortresses -- not the pathfinding algorithm.
-    const BODY_SIZE = 20;
+    // Shrink zombie physics body so it fits through 1-tile (32px) wall gaps
+    // AND doesn't snag on corner edges when rounding wall corners. Body of
+    // 16x16 leaves 8px slack on each side of a 32px corridor -- enough that
+    // zombies don't need to be perfectly centered to thread the gap.
+    // (v6.3.0 used 20x20 which still snagged on corners; v6.3.2 -> 16x16.)
+    const BODY_SIZE = 16;
     this.body?.setSize(BODY_SIZE, BODY_SIZE);
     this.body?.setOffset((32 - BODY_SIZE) / 2, (32 - BODY_SIZE) / 2);
 
