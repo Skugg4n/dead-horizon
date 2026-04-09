@@ -827,12 +827,14 @@ export class MenuScene extends Phaser.Scene {
       container.add(statusText);
 
       // Progress bar for partially-cleared unlocked zones (1-4 waves done)
-      if (unlocked && !isCleared && best > 0) {
+      // Show progress bar for the active zone based on CURRENT wave (not best)
+      const barNight = isActive ? (state.progress.currentWave ?? 1) : best;
+      if (unlocked && !isCleared && barNight > 0) {
         const barX = 20;
         const barY = rowY + 38;
         const barW = panelW - 80;
         const barH = 5;
-        const filled = Math.round((best / 5) * barW);
+        const filled = Math.round(((barNight - 1) / 5) * barW);
 
         // Background track
         const barBg = this.add.graphics();
