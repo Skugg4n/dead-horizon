@@ -1173,11 +1173,17 @@ export class DayScene extends Phaser.Scene {
 
   /** Rotate the current placement ghost 90 degrees. Called by the R key. */
   private rotatePlacement(): void {
+    console.log(`[DayScene] rotatePlacement called. placementMode=${this.placementMode} id=${this.placementStructureId}`);
     if (!this.placementMode || !this.placementStructureId) return;
     const data = this.buildingManager.getStructureData(this.placementStructureId);
-    if (!data?.widthTiles || data.widthTiles <= 1) return;
+    console.log(`[DayScene] widthTiles=${data?.widthTiles}`);
+    if (!data?.widthTiles || data.widthTiles <= 1) {
+      this.showInfo('This structure is one tile -- nothing to rotate');
+      return;
+    }
     this.placementRotation = this.placementRotation === 0 ? 1 : 0;
     this.redrawGhost();
+    this.showInfo(`Rotated to ${this.placementRotation === 0 ? 'horizontal' : 'vertical'}`);
   }
 
   private cancelPlacement(): void {

@@ -3530,9 +3530,22 @@ export class NightScene extends Phaser.Scene {
     this._currentKillSource = null;
     this._currentKillTrapName = null;
 
-    // Floating damage number: skip tiny DOT ticks (< 1 damage), show for real hits
-    if (!isCombo && finalDamage >= 1) {
-      this.showDamageNumber(zombie.x, zombie.y, finalDamage, '#FF4444');
+    // Floating damage number:
+    // - Combo hits already show a combo floater above.
+    // - Real hits (>= 1 damage) show the red number immediately.
+    // - DoT ticks (< 1 damage) accumulate on the zombie; when the total
+    //   crosses 1, we show the ceil'd number and drain the accumulator.
+    if (!isCombo) {
+      if (finalDamage >= 1) {
+        this.showDamageNumber(zombie.x, zombie.y, finalDamage, '#FF4444');
+      } else {
+        zombie.dotDamageAccum += finalDamage;
+        if (zombie.dotDamageAccum >= 1) {
+          const shown = Math.floor(zombie.dotDamageAccum);
+          this.showDamageNumber(zombie.x, zombie.y, shown, '#FFAA44');
+          zombie.dotDamageAccum -= shown;
+        }
+      }
     }
   }
 

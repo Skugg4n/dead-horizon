@@ -175,6 +175,9 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   private deathStarted = false;
 
   // Trap combo tracking -- used by NightScene to detect cross-trap combos
+  // Accumulated sub-1-damage from DoT traps (floodlight, glass shards, etc)
+  // so we can show a single floater when the total crosses >= 1.
+  dotDamageAccum: number = 0;
   // lastTrapHitTime: game time (ms) when this zombie was last hit by a trap
   // lastTrapType: structureId of the last trap that dealt damage
   // comboActive: true for the 2-second window after a trap hit (for UI feedback)
@@ -1190,6 +1193,9 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.soundTargetTimer = 0;
     this.pathfindTimer = 0;
     this.offScreen = false;
+    this.dotDamageAccum = 0;
+    this.lastTrapHitTime = 0;
+    this.lastTrapType = '';
     this.spitterTimer = 0;
     this.screamTimer = 0;
     this.pulseTimer = 0;
