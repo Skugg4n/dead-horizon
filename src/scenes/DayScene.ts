@@ -8,7 +8,7 @@ import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { RefugeePanel } from '../ui/RefugeePanel';
 import { LootRunPanel } from '../ui/LootRunPanel';
 import { LootManager } from '../systems/LootManager';
-import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS, BASE_FOOTPRINT_SIZE } from '../config/constants';
 import visualConfig from '../data/visual-config.json';
 import { SkillManager } from '../systems/SkillManager';
 import { SkillPanel } from '../ui/SkillPanel';
@@ -609,6 +609,25 @@ export class DayScene extends Phaser.Scene {
       this.structureSprites.push(lvlText);
     }
 
+    // Fuel warning: if a fuelled trap has no food available, draw a red [!]
+    // icon on it so the player knows it'll malfunction at night-start.
+    const needsFuel = (data?.effect === 'burnZone' ||
+                        data?.effect === 'continuousDamageZone' ||
+                        data?.effect === 'continuousDamageCorridor' ||
+                        data?.effect === 'slowsEnemiesHeavy') &&
+                        (data?.fuelPerNight ?? 0) > 0;
+    if (needsFuel && this.gameState.inventory.resources.food < (data?.fuelPerNight ?? 0)) {
+      const warn = this.add.text(structure.x + TILE_SIZE / 2, structure.y + TILE_SIZE / 2, '!', {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '14px',
+        color: '#FF4444',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5, 0.5).setDepth(6);
+      this.addToWorld(warn);
+      this.structureSprites.push(warn);
+    }
+
     // Damage visualization: any structure below full HP gets a visible HP bar
     // above it and a crack overlay that scales with damage. Lets the player
     // see at-a-glance which walls need repair without having to click each one.
@@ -691,6 +710,18 @@ export class DayScene extends Phaser.Scene {
     // AP bar (left side) -- click on "AP X/Y" text to open debug menu (hidden shortcut)
     this.apBar = new ActionPointBar(this, this.currentAP, () => this.toggleDebugMenu(), this.maxApForDay);
     this.addToUI(this.apBar.getContainer());
+
+    // WORKHOURS label + refugee count pinned next to the AP bar so the player
+    // sees the day budget and where the bonus hours come from.
+    const refugeeCount = (this.gameState.refugees ?? []).filter(r => r.status === 'healthy').length;
+    const baseAp = this.gameState.activeChallenge === 'speed_run' ? 8 : AP_PER_DAY;
+    const refugeeBonus = Math.min(refugeeCount, 8);
+    const workhoursLabel = this.add.text(220, 8, `WORKHOURS  (base ${baseAp}h  +${refugeeBonus}h from ${refugeeCount} survivors)`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '7px',
+      color: '#9A8A7A',
+    }).setOrigin(0, 0).setDepth(100).setScrollFactor(0);
+    this.addToUI(workhoursLabel);
 
     // DAY counter (centered) -- triple-click to open debug menu
     const dayText = this.add.text(GAME_WIDTH / 2, 18, `DAY ${this.gameState.progress.currentWave}`, {
@@ -1286,15 +1317,13 @@ export class DayScene extends Phaser.Scene {
   private isInsideBase(x: number, y: number): boolean {
     const mapPixW = MAP_WIDTH * TILE_SIZE;
     const mapPixH = MAP_HEIGHT * TILE_SIZE;
-    const baseLd = this.getBaseLevelData();
-    const halfSize = baseLd.visual.size / 2;
+    // Use the MAX footprint so the no-build check matches the reserved
+    // collision tiles, not whatever size the current base level happens to be.
+    const halfSize = BASE_FOOTPRINT_SIZE / 2;
     const baseCx = mapPixW / 2;
     const baseCy = mapPixH / 2;
-    const baseLeft = baseCx - halfSize;
-    const baseRight = baseCx + halfSize;
-    const baseTop = baseCy - halfSize;
-    const baseBot = baseCy + halfSize;
-    return (x + TILE_SIZE > baseLeft && x < baseRight && y + TILE_SIZE > baseTop && y < baseBot);
+    return (x + TILE_SIZE > baseCx - halfSize && x < baseCx + halfSize &&
+            y + TILE_SIZE > baseCy - halfSize && y < baseCy + halfSize);
   }
 
   /** Rotate the current placement ghost 90 degrees. Called by the R key. */
@@ -1729,16 +1758,8 @@ export class DayScene extends Phaser.Scene {
   }
 
   private placeStructure(structureId: string, x: number, y: number): void {
-    // Block placement on the base tent footprint so player can't build on the
-    // base itself. Base is a square centered on the map middle.
-    const mapPixW = MAP_WIDTH * TILE_SIZE;
-    const mapPixH = MAP_HEIGHT * TILE_SIZE;
-    const baseLd = this.getBaseLevelData();
-    const baseHalf = baseLd.visual.size / 2;
-    const baseCx = mapPixW / 2;
-    const baseCy = mapPixH / 2;
-    if (x + TILE_SIZE > baseCx - baseHalf && x < baseCx + baseHalf &&
-        y + TILE_SIZE > baseCy - baseHalf && y < baseCy + baseHalf) {
+    // Block placement inside the base's max footprint.
+    if (this.isInsideBase(x, y)) {
       this.showInfo('Cannot build on the base!');
       AudioManager.play('ui_error');
       return;
@@ -2002,29 +2023,30 @@ export class DayScene extends Phaser.Scene {
     const size = levelData.visual.size;
     const halfSize = size / 2;
 
-    // Hard-outlined square showing the EXACT no-build zone so the player
-    // knows where they can't place structures. Semi-transparent gold fill
-    // + solid gold dashed border.
+    // Hard-outlined square showing the FINAL no-build zone (always the
+    // Settlement size, regardless of current level). This way the player
+    // can build walls right against the reserved area and an upgrade will
+    // never clobber them.
     graphics.clear();
-    const px = centerX - halfSize;
-    const py = centerY - halfSize;
+    const maxSize = BASE_FOOTPRINT_SIZE;
+    const maxHalf = maxSize / 2;
+    const px = centerX - maxHalf;
+    const py = centerY - maxHalf;
     graphics.fillStyle(0x3A2A12, 0.55);
-    graphics.fillRect(px, py, size, size);
+    graphics.fillRect(px, py, maxSize, maxSize);
     graphics.lineStyle(3, 0xFFD700, 1);
-    graphics.strokeRect(px, py, size, size);
-    // Inner dashed line for extra visibility
+    graphics.strokeRect(px, py, maxSize, maxSize);
     graphics.lineStyle(1, 0xFFD700, 0.6);
-    graphics.strokeRect(px + 3, py + 3, size - 6, size - 6);
+    graphics.strokeRect(px + 3, py + 3, maxSize - 6, maxSize - 6);
 
-    // Try sprite-based rendering
+    // Sprite shows the CURRENT level's tent, centered inside the max footprint
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
     if (baseSpriteKey) {
       if (this.baseSpriteImage) {
         this.baseSpriteImage.destroy();
       }
-      // Fit exactly inside the footprint -- no scale bleeding past the border.
       this.baseSpriteImage = this.add.image(centerX, centerY, baseSpriteKey);
-      this.baseSpriteImage.setDisplaySize(size - 8, size - 8);
+      this.baseSpriteImage.setDisplaySize(size, size);
       this.baseSpriteImage.setDepth(3);
       this.mapContainer.add(this.baseSpriteImage);
       return;

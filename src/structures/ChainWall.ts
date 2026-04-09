@@ -56,13 +56,18 @@ export class ChainWall extends TrapBase {
 
     this.lineStyle(1, chainColor, linkAlpha);
 
-    // Diagonal grid creating chain-link diamond pattern
+    // Diamond grid chain-link pattern -- all lines clipped to stay INSIDE
+    // the tile so the visual never bleeds into neighbouring tiles.
     const spacing = 8;
-    for (let i = -TILE_SIZE; i < TILE_SIZE * 2; i += spacing) {
-      // Top-left to bottom-right diagonals
-      this.lineBetween(i, 0, i + TILE_SIZE, TILE_SIZE);
-      // Top-right to bottom-left diagonals
-      this.lineBetween(TILE_SIZE - i, 0, -i, TILE_SIZE);
+    for (let i = 0; i < TILE_SIZE; i += spacing) {
+      // Upper-left triangle diagonals
+      this.lineBetween(0, i, i, 0);
+      // Lower-right triangle diagonals
+      this.lineBetween(TILE_SIZE - i, TILE_SIZE, TILE_SIZE, TILE_SIZE - i);
+      // Upper-right triangle diagonals
+      this.lineBetween(TILE_SIZE - i, 0, TILE_SIZE, i);
+      // Lower-left triangle diagonals
+      this.lineBetween(0, TILE_SIZE - i, i, TILE_SIZE);
     }
 
     // HP indicator: vertical bar on the left edge

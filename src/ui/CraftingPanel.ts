@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import { CraftingManager } from '../systems/CraftingManager';
 import { UIPanel } from './UIPanel';
-import { renderResourceCosts } from './resourceIcons';
+import { renderResourceCostsText } from './resourceLabel';
 
 const PANEL_WIDTH = 360;
 
@@ -78,14 +78,11 @@ export class CraftingPanel {
       });
       content.add(nameText);
 
-      // Ingredients with resource icons (8px label)
+      // Ingredients as color-coded letter+number tokens (unified look)
       const apSuffix = recipe.apCost > 0 ? ` +${recipe.apCost} AP` : '';
-      renderResourceCosts(this.scene, content, recipe.ingredients, 0, yPos + 14, color);
+      const usedWidth = renderResourceCostsText(this.scene, content, recipe.ingredients, 0, yPos + 16, '8px');
       if (apSuffix) {
-        // Estimate icon row width to place AP text after
-        const iconCount = Object.keys(recipe.ingredients).length;
-        const apX = iconCount * 44;
-        const apLabel = this.scene.add.text(apX, yPos + 16, apSuffix, {
+        const apLabel = this.scene.add.text(usedWidth + 4, yPos + 16, apSuffix, {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: '8px',
           color: '#FFD700',

@@ -79,7 +79,13 @@ export const ENCOUNTER_THRESHOLDS: Record<string, number> = {
   armory: 120,
 };
 
-export const GAME_VERSION = '6.17.1';
+export const GAME_VERSION = '6.18.0';
 
 // Base HP (used in NightScene for base health bar)
 export const BASE_MAX_HP = 200;
+
+// Max base footprint size in pixels -- matches Settlement (level 3) visual size.
+// Collision, no-build zone, tilemap stamping all use this so the footprint is
+// CONSTANT regardless of current base level. The sprite visual still scales
+// with level, but the reserved tiles around the base are always the final size.
+export const BASE_FOOTPRINT_SIZE = 96;

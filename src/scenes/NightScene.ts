@@ -69,7 +69,7 @@ import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { SkillManager } from '../systems/SkillManager';
 import { ZoneManager } from '../systems/ZoneManager';
 import { AchievementManager } from '../systems/AchievementManager';
-import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN, BASE_MAX_HP } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN, BASE_MAX_HP, BASE_FOOTPRINT_SIZE } from '../config/constants';
 import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
@@ -388,24 +388,21 @@ export class NightScene extends Phaser.Scene {
     }
 
     // Stamp the base tent footprint so zombies can't walk through the base
-    // and player can't build on top of it. Base size comes from base-levels.json
-    // and is the displayed tent square in pixels.
+    // and the player can't build on top of it. Use BASE_FOOTPRINT_SIZE (the
+    // final Settlement size) regardless of current level -- this keeps the
+    // no-build zone constant so upgrades never clobber walls the player
+    // already placed adjacent to the base.
     {
-      const baseLvlIdxRange = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
-      const baseLvlData = baseLevelsJson.baseLevels[baseLvlIdxRange];
-      if (baseLvlData) {
-        const bSize = baseLvlData.visual.size;
-        const bHalf = bSize / 2;
-        const bLeft  = Math.floor((this.baseCenterX - bHalf) / TILE_SIZE);
-        const bRight = Math.floor((this.baseCenterX + bHalf - 0.01) / TILE_SIZE);
-        const bTop   = Math.floor((this.baseCenterY - bHalf) / TILE_SIZE);
-        const bBot   = Math.floor((this.baseCenterY + bHalf - 0.01) / TILE_SIZE);
-        for (let ty = bTop; ty <= bBot; ty++) {
-          for (let tx = bLeft; tx <= bRight; tx++) {
-            if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT) {
-              const tile = this.collisionLayer.putTileAt(NightScene.BLOCKER_TILE_INDEX, tx, ty);
-              if (tile) tile.setCollision(true, true, true, true);
-            }
+      const bHalf = BASE_FOOTPRINT_SIZE / 2;
+      const bLeft  = Math.floor((this.baseCenterX - bHalf) / TILE_SIZE);
+      const bRight = Math.floor((this.baseCenterX + bHalf - 0.01) / TILE_SIZE);
+      const bTop   = Math.floor((this.baseCenterY - bHalf) / TILE_SIZE);
+      const bBot   = Math.floor((this.baseCenterY + bHalf - 0.01) / TILE_SIZE);
+      for (let ty = bTop; ty <= bBot; ty++) {
+        for (let tx = bLeft; tx <= bRight; tx++) {
+          if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT) {
+            const tile = this.collisionLayer.putTileAt(NightScene.BLOCKER_TILE_INDEX, tx, ty);
+            if (tile) tile.setCollision(true, true, true, true);
           }
         }
       }
@@ -819,18 +816,20 @@ export class NightScene extends Phaser.Scene {
     const baseFillColor   = parseInt(baseLevelData.visual.color.replace('0x', ''), 16);
     const baseStrokeColor = parseInt(baseLevelData.visual.strokeColor.replace('0x', ''), 16);
 
-    // Hard-outlined square showing the EXACT base footprint. Same look
-    // as DayScene so the player always knows where the base is and
-    // where they can't build.
+    // Base footprint is ALWAYS the final (Settlement) size so the player's
+    // walls and traps never get pushed out by a base upgrade. The sprite
+    // scales with level but the reserved tiles never change.
+    const maxFootprint = BASE_FOOTPRINT_SIZE;
+    const maxHalf = maxFootprint / 2;
     const foundation = this.add.graphics();
-    const fpx = centerX - halfSize;
-    const fpy = centerY - halfSize;
+    const fpx = centerX - maxHalf;
+    const fpy = centerY - maxHalf;
     foundation.fillStyle(0x3A2A12, 0.55);
-    foundation.fillRect(fpx, fpy, baseSize, baseSize);
+    foundation.fillRect(fpx, fpy, maxFootprint, maxFootprint);
     foundation.lineStyle(3, 0xFFD700, 1);
-    foundation.strokeRect(fpx, fpy, baseSize, baseSize);
+    foundation.strokeRect(fpx, fpy, maxFootprint, maxFootprint);
     foundation.lineStyle(1, 0xFFD700, 0.6);
-    foundation.strokeRect(fpx + 3, fpy + 3, baseSize - 6, baseSize - 6);
+    foundation.strokeRect(fpx + 3, fpy + 3, maxFootprint - 6, maxFootprint - 6);
     foundation.setDepth(1);
 
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);

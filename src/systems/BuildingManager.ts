@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { SaveManager } from './SaveManager';
-import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT } from '../config/constants';
-import baseLevelsJson from '../data/base-levels.json';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, BASE_FOOTPRINT_SIZE } from '../config/constants';
 import type { GameState, StructureInstance, ResourceType } from '../config/types';
 
 /** Per-level upgrade definition loaded from structures.json upgrades field. */
@@ -44,6 +43,9 @@ export interface StructureData {
   // Glass Shards
   zoneRadius?: number;
   damagePerSecond?: number;
+  // Fuelled traps
+  fuelPerNight?: number;
+  malfunctionChance?: number;
   /** Level-specific upgrade data keyed by target level ("2", "3"). */
   upgrades?: Record<string, StructureUpgradeLevel>;
 }
@@ -130,13 +132,10 @@ export class BuildingManager {
     const newBot = y + placeH * TILE_SIZE;
 
     // --- Base tent footprint check ---
-    // Reject placement that overlaps the base tent square at the map center.
-    // Base size scales with current base level from base-levels.json.
-    const baseLvlIdx = Math.min(this.gameState.base.level, baseLevelsJson.baseLevels.length - 1);
-    const baseLvlData = baseLevelsJson.baseLevels[baseLvlIdx];
-    if (baseLvlData) {
-      const bSize = baseLvlData.visual.size;
-      const bHalf = bSize / 2;
+    // Always uses the MAX footprint so upgrades don't clobber walls the
+    // player placed adjacent to the base at a lower level.
+    {
+      const bHalf = BASE_FOOTPRINT_SIZE / 2;
       const bCx = (MAP_WIDTH * TILE_SIZE) / 2;
       const bCy = (MAP_HEIGHT * TILE_SIZE) / 2;
       const baseLeft = bCx - bHalf;
