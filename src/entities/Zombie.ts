@@ -237,14 +237,13 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    // Shrink zombie physics body so it fits through 1-tile (32px) wall gaps
-    // AND doesn't snag on corner edges when rounding wall corners. Body of
-    // 16x16 leaves 8px slack on each side of a 32px corridor -- enough that
-    // zombies don't need to be perfectly centered to thread the gap.
-    // (v6.3.0 used 20x20 which still snagged on corners; v6.3.2 -> 16x16.)
-    const BODY_SIZE = 16;
-    this.body?.setSize(BODY_SIZE, BODY_SIZE);
-    this.body?.setOffset((32 - BODY_SIZE) / 2, (32 - BODY_SIZE) / 2);
+    // Circular physics body so zombies glide past wall corners instead of
+    // catching on them. Rectangular bodies snag; circles slide. Radius 10 in
+    // a 32x32 sprite = 20px diameter, fits tile-wide (32px) corridors with
+    // ~6px slack on each side and rounds corners cleanly.
+    const BODY_RADIUS = 10;
+    const BODY_OFFSET = 32 / 2 - BODY_RADIUS;
+    this.body?.setCircle(BODY_RADIUS, BODY_OFFSET, BODY_OFFSET);
 
     this.setDepth(5);
     this.resolveAnimKeys(config);

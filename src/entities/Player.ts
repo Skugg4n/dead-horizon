@@ -66,12 +66,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    // Shrink physics body so the player fits through 1-tile (32px) gaps in walls.
-    // 16x16 leaves 8px clearance on each side -- generous enough that the player
-    // can thread tile-wide corridors without snagging on wall corners.
-    const BODY_SIZE = 16;
-    this.body?.setSize(BODY_SIZE, BODY_SIZE);
-    this.body?.setOffset((32 - BODY_SIZE) / 2, (32 - BODY_SIZE) / 2);
+    // Circular body so the player slides smoothly past wall corners instead
+    // of snagging on them. Radius 10 in a 32x32 sprite = 20px diameter, plenty
+    // of clearance in tile-wide (32px) corridors. Centered via offset (6, 6).
+    const BODY_RADIUS = 10;
+    const BODY_OFFSET = 32 / 2 - BODY_RADIUS;
+    this.body?.setCircle(BODY_RADIUS, BODY_OFFSET, BODY_OFFSET);
 
     this.setCollideWorldBounds(true);
     this.setDepth(10);
