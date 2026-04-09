@@ -378,7 +378,7 @@ export class NightScene extends Phaser.Scene {
       for (let ty = tileTop; ty <= tileBot; ty++) {
         for (let tx = tileLeft; tx <= tileRight; tx++) {
           if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT) {
-            const tile = this.collisionLayer.putTileAt(1, tx, ty);
+            const tile = this.collisionLayer.putTileAt(NightScene.BLOCKER_TILE_INDEX, tx, ty);
             if (tile) tile.setCollision(true, true, true, true);
           }
         }
@@ -1680,18 +1680,23 @@ export class NightScene extends Phaser.Scene {
 
   /**
    * Mark a tile as a physical blocker and remember which Wall lives there.
-   * Sets per-tile collision directly on the Tile instance (more robust than
-   * relying on layer.setCollision which only snapshots existing tiles).
+   * Sets per-tile collision directly on the Tile instance.
+   *
+   * NOTE: we use tile index 0 (BLOCKER_TILE_INDEX) because Phaser's programmatic
+   * addTilesetImage assigns firstgid=0 for the first tileset, and a 32x32 source
+   * texture produces ONE tile at local index 0. Using index 1 crashes inside
+   * Phaser's putTileAt with "Cannot read properties of undefined".
    */
+  private static readonly BLOCKER_TILE_INDEX = 0;
+
   private setBlockingTile(
     tileX: number,
     tileY: number,
     wall: Wall | ChainWall | ElectricFence | CartWall | ShoppingCartWall | CarWreckBarrier | DumpsterFortress,
   ): void {
     if (tileX < 0 || tileY < 0 || tileX >= MAP_WIDTH || tileY >= MAP_HEIGHT) return;
-    const tile = this.collisionLayer.putTileAt(1, tileX, tileY);
+    const tile = this.collisionLayer.putTileAt(NightScene.BLOCKER_TILE_INDEX, tileX, tileY);
     if (tile) {
-      // Enable collision on all four sides of this individual tile.
       tile.setCollision(true, true, true, true);
     }
     this.tileToWall.set(`${tileX},${tileY}`, wall);
