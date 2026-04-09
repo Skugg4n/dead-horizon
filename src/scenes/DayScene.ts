@@ -145,13 +145,14 @@ export class DayScene extends Phaser.Scene {
     this.createActionBar();
     this.createResourceBar();
     this.createBuildMenu();
-    // Close build menu when other panels open
+    // Close build menu + exit scrap mode when any other panel opens
     this.events.on(CLOSE_ALL_PANELS, () => {
       if (this.buildMenuVisible && !this.buildMenuOpening) {
         this.buildMenuVisible = false;
         this.buildMenu.hide();
         this.cancelPlacement();
       }
+      this.exitScrapMode();
     });
     this.createInfoText();
 
@@ -1080,6 +1081,7 @@ export class DayScene extends Phaser.Scene {
       this.showInfo('Building disabled! (No Build challenge)');
       return;
     }
+    this.exitScrapMode();
     this.buildMenuVisible = !this.buildMenuVisible;
     if (this.buildMenuVisible) {
       // Close other panels before opening build menu (guard against re-entry)
@@ -1150,7 +1152,8 @@ export class DayScene extends Phaser.Scene {
   /**
    * Toggle "scrap mode". When active, left-clicking any placed structure
    * sells it (75% refund) without showing a popup. Lets the player bulldoze
-   * many structures quickly. Exits on right-click, ESC, or toggling again.
+   * many structures quickly. Exits on right-click, ESC, toggling again, or
+   * any other major action (opening build menu, equipment panel, etc).
    */
   private toggleScrapMode(): void {
     // Leaving any placement mode first
@@ -1161,6 +1164,14 @@ export class DayScene extends Phaser.Scene {
     if (this.scrapMode) {
       this.showInfo('SCRAP MODE -- click structures to scrap. ESC/right-click to exit.');
     } else {
+      this.showInfo('Scrap mode off');
+    }
+  }
+
+  /** Exit scrap mode if active. Called by any action that should override it. */
+  private exitScrapMode(): void {
+    if (this.scrapMode) {
+      this.scrapMode = false;
       this.showInfo('Scrap mode off');
     }
   }
@@ -1318,19 +1329,19 @@ export class DayScene extends Phaser.Scene {
           return; // Consume all other keys when build menu is open
         }
 
-        // 4. Placement mode
+        // 4a. Scrap mode: ESC exits immediately (checked BEFORE placement mode
+        // so a single press always works, regardless of leftover state)
+        if (this.scrapMode && key === 'Escape') {
+          this.exitScrapMode();
+          return;
+        }
+
+        // 4b. Placement mode
         if (this.placementMode) {
           if (key === 'Escape') {
             this.cancelPlacement();
             return;
           }
-          return;
-        }
-
-        // 4b. Scrap mode
-        if (this.scrapMode && key === 'Escape') {
-          this.scrapMode = false;
-          this.showInfo('Scrap mode off');
           return;
         }
 
