@@ -1118,6 +1118,19 @@ export class DayScene extends Phaser.Scene {
   }
 
   private setupInput(): void {
+    // DEFENSIVE: remove any stale pointerdown handler registered by a previous
+    // create() that didn't get cleaned up. This is the nuclear option and
+    // prevents the "same click creates multiple placements" bug where scene
+    // restarts leaked listeners. input.off with no function removes ALL
+    // pointerdown listeners on the scene input.
+    this.input.off('pointerdown');
+    // Also clear any `on('pointerdown')` listeners set by Phaser internal
+    // gameobjects that might have survived a shutdown race.
+    const handlerCount = this.input.listenerCount('pointerdown');
+    if (handlerCount > 0) {
+      console.warn(`[DayScene] setupInput: ${handlerCount} stale pointerdown listeners remained after off()`);
+    }
+
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.rightButtonDown()) {
         this.cancelPlacement();

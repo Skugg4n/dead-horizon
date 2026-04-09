@@ -143,7 +143,7 @@ export class BuildingManager {
     // Debounce: reject rapid-fire placement
     const now = Date.now();
     if (now - this.lastPlaceTimeMs < BuildingManager.PLACE_DEBOUNCE_MS) {
-      console.warn(`[BuildingManager] place() debounced: ${structureId} @ (${gridX},${gridY})`);
+      console.warn(`[BuildingManager] place() DEBOUNCED: ${structureId} @ (${gridX},${gridY}) dt=${now - this.lastPlaceTimeMs}ms`);
       return null;
     }
 
