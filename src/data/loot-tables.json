@@ -160,6 +160,45 @@
         { "resource": "scrap", "min": 8, "max": 20, "chance": 0.6 },
         { "resource": "meds", "min": 2, "max": 6, "chance": 0.45 }
       ]
+    },
+    {
+      "id": "field_hospital",
+      "zone": "military",
+      "name": "Field Hospital",
+      "apCost": 3,
+      "encounterChance": 0.4,
+      "loot": [
+        { "resource": "meds", "min": 4, "max": 10, "chance": 0.9 },
+        { "resource": "food", "min": 2, "max": 6, "chance": 0.55 },
+        { "resource": "parts", "min": 1, "max": 3, "chance": 0.5 },
+        { "resource": "scrap", "min": 2, "max": 8, "chance": 0.45 }
+      ]
+    },
+    {
+      "id": "supply_depot",
+      "zone": "military",
+      "name": "Supply Depot",
+      "apCost": 4,
+      "encounterChance": 0.5,
+      "loot": [
+        { "resource": "scrap", "min": 15, "max": 30, "chance": 0.85 },
+        { "resource": "food", "min": 4, "max": 10, "chance": 0.75 },
+        { "resource": "parts", "min": 2, "max": 5, "chance": 0.6 },
+        { "resource": "ammo", "min": 3, "max": 10, "chance": 0.5 }
+      ]
+    },
+    {
+      "id": "motor_pool",
+      "zone": "military",
+      "name": "Motor Pool",
+      "apCost": 4,
+      "encounterChance": 0.55,
+      "loot": [
+        { "resource": "parts", "min": 3, "max": 8, "chance": 0.9 },
+        { "resource": "scrap", "min": 10, "max": 22, "chance": 0.75 },
+        { "resource": "ammo", "min": 2, "max": 8, "chance": 0.4 },
+        { "resource": "food", "min": 1, "max": 3, "chance": 0.3 }
+      ]
     }
   ]
 }

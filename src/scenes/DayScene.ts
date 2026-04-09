@@ -2002,11 +2002,19 @@ export class DayScene extends Phaser.Scene {
     const size = levelData.visual.size;
     const halfSize = size / 2;
 
-    // Dim circular floor patch under the base. Outline-free so the tent
-    // sprite reads without heavy border noise.
+    // Hard-outlined square showing the EXACT no-build zone so the player
+    // knows where they can't place structures. Semi-transparent gold fill
+    // + solid gold dashed border.
     graphics.clear();
-    graphics.fillStyle(0x1A1108, 0.55);
-    graphics.fillCircle(centerX, centerY, halfSize + 6);
+    const px = centerX - halfSize;
+    const py = centerY - halfSize;
+    graphics.fillStyle(0x3A2A12, 0.55);
+    graphics.fillRect(px, py, size, size);
+    graphics.lineStyle(3, 0xFFD700, 1);
+    graphics.strokeRect(px, py, size, size);
+    // Inner dashed line for extra visibility
+    graphics.lineStyle(1, 0xFFD700, 0.6);
+    graphics.strokeRect(px + 3, py + 3, size - 6, size - 6);
 
     // Try sprite-based rendering
     const baseSpriteKey = getBaseSpriteKey(this, this.gameState.base.level);
@@ -2014,9 +2022,9 @@ export class DayScene extends Phaser.Scene {
       if (this.baseSpriteImage) {
         this.baseSpriteImage.destroy();
       }
-      // Scale up 25% so the tent actually fills its footprint visually
+      // Fit exactly inside the footprint -- no scale bleeding past the border.
       this.baseSpriteImage = this.add.image(centerX, centerY, baseSpriteKey);
-      this.baseSpriteImage.setDisplaySize(size * 1.25, size * 1.25);
+      this.baseSpriteImage.setDisplaySize(size - 8, size - 8);
       this.baseSpriteImage.setDepth(3);
       this.mapContainer.add(this.baseSpriteImage);
       return;

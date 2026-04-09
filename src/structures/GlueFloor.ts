@@ -33,6 +33,11 @@ export class GlueFloor extends Phaser.GameObjects.Graphics {
     this.setPosition(instance.x, instance.y);
     this.draw();
     scene.add.existing(this);
+
+    if (instance.rotation === 1) {
+      this.setRotation(Math.PI / 2);
+      this.setPosition(instance.x + TILE_SIZE, instance.y);
+    }
   }
 
   private draw(): void {
@@ -77,6 +82,9 @@ export class GlueFloor extends Phaser.GameObjects.Graphics {
   containsPoint(wx: number, wy: number): boolean {
     const lx = wx - this.structureInstance.x;
     const ly = wy - this.structureInstance.y;
+    if (this.structureInstance.rotation === 1) {
+      return lx >= 0 && lx <= TILE_SIZE && ly >= 0 && ly <= this.widthTiles * TILE_SIZE;
+    }
     return lx >= 0 && lx <= this.widthTiles * TILE_SIZE && ly >= 0 && ly <= TILE_SIZE;
   }
 
