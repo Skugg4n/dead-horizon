@@ -1,5 +1,31 @@
 # Dead Horizon -- Changelog
 
+## [v6.3.0] - 2026-04-09 08:55 -- ROTORSAK till AI-buggen: collision-box = tile-storlek
+
+### Varfor
+Efter manga iterationer av A*/BFS/PathFinding.js var AI:n fortfarande traslig. Spelaren
+kunde inte heller ga ut genom hal i sin egen mur. Efter ordentlig undersokning visade det
+sig att DET ALDRIG VAR ETT PATHFINDING-PROBLEM.
+
+**Rotorsak:** bade Player och Zombie saknade `setSize()` pa sin fysik-body. Default-body
+= sprite-storlek = **32x32**, exakt samma som en vagg-tile. Ett 1-tile-gap i en mur ar
+32 pixlar. Spelarens/zombiens kropp ar 32 pixlar. Dom ar exakt lika breda som hal.
+Minsta osynk pa subpixel-niva = kollision = fast. A* kunde inte losa det -- den raknade
+ut korrekta vagar, men fysiken forbjod dom att foljas.
+
+### Andrat
+- **src/entities/Player.ts:** `body.setSize(20, 20)` + `setOffset(6, 6)` centrerat.
+  Ger 6px slack pa varje sida nar spelaren gar igenom en 1-tile-oppning.
+- **src/entities/Zombie.ts:** samma -- 20x20 kropp centrerat i 32x32 sprite.
+  Detta ar fixen som **faktiskt** far zombies att foljja A*-paths genom smala oppningar.
+  Bossar med scale=2 far effektivt 40x40 -- kan fortfarande inte ga igenom 1-tile-gap,
+  vilket ar bade ratt och balancemessigt bra.
+
+### Verifiering
+- npx tsc --noEmit: 0 fel
+- npm run lint: 0 varningar
+- npx vitest run: 1127/1127 pass
+
 ## [v6.2.0] - 2026-04-09 08:50 -- Robust dual-slot save system + nya buggar loggade
 
 ### Varfor

@@ -7,14 +7,29 @@ Uppdaterad: 2026-04-09, v6.1.2
 
 ## AKTIVA (2026-04-09)
 
-### BG4: Collider matchar inte visuella hål i muren
-- Spelaren har ett hål i sin mur men kan inte gå ut genom det -- det är som om en osynlig vägg står i hålet.
-- Troligt rotorsak: static collider-rectangle skapas vid fel x/y relativt structure-grafiken, eller
-  collision-shapes rensas inte korrekt när en structure rivs. Möjligt även att tile-grid-collision
-  (A*/PathGrid) och Arcade Physics-colliders är osynkade och fysiken har en "ghost cell".
-- Reproduktion: bygg en mur runt basen, riv en wall-bit i muren, försök gå ut genom hålet.
-- Status: EJ FIXAD -- prioritera. Se /Users/olabelin/Projects/dead-horizon/src/systems/BuildingManager.ts
-  (destroy/refresh-logik) och NightScene/DayScene colliders som byggs från gameState.base.structures.
+### BG4: Collider matchar inte visuella hål i muren ✅ FIXAD v6.3.0
+- Rotorsak: Player och Zombie hade default physics body = 32x32 = exakt lika stort som en
+  vägg-tile (32px). Ett 1-tile-gap var exakt lika brett som spelarens/zombiens kropp, så
+  vilken som helst subpixel-osynk gav kollision. Inte ett pathfinding-problem.
+- Fix: body.setSize(20, 20) + setOffset(6, 6) på båda entities. Ger 6px slack per sida.
+- Samma fix löser BG/Ai: zombies kan nu faktiskt följa A*-paths genom smala gap.
+
+### BG6: Hittade items syns aldrig i Inventory
+- Användaren rapporterar att en massa saker som hittas (loot runs / nattens pickups)
+  aldrig dyker upp i inventory. Senaste exemplet: "Improvised plate" -- hittades men
+  finns inte i inventory efteråt.
+- Möjliga orsaker: (a) LootManager matchar inte item-id mot ett inventory-slot (armor
+  läggs i armorInventory, inte weapons), (b) crafting-result hamnar i fel array, (c)
+  pickup-spawned-items får visuellt feedback men sparas inte till gameState, (d) sync
+  till gameState missar vissa fält så items försvinner vid scene-byte.
+- Reproduktion: kör loot run tills Improvised Plate dyker upp, verifiera att den inte
+  syns i Equipment Panel > Armor tab efteråt.
+- Startpunkter för debug:
+  - src/systems/LootManager.ts (hur loot skrivs till gameState.inventory.armorInventory)
+  - src/systems/CraftingManager.ts (crafting-resultat -- Improvised Plate är ett recipe)
+  - src/ui/EquipmentPanel.ts (renderar den armor-tab:en från rätt array?)
+  - DayScene vs NightScene pickup-handlers (sync till gameState innan scene-byte?)
+- Status: EJ FIXAD -- prioritera efter AI-fixen landat.
 
 ### BG5: Nunchucks fastnar på Lv3 Enhanced trots många kills
 - Användaren rapporterar att weapon-XP inte känns som att den leds hela vägen till Supr/Ult.
