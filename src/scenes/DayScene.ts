@@ -1179,7 +1179,17 @@ export class DayScene extends Phaser.Scene {
       console.warn(`[DayScene] setupInput: ${handlerCount} stale pointerdown listeners remained after off()`);
     }
 
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, hitObjects: Phaser.GameObjects.GameObject[]) => {
+      // BG8 ROOT CAUSE FIX: if the pointerdown hit any interactive GameObject
+      // (e.g. a build menu item, a toolbar button, a popup button) then
+      // IGNORE it at the scene level. Otherwise the click-through places a
+      // structure at the world position UNDER the UI panel, which the
+      // player sees as phantom buildings appearing on the left side of the
+      // map whenever they switch structure mid-placement.
+      if (hitObjects && hitObjects.length > 0) {
+        return;
+      }
+
       if (pointer.rightButtonDown()) {
         // Right-click exits scrap mode if active
         if (this.scrapMode) {

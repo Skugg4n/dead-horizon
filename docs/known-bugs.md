@@ -7,17 +7,21 @@ Uppdaterad: 2026-04-09, v6.1.2
 
 ## AKTIVA (2026-04-09)
 
-### BG8: shock_wire duplicerar vid placement ✅ DEFENSIVT FIXAD v6.9.0
-- Symptom: 1 click -> 4 instances i gameState. Efter grep: INGEN kodvag skapar
-  multipla instances programmatically. BuildingManager.place() pushar bara EN,
-  och ingen annan kod pushar till gameState.base.structures.
-- Troligt: trackpad double-tap, Phaser pointerdown fires multiple, eller en
-  propagation-bug dar samma click registreras flera ganger.
-- Fix v6.9.0: BuildingManager.place() har nu debounce -- rejects calls inom
-  80ms av forsta lyckad placement. Aven stabilare instance ID med counter
-  (undviker dubletter pa samma ms). Console.log visar varje lyckad placement.
-- Om buggen aterkommer: kolla console for "[BuildingManager] placed" loggar
-  och se hur manga gar igenom vs hur manga "[BuildingManager] place() debounced".
+### BG8: Spökbyggnader pa vanster sida ✅ ROTFIX v6.12.3
+- Symptom: spelaren bygger en sak i mitten, fler kopior dyker upp pa vanster sida.
+  Upprepade rapporter over veckor. Tidigare debounce-fix (v6.9.0) gjorde det
+  marginellt battre men loste inte rotorsaken.
+- ROTORSAK (anvandaren hittade det): nar spelaren ar i placement mode och klickar
+  pa en ANNAN byggsak i byggmenyn for att byta, sa fyrar klicket BADE:
+    1. BuildMenu's itemBg.on('pointerdown') -> startPlacement(new structure)
+    2. DayScene's scene.input.on('pointerdown') -> placeStructure() vid world
+       coordinate UNDER build-menyn, som ar vanster sida av kartan
+  Build-menyn renderas pa UI-kamera men clicks propagerar till scene input
+  oavsett. DayScene's handler sag placementMode=true och placerade den FORRA
+  strukturen dar spelaren klickade pa menyn (= vanster sida).
+- Fix v6.12.3: pointerdown-handlern tar nu emot Phaser's andra arg (hitObjects)
+  och skippar all map-click-logik om klicket traffade nagon interaktiv GameObject.
+  Det betyder UI-klicks passerar INTE genom till varlden langre.
 
 
 
