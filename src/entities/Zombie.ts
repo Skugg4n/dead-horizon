@@ -164,8 +164,12 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
 
   // F5: Aggro behavior -- determined at spawn time
   // 'base_seeker': moves toward base (70% of zombies)
-  // 'wanderer': roams randomly near map edges (30% of zombies)
+  // 'wanderer': spreads out inside fort via different flank points (30% of zombies).
+  // After WANDERER_CONVERT_MS of wandering, switches to base_seeker so they stop
+  // fanning out and commit to a single target -- prevents late-night wanderer stragglers.
   aggroType: 'base_seeker' | 'wanderer' = 'base_seeker';
+  private wandererAge: number = 0;
+  private static readonly WANDERER_CONVERT_MS = 30000;
 
   // Death state flag to prevent double kills
   private deathStarted = false;
@@ -422,11 +426,16 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.invalidatePath();
   }
 
-  /** Pick a flanking point: offset from base toward a random map edge */
+  /**
+   * Pick a flanking point -- a spread of targets AROUND the base interior so
+   * multiple wanderers fan out inside the fort instead of clumping on the
+   * base centre. 20-50px from centre keeps them within the fort but at
+   * different positions so A* paths diverge naturally.
+   */
   private pickFlankTarget(): void {
     if (!this.basePosition) return;
     const angle = Math.random() * Math.PI * 2;
-    const dist = 120 + Math.random() * 200; // 120-320px from base center
+    const dist = 20 + Math.random() * 30;
     this.flankTarget = {
       x: Phaser.Math.Clamp(this.basePosition.x + Math.cos(angle) * dist, 32, this.mapWidth - 32),
       y: Phaser.Math.Clamp(this.basePosition.y + Math.sin(angle) * dist, 32, this.mapHeight - 32),
@@ -586,14 +595,27 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       }
     } else if (this.aggroType === 'wanderer' && this.basePosition) {
       // Wanderers flank the base: move to offset points around it
-      if (!this.flankTarget) this.pickFlankTarget();
-      const ft = this.flankTarget ?? this.basePosition;
-      targetX = ft.x;
-      targetY = ft.y;
-
-      // When reaching flank point, pick a new one (creates circling behavior)
-      const distToFlank = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
-      if (distToFlank < 30) this.pickFlankTarget();
+      this.wandererAge += delta;
+      if (this.wandererAge > Zombie.WANDERER_CONVERT_MS) {
+        // After 30s of wandering, commit to the base -- prevents stragglers
+        // circling forever if they can't find their flank point.
+        this.aggroType = 'base_seeker';
+        this.flankTarget = null;
+        this.invalidatePath();
+        targetX = this.basePosition.x;
+        targetY = this.basePosition.y;
+      } else {
+        if (!this.flankTarget) this.pickFlankTarget();
+        const ft = this.flankTarget ?? this.basePosition;
+        targetX = ft.x;
+        targetY = ft.y;
+        // When reaching flank point, pick a new one (creates circling behavior)
+        const distToFlank = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+        if (distToFlank < 12) {
+          this.pickFlankTarget();
+          this.invalidatePath();
+        }
+      }
     } else if (this.basePosition) {
       targetX = this.basePosition.x;
       targetY = this.basePosition.y;
