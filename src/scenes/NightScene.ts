@@ -69,7 +69,7 @@ import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { SkillManager } from '../systems/SkillManager';
 import { ZoneManager } from '../systems/ZoneManager';
 import { AchievementManager } from '../systems/AchievementManager';
-import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN, BASE_MAX_HP, BASE_FOOTPRINT_SIZE } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, XP_PER_KILL, REFUGEE_PILLBOX_RANGE, REFUGEE_PILLBOX_DAMAGE, REFUGEE_PILLBOX_COOLDOWN, BASE_MAX_HP, BASE_FOOTPRINT_SIZE, GAME_VERSION } from '../config/constants';
 import visualConfig from '../data/visual-config.json';
 import { RefugeeManager } from '../systems/RefugeeManager';
 import { FogOfWar } from '../systems/FogOfWar';
@@ -455,6 +455,13 @@ export class NightScene extends Phaser.Scene {
     this.setupPillboxRefugees();
     this.hud = new HUD(this);
     this.gameLog = new GameLog(this);
+
+    // Version number in bottom-right corner
+    this.add.text(GAME_WIDTH - 4, GAME_HEIGHT - 4, `v${GAME_VERSION}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '6px',
+      color: '#555555',
+    }).setOrigin(1, 1).setDepth(200).setScrollFactor(0);
     // Show night number: "Night 3 / 5" or "Endless -- N1" in endless mode
     const nightNumber = this.gameState.progress.currentWave;
     const isEndless = this.gameState.zone === 'endless';
@@ -5241,7 +5248,7 @@ export class NightScene extends Phaser.Scene {
 
     const REPAIR_RANGE = 40;
     const REPAIR_TIME  = 2000; // ms
-    const REPAIR_COST  = { parts: 1 } as const;
+    const REPAIR_COST  = { scrap: 2 } as const;
 
     const eDown = this._repairKey.isDown;
 
@@ -5311,11 +5318,11 @@ export class NightScene extends Phaser.Scene {
     // Check completion
     if (nearest.repairProgress >= REPAIR_TIME) {
       // Check resource availability
-      if (!this.resourceManager.canAfford({ parts: REPAIR_COST.parts })) {
+      if (!this.resourceManager.canAfford({ scrap: REPAIR_COST.scrap })) {
         // Can't afford repair -- show message and cancel
-        this.hud.showMessage('Need 1 PARTS to repair!');
-        this.gameLog.addMessage('Need 1 PARTS to repair!', '#FF8C00');
-        this.showFloatingText(this.player.x, this.player.y - 20, 'Need 1 PARTS!');
+        this.hud.showMessage('Need 2 SCRAP to repair!');
+        this.gameLog.addMessage('Need 2 SCRAP to repair!', '#FF8C00');
+        this.showFloatingText(this.player.x, this.player.y - 20, 'Need 2 SCRAP!');
         nearest.isBeingRepaired = false;
         nearest.repairProgress  = 0;
         this._repairTarget = null;
@@ -5323,7 +5330,7 @@ export class NightScene extends Phaser.Scene {
         this._repairProgressBar = null;
         return;
       }
-      this.resourceManager.spend('parts', REPAIR_COST.parts);
+      this.resourceManager.spend('scrap', REPAIR_COST.scrap);
       nearest.repair();
       this.showFloatingText(nearest.structureInstance.x + TILE_SIZE / 2, nearest.structureInstance.y - 24, 'Repaired!');
       this._repairTarget = null;
@@ -5340,10 +5347,10 @@ export class NightScene extends Phaser.Scene {
   private checkZombieBaseInteractions(): void {
     if (this.baseCenterX === 0) return;
 
-    // Base "hit radius" must exceed the nearest walkable tile center distance.
-    // With BASE_FOOTPRINT_SIZE=96 (3x3 tiles), nearest walkable tile center is
-    // ~64px from base center. Use 72 to give physics-collision slack.
-    const baseRadius = 72;
+    // Base "hit radius" must exceed the nearest walkable tile distance.
+    // With walls surrounding the base, zombies stop at ~96px from center
+    // (base footprint 48px + wall 32px + half tile 16px). Use 100 to catch them.
+    const baseRadius = 100;
 
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;

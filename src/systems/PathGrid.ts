@@ -217,21 +217,8 @@ export class PathGrid {
     const toTileX = Math.max(0, Math.min(this.gridWidth - 1, Math.floor(toX / TILE_SIZE)));
     const toTileY = Math.max(0, Math.min(this.gridHeight - 1, Math.floor(toY / TILE_SIZE)));
 
-    // If target is blocked (base sits on a wall tile), find the closest walkable.
-    // Search radius bumped from 8 -> 16 tiles because large fort interiors can
-    // completely enclose the base and the nearest walkable is far out.
-    let finalX = toTileX;
-    let finalY = toTileY;
-    if (!this.pfGrid.isWalkableAt(toTileX, toTileY)) {
-      const nearest = this.nearestWalkableTile(toTileX, toTileY, 16);
-      if (!nearest) return [];
-      finalX = nearest.x;
-      finalY = nearest.y;
-    }
-
     // If the zombie's tile is blocked (pushed into wall by physics), start from
-    // nearest walkable. Bumped from 4 -> 8 tiles so zombies wedged into corners
-    // find a way out reliably.
+    // nearest walkable.
     let startX = fromTileX;
     let startY = fromTileY;
     if (!this.pfGrid.isWalkableAt(startX, startY)) {
@@ -241,20 +228,42 @@ export class PathGrid {
       startY = nearest.y;
     }
 
-    // Already at target -- one-waypoint path so the zombie heads to tile center
-    if (startX === finalX && startY === finalY) {
-      return [{ x: finalX * TILE_SIZE + TILE_SIZE / 2, y: finalY * TILE_SIZE + TILE_SIZE / 2 }];
+    // If target is blocked (base center is on blocked tiles), try multiple
+    // candidate walkable tiles near the target. Pick the first one that
+    // A* can actually reach from the start. This prevents zombies from
+    // targeting a tile on the WRONG side of a wall when there's a gap
+    // they should be routing through instead.
+    let tilePath: number[][] = [];
+    if (!this.pfGrid.isWalkableAt(toTileX, toTileY)) {
+      const candidates = this.walkableTilesNear(toTileX, toTileY, 10, 8);
+      for (const cand of candidates) {
+        if (cand.x === startX && cand.y === startY) {
+          // Already there
+          return [{ x: cand.x * TILE_SIZE + TILE_SIZE / 2, y: cand.y * TILE_SIZE + TILE_SIZE / 2 }];
+        }
+        try {
+          const path = this.finder.findPath(startX, startY, cand.x, cand.y, this.pfGrid.clone());
+          if (path && path.length > 0) {
+            tilePath = path;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+      if (tilePath.length === 0) return [];
+    } else {
+      // Target is walkable -- path directly
+      if (startX === toTileX && startY === toTileY) {
+        return [{ x: toTileX * TILE_SIZE + TILE_SIZE / 2, y: toTileY * TILE_SIZE + TILE_SIZE / 2 }];
+      }
+      try {
+        tilePath = this.finder.findPath(startX, startY, toTileX, toTileY, this.pfGrid.clone());
+      } catch {
+        return [];
+      }
+      if (!tilePath || tilePath.length === 0) return [];
     }
-
-    let tilePath: number[][];
-    try {
-      // PathFinding.js mutates the grid, always clone before findPath
-      tilePath = this.finder.findPath(startX, startY, finalX, finalY, this.pfGrid.clone());
-    } catch {
-      return [];
-    }
-
-    if (!tilePath || tilePath.length === 0) return [];
 
     // Convert tile indices to world-space tile centers.
     const waypoints: Array<{ x: number; y: number }> = [];
@@ -304,6 +313,29 @@ export class PathGrid {
       }
     }
     return null;
+  }
+
+  /**
+   * Return up to `max` walkable tiles near (tx,ty), sorted by distance.
+   * Used to try multiple path targets when the nearest one is unreachable.
+   */
+  private walkableTilesNear(tx: number, ty: number, maxRadius: number, max: number): Array<{ x: number; y: number }> {
+    const result: Array<{ x: number; y: number; dist: number }> = [];
+    for (let r = 1; r <= maxRadius && result.length < max; r++) {
+      for (let oy = -r; oy <= r; oy++) {
+        for (let ox = -r; ox <= r; ox++) {
+          if (Math.max(Math.abs(ox), Math.abs(oy)) !== r) continue;
+          const nx = tx + ox;
+          const ny = ty + oy;
+          if (nx < 0 || nx >= this.gridWidth || ny < 0 || ny >= this.gridHeight) continue;
+          if (this.pfGrid.isWalkableAt(nx, ny)) {
+            result.push({ x: nx, y: ny, dist: ox * ox + oy * oy });
+          }
+        }
+      }
+    }
+    result.sort((a, b) => a.dist - b.dist);
+    return result.slice(0, max);
   }
 
   /**

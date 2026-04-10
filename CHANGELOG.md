@@ -1,20 +1,27 @@
 # Dead Horizon -- Changelog
 
-## [v6.22.0] - 2026-04-10 12:45 -- Sprite overlay natt + dag/natt ljuscykel + dynamiska skuggor
-
-### Nytt
-- **Sprite overlay pa natten**: Alla strukturer renderas nu med samma sprite-bild
-  pa natten som pa dagen. Programmatiska Graphics-klasser doljs bakom spriten men
-  behaller sin gameplay-logik (takeDamage, containsPoint, etc.).
-- **Realistisk dagljuscykel**: Morgon (guldton), mitt pa dagen (klart ljus),
-  eftermiddag (varm orange), kvall (bla-mork ton).
-- **Dynamiska skuggor**: Alla strukturer och dekor-objekt far mjuka ellipsskuggor
-  som foljer solen -- stracker sig at vanster pa morgonen, korta vid zenit, at
-  hoger pa eftermiddagen.
+## [v6.23.0] - 2026-04-10 13:02 -- Zombie AI pathfinding fix + repair med scrap + versionsnummer
 
 ### Fixar
-- Borttagen sepia color grade overlay (0x3A2800) som gjorde dag-scenen for gul.
+- **Zombie AI hittar gangar**: PathGrid.findPath() provar nu FLERA kandidattiles
+  runt basen istallet for bara den narmaste. Zombies hittar oppna gangar i
+  vaggformationer istallet for att sta i horn och glo.
+- **baseRadius okat till 100px** sa att zombies nara vaggar kan attackera basen.
+- **Reparation kostar 2 SCRAP** istallet for 1 PARTS (bade dag och natt).
+  Parts ar for dyra for en grundlaggande mekanism.
+
+### Nytt
+- **Versionsnummer** visas i nedre hogra hornet pa bade dag- och nattscenen.
+- **Sprite overlay pa natten**: Alla strukturer renderas med samma sprite pa
+  natten som pa dagen. Konsekvent utseende.
+- **Realistisk dagljuscykel**: Morgon guldton, mitt pa dagen klart, eftermiddag
+  varm orange, kvall bla-mork ton.
+
+### Borttaget
+- Skuggsystem (ellipser under strukturer) -- sag konstigt ut i top-down, borttaget.
+- Sepia color grade overlay som gjorde dag-scenen for gul.
 - dayFactor i TerrainGenerator sankt fran 0.25 till 0.15 for battre fargbalans.
+- Reverterat: vanliga zombies kan INTE skada vaggar (bara brutes/bossar).
 
 ## [v6.21.0] - 2026-04-10 08:26 -- Zombie base attack fix + build menu collapse + damage numbers
 

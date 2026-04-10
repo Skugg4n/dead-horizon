@@ -8,7 +8,7 @@ import { EquipmentPanel } from '../ui/EquipmentPanel';
 import { RefugeePanel } from '../ui/RefugeePanel';
 import { LootRunPanel } from '../ui/LootRunPanel';
 import { LootManager } from '../systems/LootManager';
-import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS, BASE_FOOTPRINT_SIZE } from '../config/constants';
+import { TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, GAME_WIDTH, GAME_HEIGHT, AP_PER_DAY, XP_PER_BUILD, DEFAULT_RESOURCE_CAP, STORAGE_CAP_BONUS, BASE_FOOTPRINT_SIZE, GAME_VERSION } from '../config/constants';
 import visualConfig from '../data/visual-config.json';
 import { SkillManager } from '../systems/SkillManager';
 import { SkillPanel } from '../ui/SkillPanel';
@@ -28,7 +28,7 @@ import structuresJson from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 import { CLOSE_ALL_PANELS } from '../ui/UIPanel';
-import { ShadowSystem } from '../systems/ShadowSystem';
+// ShadowSystem removed -- top-down ellipse shadows looked wrong
 import { BuildMenu } from '../ui/BuildMenu';
 import { AudioManager } from '../systems/AudioManager';
 import { GameLog } from '../ui/GameLog';
@@ -88,8 +88,7 @@ export class DayScene extends Phaser.Scene {
   // "Night is approaching" warning text in HUD (shown at 1h left)
   private nightWarningText: Phaser.GameObjects.Text | null = null;
 
-  // Dynamic shadow system -- updated when AP changes
-  private shadowSystem: ShadowSystem | null = null;
+  // Shadow system removed -- top-down ellipses didn't read well visually
 
   // UI elements
   private gameLog!: GameLog;
@@ -153,12 +152,20 @@ export class DayScene extends Phaser.Scene {
     this.createMap();
     this.setupCameras();
     this.renderPlacedStructures();
-    this.initShadowSystem();
 
     // UI layer (created after cameras so addToUI works)
     this.createTopBar();
     this.createActionBar();
     this.createResourceBar();
+
+    // Version number in bottom-right corner
+    const versionLabel = this.add.text(GAME_WIDTH - 4, GAME_HEIGHT - 4, `v${GAME_VERSION}`, {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '6px',
+      color: '#555555',
+    }).setOrigin(1, 1).setDepth(200);
+    this.addToUI(versionLabel);
+
     this.createBuildMenu();
     // Close build menu + exit scrap mode when any other panel opens
     this.events.on(CLOSE_ALL_PANELS, () => {
@@ -462,11 +469,6 @@ export class DayScene extends Phaser.Scene {
       this.dayLightOverlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     }
 
-    // Update shadows if shadow system exists
-    if (this.shadowSystem) {
-      this.shadowSystem.update(hoursLeft);
-    }
-
     // Show or hide the "Night is approaching" warning at 1h left
     this.updateNightWarning(hoursLeft);
   }
@@ -564,32 +566,6 @@ export class DayScene extends Phaser.Scene {
       this.drawStructure(structure);
     }
 
-    // Rebuild shadows when structures change (placement/removal)
-    if (this.shadowSystem) this.initShadowSystem();
-  }
-
-  private initShadowSystem(): void {
-    if (this.shadowSystem) this.shadowSystem.destroy();
-
-    this.shadowSystem = new ShadowSystem(this);
-
-    // Register all placed structures as shadow casters
-    const structs = this.gameState.base.structures.map(s => {
-      const data = this.buildingManager.getStructureData(s.structureId);
-      return { x: s.x, y: s.y, widthTiles: data?.widthTiles ?? 1, rotation: s.rotation ?? 0 };
-    });
-    this.shadowSystem.addStructureCasters(structs);
-
-    // Register base tent as shadow caster
-    const bx = (MAP_WIDTH * TILE_SIZE) / 2;
-    const by = (MAP_HEIGHT * TILE_SIZE) / 2;
-    this.shadowSystem.addCaster(bx - 48, by - 48, 96, 96);
-
-    // Add shadow graphics to world container so it scrolls with the map
-    this.addToWorld(this.shadowSystem.getGraphics());
-
-    // Initial draw
-    this.shadowSystem.update(this.currentAP);
   }
 
   private drawStructure(structure: StructureInstance): void {
@@ -1777,16 +1753,16 @@ export class DayScene extends Phaser.Scene {
    * Called on right-click on any damaged-but-alive structure.
    */
   private repairStructure(instance: StructureInstance): void {
-    const REPAIR_COST = 1;
+    const REPAIR_COST = 2; // scraps, not parts -- parts are too expensive
     const REPAIR_HP   = 50;
 
-    if (this.gameState.inventory.resources.parts < REPAIR_COST) {
-      this.showInfo('Need 1 PARTS to repair!');
+    if (this.gameState.inventory.resources.scrap < REPAIR_COST) {
+      this.showInfo('Need 2 SCRAP to repair!');
       AudioManager.play('ui_error');
       return;
     }
 
-    this.gameState.inventory.resources.parts -= REPAIR_COST;
+    this.gameState.inventory.resources.scrap -= REPAIR_COST;
     instance.hp = Math.min(instance.maxHp, instance.hp + REPAIR_HP);
     this.updateResourceDisplay();
 
