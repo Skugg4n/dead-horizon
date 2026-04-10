@@ -1600,9 +1600,9 @@ export class NightScene extends Phaser.Scene {
           break;
         }
       }
-      // Overlay sprite on top of programmatic Graphics so structures look the
-      // same at night as during the day. The Graphics class stays active (alpha 0)
-      // for gameplay logic (containsPoint, takeDamage, etc.).
+      // Overlay sprite so structures look the same at night as during the day.
+      // Hide the programmatic Graphics underneath but keep the class instance
+      // alive for gameplay logic (containsPoint, takeDamage, etc.).
       const overlayKey = getStructureSpriteKey(this, structure.structureId);
       if (overlayKey && structure.structureId !== 'pillbox' && structure.structureId !== 'shelter'
           && structure.structureId !== 'storage' && structure.structureId !== 'farm') {
@@ -1617,6 +1617,18 @@ export class NightScene extends Phaser.Scene {
         img.setDisplaySize(tiles * TILE_SIZE, TILE_SIZE);
         if (isVertical) img.setRotation(Math.PI / 2);
         img.setDepth(3);
+
+        // Hide the programmatic Graphics drawn by the class constructor.
+        const allChildren = this.children.getAll();
+        for (let ci = allChildren.length - 1; ci >= 0; ci--) {
+          const child = allChildren[ci];
+          if (child instanceof Phaser.GameObjects.Graphics &&
+              child.x === structure.x && child.y === structure.y &&
+              (child as Phaser.GameObjects.GameObject) !== (img as Phaser.GameObjects.GameObject)) {
+            child.setAlpha(0);
+            break;
+          }
+        }
       }
 
       } catch (err) {
