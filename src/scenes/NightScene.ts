@@ -1603,9 +1603,18 @@ export class NightScene extends Phaser.Scene {
       // Overlay sprite so structures look the same at night as during the day.
       // Hide the programmatic Graphics underneath but keep the class instance
       // alive for gameplay logic (containsPoint, takeDamage, etc.).
+      // Only overlay sprites on PASSIVE structures (walls, barricades, non-animated).
+      // Animated traps (fire_pit, napalm, propane, etc.) need their programmatic
+      // Graphics for gameplay effects (flames, spray, rotation, glow).
+      const PASSIVE_OVERLAY_IDS = new Set([
+        'wall', 'cart_wall', 'chain_wall', 'barricade',
+        'shopping_cart_wall', 'car_wreck_barrier', 'dumpster_fortress',
+        'sandbags', 'glue_floor', 'nail_board', 'glass_shards',
+        'trap', 'spike_strip', 'trip_wire', 'bear_trap', 'landmine',
+        'oil_slick', 'tar_pit', 'pit_trap',
+      ]);
       const overlayKey = getStructureSpriteKey(this, structure.structureId);
-      if (overlayKey && structure.structureId !== 'pillbox' && structure.structureId !== 'shelter'
-          && structure.structureId !== 'storage' && structure.structureId !== 'farm') {
+      if (overlayKey && PASSIVE_OVERLAY_IDS.has(structure.structureId)) {
         const sDef = structuresData.structures.find(s => s.id === structure.structureId);
         const tiles = (sDef as { widthTiles?: number } | undefined)?.widthTiles ?? 1;
         const isVertical = structure.rotation === 1;
