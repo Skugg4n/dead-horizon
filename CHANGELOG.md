@@ -1,5 +1,32 @@
 # Dead Horizon -- Changelog
 
+## [v6.20.0] - 2026-04-10 00:05 -- Persistent game log med prioritet
+
+### Varfor
+User-feedback: "Text som fladdrar forbi och forsvinner innan man hinner lasa.
+Tex saker som 'inte funkar' pa banor och maste lagas." Viktiga varningar
+(starvation, no ammo, boss incoming) drunknar i spam fran pickups och combos.
+
+### Andringar
+- `src/ui/GameLog.ts`: prioritetssystem med tre nivaer
+  - `critical`: kritiska meddelanden (base damage, no ammo, boss, final wave,
+    no fuel, starvation) behaller full farg oavsett alder och prefixas med '!'
+  - `normal`: standard aldersbaserad dimning (som innan)
+  - `spam`: pickups och combos dimmas dubbelt sa fort
+- History-buffert okas fran 16 till 60 meddelanden
+- T-tangent togglar expanderad vy (22 rader istallet for 8) sa man kan lasa
+  allt som hant senaste stunden
+- Liten `[T] log` hint i ovre hogra hornet av loggen
+- NightScene och DayScene: T-key wire-up + kritiska call sites taggade med
+  ratt prioritet (FINAL WAVE, BOSS INCOMING, No fuel, No ammo, starvation)
+
+### Tekniskt
+- `addMessage(text, color, priority?)`: bakat-kompatibel default 'normal'
+- Critical entries ignorerar COLORS_BY_AGE helt
+- Spam entries anvander `ageFromBottom * 2` som dim-index
+- Expand/collapse gors genom att flytta bg-rectangel uppat och visa/dolja
+  pre-skapade text-objekt (inga nya allocations vid toggle)
+
 ## [v6.6.0] - 2026-04-09 14:45 -- Tilemap rewrite: one source of truth for fysik och AI
 
 ### Varfor

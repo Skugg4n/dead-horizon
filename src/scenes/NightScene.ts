@@ -1603,7 +1603,7 @@ export class NightScene extends Phaser.Scene {
       const unique = [...new Set(noFuelTraps)];
       this.time.delayedCall(500, () => {
         if (this.hud) this.hud.showMessage(`No fuel: ${unique.join(', ')} offline!`);
-        if (this.gameLog) this.gameLog.addMessage(`No fuel: ${unique.join(', ')} offline!`, '#FF8C00');
+        if (this.gameLog) this.gameLog.addMessage(`No fuel: ${unique.join(', ')} offline!`, '#FF8C00', 'critical');
       });
     }
 
@@ -2297,7 +2297,7 @@ export class NightScene extends Phaser.Scene {
       // Final night: wave 5 in a 5-wave night gets a special banner
       if (wave === 5 && maxWaves === 5) {
         this.showFinalNightBanner();
-        this.gameLog.addMessage('FINAL WAVE -- survive!', '#FF4444');
+        this.gameLog.addMessage('FINAL WAVE -- survive!', '#FF4444', 'critical');
       } else {
         this.hud.showWaveAnnouncement(wave);
         this.gameLog.addMessage(`Wave ${wave} started`, '#FFD700');
@@ -2570,7 +2570,7 @@ export class NightScene extends Phaser.Scene {
     this.events.on('boss-spawning', () => {
       if (!bossAnnouncedThisNight) {
         bossAnnouncedThisNight = true;
-        this.gameLog.addMessage('BOSS INCOMING!', '#FF2222');
+        this.gameLog.addMessage('BOSS INCOMING!', '#FF2222', 'critical');
         AudioManager.play('boss_roar');
       }
     });
@@ -2809,7 +2809,7 @@ export class NightScene extends Phaser.Scene {
       const valid = ['scrap', 'food', 'ammo', 'meds', 'parts'];
       if (!valid.includes(type)) return;
       this.resourceManager.add(type as 'scrap' | 'food' | 'ammo' | 'meds' | 'parts', amount);
-      this.gameLog.addMessage(`Found: +${amount} ${type}`, '#FFD700');
+      this.gameLog.addMessage(`Found: +${amount} ${type}`, '#FFD700', 'spam');
     });
 
     // Rescue a survivor -- add as refugee if space is available
@@ -2945,6 +2945,12 @@ export class NightScene extends Phaser.Scene {
       this.minimap.toggle();
     });
 
+    // T key: toggle expanded game log (persistent history view)
+    const tKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
+    tKey.on('down', () => {
+      this.gameLog.toggleExpanded();
+    });
+
     // F10: toggle PathGrid debug overlay (blocked tiles rendered red)
     const f10Key = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F10);
     f10Key.on('down', () => {
@@ -3034,7 +3040,7 @@ export class NightScene extends Phaser.Scene {
     if (available <= 0) {
       this.time.delayedCall(200, () => {
         if (this.hud) this.hud.showMessage('NO AMMO!');
-        if (this.gameLog) this.gameLog.addMessage('No ammo!', '#FF4444');
+        if (this.gameLog) this.gameLog.addMessage('No ammo!', '#FF4444', 'critical');
       });
       return 0;
     }
@@ -3056,7 +3062,7 @@ export class NightScene extends Phaser.Scene {
       const s = this.weaponManager.getWeaponStats(w);
       if (s.weaponClass !== 'melee' && this.loadedAmmo <= 0) {
         this.hud.showMessage('NO AMMO -- switch to melee!');
-        this.gameLog.addMessage('No ammo! Switch to melee!', '#FF4444');
+        this.gameLog.addMessage('No ammo! Switch to melee!', '#FF4444', 'critical');
         AudioManager.play('ui_error');
       }
     }

@@ -1639,6 +1639,7 @@ export class DayScene extends Phaser.Scene {
           case 'S': this.skillPanel.toggle(); break;
           case 'E': this.showEndDayConfirmation(); break;
           case 'X': this.toggleScrapMode(); break;
+          case 'T': this.gameLog.toggleExpanded(); break;
           default: break;
         }
 
@@ -2138,7 +2139,7 @@ export class DayScene extends Phaser.Scene {
     if (foodResult.missing > 0) {
       // Show prominent starvation warning in both the info banner and the game log
       this.showInfo('Refugees starving! Need more food!');
-      this.gameLog.addMessage(`Refugees starving! ${foodResult.missing} went without food.`, '#FF4444');
+      this.gameLog.addMessage(`Refugees starving! ${foodResult.missing} went without food.`, '#FF4444', 'critical');
     }
 
     // Auto-heal injured refugees (uses 1 med per refugee, no job assignment needed)
