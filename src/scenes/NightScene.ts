@@ -4878,6 +4878,8 @@ export class NightScene extends Phaser.Scene {
         }
       }
 
+      // Destroy after a short delay so the detonation flash is briefly visible
+      this.time.delayedCall(300, () => { cb.destroy(); });
       this._carBombs.splice(i, 1);
     }
 
