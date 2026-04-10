@@ -167,6 +167,7 @@ export class BuildMenu {
   private backdrop: Phaser.GameObjects.Graphics;
 
   private visible: boolean = false;
+  private collapsed: boolean = false;
   private activeTab: TabName = 'BASIC';
 
   // Keyboard navigation state
@@ -234,6 +235,22 @@ export class BuildMenu {
     this.backdrop.setVisible(false);
     this.container.setVisible(false);
     if (this.onClose) this.onClose();
+  }
+
+  /** Collapse to a thin tab-only bar so the map is visible. */
+  collapse(): void {
+    this.collapsed = true;
+    this.rebuild();
+  }
+
+  /** Expand from collapsed tab bar back to full panel. */
+  expand(): void {
+    this.collapsed = false;
+    this.rebuild();
+  }
+
+  isCollapsed(): boolean {
+    return this.collapsed;
   }
 
   setOnClose(cb: () => void): void {
@@ -389,6 +406,11 @@ export class BuildMenu {
   }
 
   private buildPanel(): void {
+    if (this.collapsed) {
+      this.buildCollapsedBar();
+      return;
+    }
+
     const unlockedIds = this.getBaseLevelUnlockedIds();
     const ap = this.getCurrentAP();
     const maxAP = this.getMaxAP();
@@ -423,6 +445,18 @@ export class BuildMenu {
       Phaser.Geom.Rectangle.Contains,
     );
     this.container.add(bg);
+
+    // --- Collapse button [_] in top-left ---
+    const collapseBtn = this.scene.add.text(PADDING, 6, '[_]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '9px',
+      color: FONT_MUTED,
+    });
+    collapseBtn.setInteractive({ useHandCursor: true });
+    collapseBtn.on('pointerover', () => collapseBtn.setColor(FONT_YELLOW));
+    collapseBtn.on('pointerout', () => collapseBtn.setColor(FONT_MUTED));
+    collapseBtn.on('pointerdown', () => this.collapse());
+    this.container.add(collapseBtn);
 
     // --- Resource header ---
     this.buildResourceHeader(resources, ap, maxAP);
@@ -486,6 +520,87 @@ export class BuildMenu {
       fontSize: '9px',
       color: FONT_MUTED,
     }).setOrigin(1, 0);
+    closeBtn.setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerover', () => closeBtn.setColor(FONT_YELLOW));
+    closeBtn.on('pointerout', () => closeBtn.setColor(FONT_MUTED));
+    closeBtn.on('pointerdown', () => this.hide());
+    this.container.add(closeBtn);
+  }
+
+  /**
+   * Collapsed view: thin horizontal tab bar only.
+   * Click a tab to expand that category. Click [X] to close entirely.
+   */
+  private buildCollapsedBar(): void {
+    const tabs: TabName[] = ['BASIC', 'MACHINES', 'WALLS', 'SPECIAL'];
+    const COLLAPSED_H = 26;
+    const tabW = Math.floor((PANEL_W - 50) / tabs.length); // leave room for [X] and expand
+
+    // Background
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(BG_COLOR, 0.95);
+    bg.fillRect(0, 0, PANEL_W, COLLAPSED_H);
+    bg.lineStyle(1, BORDER_COLOR, 1);
+    bg.strokeRect(0, 0, PANEL_W, COLLAPSED_H);
+    bg.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, PANEL_W, COLLAPSED_H),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    this.container.add(bg);
+
+    // Tab buttons
+    tabs.forEach((tab, i) => {
+      const x = i * tabW;
+      const isActive = tab === this.activeTab;
+
+      const tabBg = this.scene.add.graphics();
+      tabBg.fillStyle(isActive ? TAB_ACTIVE : TAB_INACTIVE, 1);
+      tabBg.fillRect(x, 0, tabW, COLLAPSED_H);
+      if (isActive) {
+        tabBg.lineStyle(1, 0x666666, 1);
+        tabBg.strokeRect(x, 0, tabW, COLLAPSED_H);
+      }
+      tabBg.setInteractive(
+        new Phaser.Geom.Rectangle(x, 0, tabW, COLLAPSED_H),
+        Phaser.Geom.Rectangle.Contains,
+      );
+      if (tabBg.input) tabBg.input.cursor = 'pointer';
+      tabBg.on('pointerdown', () => {
+        this.activeTab = tab;
+        this.cursorIndex = -1;
+        this.scrollOffset = 0;
+        this.expand();
+      });
+      tabBg.on('pointerover', () => {
+        if (!isActive) {
+          tabBg.clear();
+          tabBg.fillStyle(0x2A2A2A, 1);
+          tabBg.fillRect(x, 0, tabW, COLLAPSED_H);
+        }
+      });
+      tabBg.on('pointerout', () => {
+        if (!isActive) {
+          tabBg.clear();
+          tabBg.fillStyle(TAB_INACTIVE, 1);
+          tabBg.fillRect(x, 0, tabW, COLLAPSED_H);
+        }
+      });
+      this.container.add(tabBg);
+
+      const label = this.scene.add.text(x + tabW / 2, COLLAPSED_H / 2, tab, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: '6px',
+        color: isActive ? FONT_YELLOW : FONT_MUTED,
+      }).setOrigin(0.5);
+      this.container.add(label);
+    });
+
+    // Close [X] button at far right
+    const closeBtn = this.scene.add.text(PANEL_W - PADDING, COLLAPSED_H / 2, '[X]', {
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '8px',
+      color: FONT_MUTED,
+    }).setOrigin(1, 0.5);
     closeBtn.setInteractive({ useHandCursor: true });
     closeBtn.on('pointerover', () => closeBtn.setColor(FONT_YELLOW));
     closeBtn.on('pointerout', () => closeBtn.setColor(FONT_MUTED));

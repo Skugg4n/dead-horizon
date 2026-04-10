@@ -1,5 +1,19 @@
 # Dead Horizon -- Changelog
 
+## [v6.21.0] - 2026-04-10 08:26 -- Zombie base attack fix + build menu collapse + damage numbers
+
+### Fixar
+- **Zombies attackerade inte basen**: `baseRadius` var 56px men nearest walkable tile
+  hamnar ~64px fran base center (pga 3x3 blocked footprint). Okat till 72px.
+  Zombie stop-distance okat fran 48 till 64 for att matcha.
+- **Skade-siffror syntes sallan**: MAX_DAMAGE_NUMBERS okat fran 20 till 40 sa fler
+  floating numbers visas samtidigt under intensiva waves.
+
+### Nytt
+- **Build menu collapse**: [_] knapp i ovre vanstra hornet minimerar menyn till en
+  tunn tab-rad (26px hog). Klick pa tab expanderar tillbaka. Gor vanster sida av
+  kartan synlig och byggbar aven med menyn oppen.
+
 ## [v6.20.0] - 2026-04-10 00:05 -- Persistent game log med prioritet
 
 ### Varfor

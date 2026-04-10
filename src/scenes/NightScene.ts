@@ -313,7 +313,7 @@ export class NightScene extends Phaser.Scene {
   private _adrenalineTimer: number = 0;
   // Floating damage number count cap (max 20 active at once for performance)
   private _activeDamageNumbers: number = 0;
-  private static readonly MAX_DAMAGE_NUMBERS = 20;
+  private static readonly MAX_DAMAGE_NUMBERS = 40;
   // Glow graphics drawn around the player during adrenaline buff
   private _adrenalineGlow: Phaser.GameObjects.Graphics | null = null;
 
@@ -5321,8 +5321,10 @@ export class NightScene extends Phaser.Scene {
   private checkZombieBaseInteractions(): void {
     if (this.baseCenterX === 0) return;
 
-    // Base "hit radius" must match or exceed zombie stop distance (48px in Zombie.ts)
-    const baseRadius = 56;
+    // Base "hit radius" must exceed the nearest walkable tile center distance.
+    // With BASE_FOOTPRINT_SIZE=96 (3x3 tiles), nearest walkable tile center is
+    // ~64px from base center. Use 72 to give physics-collision slack.
+    const baseRadius = 72;
 
     this.zombieGroup.getChildren().forEach(child => {
       const zombie = child as Zombie;

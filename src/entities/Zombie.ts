@@ -636,9 +636,10 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
       targetX = this.basePosition.x;
       targetY = this.basePosition.y;
 
-      // Stop near the base perimeter instead of spinning on top of the center
+      // Stop at the base perimeter -- with BASE_FOOTPRINT_SIZE=96 (3x3 tiles),
+      // nearest walkable tile center is ~64px from center, so stop at 64.
       const distToBase = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
-      if (distToBase < 48) {
+      if (distToBase < 64) {
         this.setVelocity(0, 0);
         return;
       }
