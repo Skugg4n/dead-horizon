@@ -662,7 +662,7 @@ function drawStump(
   if (!pos) return;
 
   const r = rng.nextFloat(7, 14);
-  const dayFactor = isDaytime ? 0.25 : 0;
+  const dayFactor = isDaytime ? 0.15 : 0;
 
   const g = scene.add.graphics();
   // Drop shadow (softer in daylight)
@@ -920,7 +920,7 @@ function drawLog(
   const thickness = rng.nextFloat(7, 13);
   const angle = rng.nextFloat(-0.6, 0.6); // slight diagonal, never perfectly straight
 
-  const dayFactor = isDaytime ? 0.25 : 0;
+  const dayFactor = isDaytime ? 0.15 : 0;
   const barkColor  = lightenColor(0x5A3A1E, dayFactor);
   const darkBark   = lightenColor(0x3A2010, dayFactor);
   const lightBark  = lightenColor(0x7A5A38, dayFactor);
@@ -1071,7 +1071,7 @@ function drawBuildingRuin(
   const bh = rng.nextInt(36, 70);
   const wallThick = rng.nextInt(5, 9);
 
-  const dayFactor = isDaytime ? 0.25 : 0;
+  const dayFactor = isDaytime ? 0.15 : 0;
   const wallColor   = lightenColor(0x5A5248, dayFactor);
   const darkWall    = lightenColor(0x3A3230, dayFactor);
   const lightWall   = lightenColor(0x7A7068, dayFactor);
@@ -1439,7 +1439,7 @@ function drawSandbagCluster(
   if (px < EDGE_MARGIN || px > mapW - EDGE_MARGIN ||
       py < EDGE_MARGIN || py > mapH - EDGE_MARGIN) return;
 
-  const dayFactor = isDaytime ? 0.25 : 0;
+  const dayFactor = isDaytime ? 0.15 : 0;
   const bagColor  = lightenColor(0xB0924A, dayFactor);
   const bagDark   = lightenColor(0x7A6430, dayFactor);
   const bagLight  = lightenColor(0xD0B468, dayFactor);
@@ -1574,7 +1574,7 @@ function drawForestBackground(
   isDaytime: boolean
 ): Phaser.GameObjects.Graphics[] {
   const result: Phaser.GameObjects.Graphics[] = [];
-  const dayFactor = isDaytime ? 0.25 : 0;
+  const dayFactor = isDaytime ? 0.15 : 0;
 
   const ground = scene.add.graphics();
   ground.setDepth(0);
@@ -1646,7 +1646,7 @@ function drawCityBackground(
   isDaytime: boolean
 ): Phaser.GameObjects.Graphics[] {
   const result: Phaser.GameObjects.Graphics[] = [];
-  const dayFactor = isDaytime ? 0.25 : 0;
+  const dayFactor = isDaytime ? 0.15 : 0;
 
   // Asphalt base
   const ground = scene.add.graphics();
@@ -1741,7 +1741,7 @@ function drawMilitaryBackground(
   isDaytime: boolean
 ): Phaser.GameObjects.Graphics[] {
   const result: Phaser.GameObjects.Graphics[] = [];
-  const dayFactor = isDaytime ? 0.25 : 0;
+  const dayFactor = isDaytime ? 0.15 : 0;
 
   // Olive-grey base ground
   const ground = scene.add.graphics();

@@ -1,5 +1,21 @@
 # Dead Horizon -- Changelog
 
+## [v6.22.0] - 2026-04-10 12:45 -- Sprite overlay natt + dag/natt ljuscykel + dynamiska skuggor
+
+### Nytt
+- **Sprite overlay pa natten**: Alla strukturer renderas nu med samma sprite-bild
+  pa natten som pa dagen. Programmatiska Graphics-klasser doljs bakom spriten men
+  behaller sin gameplay-logik (takeDamage, containsPoint, etc.).
+- **Realistisk dagljuscykel**: Morgon (guldton), mitt pa dagen (klart ljus),
+  eftermiddag (varm orange), kvall (bla-mork ton).
+- **Dynamiska skuggor**: Alla strukturer och dekor-objekt far mjuka ellipsskuggor
+  som foljer solen -- stracker sig at vanster pa morgonen, korta vid zenit, at
+  hoger pa eftermiddagen.
+
+### Fixar
+- Borttagen sepia color grade overlay (0x3A2800) som gjorde dag-scenen for gul.
+- dayFactor i TerrainGenerator sankt fran 0.25 till 0.15 for battre fargbalans.
+
 ## [v6.21.0] - 2026-04-10 08:26 -- Zombie base attack fix + build menu collapse + damage numbers
 
 ### Fixar

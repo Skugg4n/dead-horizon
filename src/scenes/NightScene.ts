@@ -1593,6 +1593,25 @@ export class NightScene extends Phaser.Scene {
           break;
         }
       }
+      // Overlay sprite on top of programmatic Graphics so structures look the
+      // same at night as during the day. The Graphics class stays active (alpha 0)
+      // for gameplay logic (containsPoint, takeDamage, etc.).
+      const overlayKey = getStructureSpriteKey(this, structure.structureId);
+      if (overlayKey && structure.structureId !== 'pillbox' && structure.structureId !== 'shelter'
+          && structure.structureId !== 'storage' && structure.structureId !== 'farm') {
+        const sDef = structuresData.structures.find(s => s.id === structure.structureId);
+        const tiles = (sDef as { widthTiles?: number } | undefined)?.widthTiles ?? 1;
+        const isVertical = structure.rotation === 1;
+        const footW = isVertical ? TILE_SIZE : tiles * TILE_SIZE;
+        const footH = isVertical ? tiles * TILE_SIZE : TILE_SIZE;
+        const cx = structure.x + footW / 2;
+        const cy = structure.y + footH / 2;
+        const img = this.add.image(cx, cy, overlayKey);
+        img.setDisplaySize(tiles * TILE_SIZE, TILE_SIZE);
+        if (isVertical) img.setRotation(Math.PI / 2);
+        img.setDepth(3);
+      }
+
       } catch (err) {
         console.error(`[NightScene] Failed to create structure ${structure.structureId}:`, err);
       }

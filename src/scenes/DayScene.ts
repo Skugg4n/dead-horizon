@@ -28,6 +28,7 @@ import structuresJson from '../data/structures.json';
 import baseLevelsJson from '../data/base-levels.json';
 import { getStructureSpriteKey, getBaseSpriteKey } from '../utils/spriteFactory';
 import { CLOSE_ALL_PANELS } from '../ui/UIPanel';
+import { ShadowSystem } from '../systems/ShadowSystem';
 import { BuildMenu } from '../ui/BuildMenu';
 import { AudioManager } from '../systems/AudioManager';
 import { GameLog } from '../ui/GameLog';
@@ -86,6 +87,9 @@ export class DayScene extends Phaser.Scene {
 
   // "Night is approaching" warning text in HUD (shown at 1h left)
   private nightWarningText: Phaser.GameObjects.Text | null = null;
+
+  // Dynamic shadow system -- updated when AP changes
+  private shadowSystem: ShadowSystem | null = null;
 
   // UI elements
   private gameLog!: GameLog;
@@ -149,6 +153,7 @@ export class DayScene extends Phaser.Scene {
     this.createMap();
     this.setupCameras();
     this.renderPlacedStructures();
+    this.initShadowSystem();
 
     // UI layer (created after cameras so addToUI works)
     this.createTopBar();
@@ -318,14 +323,8 @@ export class DayScene extends Phaser.Scene {
     this.dayLightOverlay.setDepth(90).setScrollFactor(0);
     this.updateDayLighting();
 
-    // Post-apocalyptic color grade: permanent warm sepia tint overlay (alpha 0.03)
-    // Gives the day phase a muted, desaturated post-apocalyptic feel
-    const dayColorGrade = this.add.graphics();
-    dayColorGrade.setDepth(89); // just below dayLightOverlay
-    dayColorGrade.setScrollFactor(0);
-    dayColorGrade.fillStyle(0x3A2800, 1); // dark amber/sepia tint
-    dayColorGrade.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    dayColorGrade.setAlpha(0.03);
+    // Sepia overlay removed -- was making the day scene too yellow/washed out.
+    // The day lighting cycle now handles mood via updateDayLighting().
 
     // Dawn fade-in animation -- skip if tutorial is showing (first game)
     if (!this.tutorialShowing) {
@@ -429,28 +428,43 @@ export class DayScene extends Phaser.Scene {
     if (!this.dayLightOverlay) return;
 
     const hoursLeft = this.currentAP;
+    const maxAP = this.maxApForDay ?? 12;
 
     let color: number;
     let alpha: number;
 
-    if (hoursLeft >= 9) {
-      // Morning: warm orange fading to clear as day progresses toward midday
-      color = 0xFF8800;
-      alpha = ((hoursLeft - 9) / 3) * 0.1; // 0.1 at 12h, 0 at 9h
-    } else if (hoursLeft >= 3) {
-      // Midday to afternoon: clear, no tint
-      color = 0xFFDD00;
+    // Realistic day cycle based on AP as clock:
+    //   17-14h (morning) : warm gold, gradually clearing
+    //   14-8h  (midday)  : clear bright light, no tint
+    //   8-3h   (afternoon): gentle warm orange creeping in
+    //   3-0h   (evening) : cool blue-dark, night approaching
+    if (hoursLeft >= 14) {
+      // Morning: warm gold fading out as sun rises
+      color = 0xFFAA44;
+      alpha = ((hoursLeft - 14) / (maxAP - 14)) * 0.12; // 0.12 at max, 0 at 14h
+    } else if (hoursLeft >= 8) {
+      // Midday: clear, no tint
+      color = 0xFFFFFF;
       alpha = 0;
+    } else if (hoursLeft >= 3) {
+      // Afternoon: gentle warm orange
+      color = 0xFF8833;
+      alpha = ((8 - hoursLeft) / 5) * 0.08; // 0 at 8h, 0.08 at 3h
     } else {
-      // Evening: darkening red-orange as night approaches
-      color = 0xFF4400;
-      alpha = ((3 - hoursLeft) / 3) * 0.15; // 0 at 3h, 0.15 at 0h
+      // Evening: cool blue-dark approaching night
+      color = 0x2244AA;
+      alpha = ((3 - hoursLeft) / 3) * 0.20; // 0 at 3h, 0.20 at 0h
     }
 
     this.dayLightOverlay.clear();
     if (alpha > 0) {
       this.dayLightOverlay.fillStyle(color, alpha);
       this.dayLightOverlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    }
+
+    // Update shadows if shadow system exists
+    if (this.shadowSystem) {
+      this.shadowSystem.update(hoursLeft);
     }
 
     // Show or hide the "Night is approaching" warning at 1h left
@@ -549,6 +563,33 @@ export class DayScene extends Phaser.Scene {
     for (const structure of this.gameState.base.structures) {
       this.drawStructure(structure);
     }
+
+    // Rebuild shadows when structures change (placement/removal)
+    if (this.shadowSystem) this.initShadowSystem();
+  }
+
+  private initShadowSystem(): void {
+    if (this.shadowSystem) this.shadowSystem.destroy();
+
+    this.shadowSystem = new ShadowSystem(this);
+
+    // Register all placed structures as shadow casters
+    const structs = this.gameState.base.structures.map(s => {
+      const data = this.buildingManager.getStructureData(s.structureId);
+      return { x: s.x, y: s.y, widthTiles: data?.widthTiles ?? 1, rotation: s.rotation ?? 0 };
+    });
+    this.shadowSystem.addStructureCasters(structs);
+
+    // Register base tent as shadow caster
+    const bx = (MAP_WIDTH * TILE_SIZE) / 2;
+    const by = (MAP_HEIGHT * TILE_SIZE) / 2;
+    this.shadowSystem.addCaster(bx - 48, by - 48, 96, 96);
+
+    // Add shadow graphics to world container so it scrolls with the map
+    this.addToWorld(this.shadowSystem.getGraphics());
+
+    // Initial draw
+    this.shadowSystem.update(this.currentAP);
   }
 
   private drawStructure(structure: StructureInstance): void {
