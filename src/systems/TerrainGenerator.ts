@@ -403,7 +403,7 @@ function drawTree(
   const crownR  = Math.round(20 * scale);
 
   // Daytime uses brighter trunk/crown colours; night uses darker muted tones.
-  const dayBright = isDaytime ? 0.30 : 0;
+  const dayBright = isDaytime ? 0.06 : 0;
 
   // --- Colour palettes by zone (endless uses forest palette as fallback) ---
   const trunkColorsBase: Record<ZoneId, [number, number]> = {
@@ -552,7 +552,7 @@ function drawStone(
   const ry = rng.nextFloat(rx * 0.55, rx * 0.85);
 
   // Daytime stones are lighter/warmer; night stones are darker/cooler.
-  const dayFactor = isDaytime ? 0.22 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const baseColor  = lightenColor(zone === 'city'     ? 0x707070 :
                                   zone === 'military' ? 0x8B7D5C : 0x888888, dayFactor);
   const darkColor  = lightenColor(zone === 'city'     ? 0x505050 :
@@ -614,7 +614,7 @@ function drawBush(
 
   const size = rng.nextFloat(9, 18);
   // Daytime bushes use a brighter green palette
-  const dayFactor = isDaytime ? 0.28 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const colorPaletteBase = [0x2D5A1E, 0x3B6B28, 0x1E3D12, 0x4A5E2A, 0x355020];
   const colorPalette = lightenPalette(colorPaletteBase, dayFactor);
   const base  = colorPalette[rng.nextInt(0, colorPalette.length - 1)] ?? 0x2D5A1E;
@@ -662,7 +662,7 @@ function drawStump(
   if (!pos) return;
 
   const r = rng.nextFloat(7, 14);
-  const dayFactor = isDaytime ? 0.15 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
 
   const g = scene.add.graphics();
   // Drop shadow (softer in daylight)
@@ -920,7 +920,7 @@ function drawLog(
   const thickness = rng.nextFloat(7, 13);
   const angle = rng.nextFloat(-0.6, 0.6); // slight diagonal, never perfectly straight
 
-  const dayFactor = isDaytime ? 0.15 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const barkColor  = lightenColor(0x5A3A1E, dayFactor);
   const darkBark   = lightenColor(0x3A2010, dayFactor);
   const lightBark  = lightenColor(0x7A5A38, dayFactor);
@@ -996,7 +996,7 @@ function drawCrate(
   const h = rng.nextInt(8, 14);
   const isBroken = rng.chance(0.4);
 
-  const dayFactor = isDaytime ? 0.20 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const woodColor  = lightenColor(0x8B6914, dayFactor);
   const darkWood   = lightenColor(0x5A4010, dayFactor);
   const lightWood  = lightenColor(0xC89030, dayFactor);
@@ -1071,7 +1071,7 @@ function drawBuildingRuin(
   const bh = rng.nextInt(36, 70);
   const wallThick = rng.nextInt(5, 9);
 
-  const dayFactor = isDaytime ? 0.15 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const wallColor   = lightenColor(0x5A5248, dayFactor);
   const darkWall    = lightenColor(0x3A3230, dayFactor);
   const lightWall   = lightenColor(0x7A7068, dayFactor);
@@ -1149,7 +1149,7 @@ function drawAbandonedCar(
   const carW = rng.nextInt(20, 28);
   const carH = rng.nextInt(12, 16);
 
-  const dayFactor = isDaytime ? 0.20 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const carBases = [0x7A3A2A, 0x2A3A5A, 0x6A6A6A, 0x4A5A2A, 0x8A7A2A];
   const carBase   = lightenColor(carBases[rng.nextInt(0, carBases.length - 1)] ?? 0x6A6A6A, dayFactor);
   const carDark   = lightenColor(0x1A1A1A, dayFactor);
@@ -1206,7 +1206,7 @@ function drawStreetlight(
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
 
-  const dayFactor = isDaytime ? 0.30 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const poleColor = lightenColor(0x484848, dayFactor);
   const lampColor = isDaytime ? 0xE8D88A : 0xFFEE88;
   const poleH = rng.nextInt(22, 32);
@@ -1257,7 +1257,7 @@ function drawUrbanDebris(
   const pos = randomPos(mapW, mapH, basePosition, rng, false);
   if (!pos) return;
 
-  const dayFactor = isDaytime ? 0.20 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const baseCol = lightenColor(0x5A5248, dayFactor);
   const darkCol = lightenColor(0x3A3028, dayFactor);
 
@@ -1313,7 +1313,7 @@ function drawBunker(
   const bw = rng.nextInt(32, 56);
   const bh = rng.nextInt(24, 40);
 
-  const dayFactor = isDaytime ? 0.22 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const concreteBase  = lightenColor(0x6A6E58, dayFactor);
   const concreteDark  = lightenColor(0x3A3E28, dayFactor);
   const concreteLight = lightenColor(0x8A8E78, dayFactor);
@@ -1388,7 +1388,7 @@ function drawBarbedWire(
   const wireAngle = rng.nextFloat(0, Math.PI);
   const segments = rng.nextInt(5, 10);
 
-  const dayFactor = isDaytime ? 0.20 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const wireColor  = lightenColor(0x8A8070, dayFactor);
   const spikeColor = lightenColor(0xB0A890, dayFactor);
 
@@ -1439,7 +1439,7 @@ function drawSandbagCluster(
   if (px < EDGE_MARGIN || px > mapW - EDGE_MARGIN ||
       py < EDGE_MARGIN || py > mapH - EDGE_MARGIN) return;
 
-  const dayFactor = isDaytime ? 0.15 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const bagColor  = lightenColor(0xB0924A, dayFactor);
   const bagDark   = lightenColor(0x7A6430, dayFactor);
   const bagLight  = lightenColor(0xD0B468, dayFactor);
@@ -1491,7 +1491,7 @@ function drawHelipad(
   if (!pos) return;
 
   const r = 28;
-  const dayFactor = isDaytime ? 0.30 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
   const padColor     = lightenColor(0x5A5E4A, dayFactor);
   const markingColor = lightenColor(0xC8C0A0, dayFactor);
 
@@ -1574,7 +1574,7 @@ function drawForestBackground(
   isDaytime: boolean
 ): Phaser.GameObjects.Graphics[] {
   const result: Phaser.GameObjects.Graphics[] = [];
-  const dayFactor = isDaytime ? 0.15 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
 
   const ground = scene.add.graphics();
   ground.setDepth(0);
@@ -1646,7 +1646,7 @@ function drawCityBackground(
   isDaytime: boolean
 ): Phaser.GameObjects.Graphics[] {
   const result: Phaser.GameObjects.Graphics[] = [];
-  const dayFactor = isDaytime ? 0.15 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
 
   // Asphalt base
   const ground = scene.add.graphics();
@@ -1741,7 +1741,7 @@ function drawMilitaryBackground(
   isDaytime: boolean
 ): Phaser.GameObjects.Graphics[] {
   const result: Phaser.GameObjects.Graphics[] = [];
-  const dayFactor = isDaytime ? 0.15 : 0;
+  const dayFactor = isDaytime ? 0.06 : 0;
 
   // Olive-grey base ground
   const ground = scene.add.graphics();

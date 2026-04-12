@@ -1040,18 +1040,20 @@ export class NightScene extends Phaser.Scene {
         case 'barricade': {
           const barricade = new Barricade(this, structure);
           this.barricades.push(barricade);
+          this.overlayStructureSprite(structure, barricade);
           break;
         }
         case 'wall': {
           const wall = new Wall(this, structure);
           this.walls.push(wall);
-          // Stamp tilemap tile so physics + A* both see it as a blocker.
           this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), wall);
+          this.overlayStructureSprite(structure, wall);
           break;
         }
         case 'trap': {
           const trap = new Trap(this, structure, defaultTrapDamage);
           this.traps.push(trap);
+          this.overlayStructureSprite(structure, trap);
           break;
         }
         case 'spike_strip': {
@@ -1061,6 +1063,7 @@ export class NightScene extends Phaser.Scene {
           const uses   = (spikeStripDef as { trapDurability?: number } | undefined)?.trapDurability ?? 5;
           const strip  = new SpikeStrip(this, structure, dmg, dur, uses);
           this._spikeStrips.push(strip);
+          this.overlayStructureSprite(structure, strip);
           break;
         }
         case 'bear_trap': {
@@ -1068,6 +1071,7 @@ export class NightScene extends Phaser.Scene {
           const stun   = (bearTrapDef as { stunDuration?: number } | undefined)?.stunDuration ?? 2000;
           const bt     = new BearTrap(this, structure, dmg, stun);
           this._bearTraps.push(bt);
+          this.overlayStructureSprite(structure, bt);
           break;
         }
         case 'landmine': {
@@ -1075,12 +1079,14 @@ export class NightScene extends Phaser.Scene {
           const radius = (landmineDef as { aoeRadius?: number } | undefined)?.aoeRadius ?? 60;
           const mine   = new Landmine(this, structure, dmg, radius);
           this._landmines.push(mine);
+          this.overlayStructureSprite(structure, mine);
           break;
         }
         case 'sandbags': {
           const slow   = (sandbagsDef as { slowFactor?: number } | undefined)?.slowFactor ?? 0.4;
           const bags   = new Sandbags(this, structure, slow);
           this._sandbags.push(bags);
+          this.overlayStructureSprite(structure, bags);
           break;
         }
         case 'oil_slick': {
@@ -1088,6 +1094,7 @@ export class NightScene extends Phaser.Scene {
           const width  = (oilSlickDef as { widthTiles?: number } | undefined)?.widthTiles ?? 3;
           const slick  = new OilSlick(this, structure, slow, width);
           this._oilSlicks.push(slick);
+          this.overlayStructureSprite(structure, slick);
           break;
         }
         case 'blade_spinner': {
@@ -1146,6 +1153,7 @@ export class NightScene extends Phaser.Scene {
           const cw = new CartWall(this, structure);
           this._cartWalls.push(cw);
           this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), cw);
+          this.overlayStructureSprite(structure, cw);
           break;
         }
         case 'washing_cannon': {
@@ -1162,6 +1170,7 @@ export class NightScene extends Phaser.Scene {
             pt.malfunctioned = true;
           }
           this._pitTraps.push(pt);
+          this.overlayStructureSprite(structure, pt);
           break;
         }
         case 'nail_board': {
@@ -1171,6 +1180,7 @@ export class NightScene extends Phaser.Scene {
           const uses  = getLeveledStat(nailBoardDef, structure.level, 'trapDurability', 20);
           const nb    = new NailBoard(this, structure, dmg, crip, uses);
           this._nailBoards.push(nb);
+          this.overlayStructureSprite(structure, nb);
           break;
         }
         case 'trip_wire': {
@@ -1178,12 +1188,14 @@ export class NightScene extends Phaser.Scene {
           const uses  = (tripWireDef as { trapDurability?: number } | undefined)?.trapDurability ?? 15;
           const tw    = new TripWire(this, structure, stun, uses);
           this._tripWires.push(tw);
+          this.overlayStructureSprite(structure, tw);
           break;
         }
         case 'glass_shards': {
           const dps   = (glassShardsdef as { damagePerSecond?: number } | undefined)?.damagePerSecond ?? 5;
           const gs    = new GlassShards(this, structure, dps);
           this._glassShards.push(gs);
+          this.overlayStructureSprite(structure, gs);
           break;
         }
         case 'floodlight': {
@@ -1214,6 +1226,7 @@ export class NightScene extends Phaser.Scene {
           const width = (tarPitDef as { widthTiles?: number } | undefined)?.widthTiles ?? 3;
           const tp    = new TarPit(this, structure, slow, width);
           this._tarPits.push(tp);
+          this.overlayStructureSprite(structure, tp);
           break;
         }
         case 'shock_wire': {
@@ -1233,12 +1246,12 @@ export class NightScene extends Phaser.Scene {
           break;
         }
         case 'chain_wall': {
-          // Chain Wall blocks zombies (physics collider) and deals contact damage
           const cwall = new ChainWall(this, structure);
           if (Math.random() < cwall.malfunctionChance) {
             cwall.malfunctioned = true;
           }
           this._chainWalls.push(cwall);
+          this.overlayStructureSprite(structure, cwall);
           this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), cwall);
           break;
         }
@@ -1476,24 +1489,28 @@ export class NightScene extends Phaser.Scene {
           const widthTiles = (glueDef as { widthTiles?: number } | undefined)?.widthTiles ?? 3;
           const gf = new GlueFloor(this, structure, slowFactor, widthTiles);
           this._glueFloors.push(gf);
+          this.overlayStructureSprite(structure, gf);
           break;
         }
         case 'shopping_cart_wall': {
           const scw = new ShoppingCartWall(this, structure);
           this._shoppingCartWalls.push(scw);
           this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), scw);
+          this.overlayStructureSprite(structure, scw);
           break;
         }
         case 'car_wreck_barrier': {
           const cwb = new CarWreckBarrier(this, structure);
           this._carWreckBarriers.push(cwb);
           this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), cwb);
+          this.overlayStructureSprite(structure, cwb);
           break;
         }
         case 'dumpster_fortress': {
           const df = new DumpsterFortress(this, structure);
           this._dumpsterFortresses.push(df);
           this.setBlockingTile(Math.floor(structure.x / TILE_SIZE), Math.floor(structure.y / TILE_SIZE), df);
+          this.overlayStructureSprite(structure, df);
           break;
         }
         // --- Tier 3 heavy/gravity traps ---
@@ -1600,45 +1617,8 @@ export class NightScene extends Phaser.Scene {
           break;
         }
       }
-      // Overlay sprite so structures look the same at night as during the day.
-      // Hide the programmatic Graphics underneath but keep the class instance
-      // alive for gameplay logic (containsPoint, takeDamage, etc.).
-      // Only overlay sprites on PASSIVE structures (walls, barricades, non-animated).
-      // Animated traps (fire_pit, napalm, propane, etc.) need their programmatic
-      // Graphics for gameplay effects (flames, spray, rotation, glow).
-      const PASSIVE_OVERLAY_IDS = new Set([
-        'wall', 'cart_wall', 'chain_wall', 'barricade',
-        'shopping_cart_wall', 'car_wreck_barrier', 'dumpster_fortress',
-        'sandbags', 'glue_floor', 'nail_board', 'glass_shards',
-        'trap', 'spike_strip', 'trip_wire', 'bear_trap', 'landmine',
-        'oil_slick', 'tar_pit', 'pit_trap',
-      ]);
-      const overlayKey = getStructureSpriteKey(this, structure.structureId);
-      if (overlayKey && PASSIVE_OVERLAY_IDS.has(structure.structureId)) {
-        const sDef = structuresData.structures.find(s => s.id === structure.structureId);
-        const tiles = (sDef as { widthTiles?: number } | undefined)?.widthTiles ?? 1;
-        const isVertical = structure.rotation === 1;
-        const footW = isVertical ? TILE_SIZE : tiles * TILE_SIZE;
-        const footH = isVertical ? tiles * TILE_SIZE : TILE_SIZE;
-        const cx = structure.x + footW / 2;
-        const cy = structure.y + footH / 2;
-        const img = this.add.image(cx, cy, overlayKey);
-        img.setDisplaySize(tiles * TILE_SIZE, TILE_SIZE);
-        if (isVertical) img.setRotation(Math.PI / 2);
-        img.setDepth(3);
-
-        // Hide the programmatic Graphics drawn by the class constructor.
-        const allChildren = this.children.getAll();
-        for (let ci = allChildren.length - 1; ci >= 0; ci--) {
-          const child = allChildren[ci];
-          if (child instanceof Phaser.GameObjects.Graphics &&
-              child.x === structure.x && child.y === structure.y &&
-              (child as Phaser.GameObjects.GameObject) !== (img as Phaser.GameObjects.GameObject)) {
-            child.setAlpha(0);
-            break;
-          }
-        }
-      }
+      // Sprite overlay for passive structures is now handled inline in each
+      // case block via overlayStructureSprite(). No more fragile position-matching.
 
       } catch (err) {
         console.error(`[NightScene] Failed to create structure ${structure.structureId}:`, err);
@@ -1821,6 +1801,28 @@ export class NightScene extends Phaser.Scene {
    * Phaser's putTileAt with "Cannot read properties of undefined".
    */
   private static readonly BLOCKER_TILE_INDEX = 0;
+
+  /**
+   * Render a sprite for a structure and hide the programmatic Graphics.
+   * Called directly in each case block for passive structures so day/night look identical.
+   */
+  private overlayStructureSprite(
+    structure: StructureInstance,
+    gfx: Phaser.GameObjects.Graphics,
+  ): void {
+    const spriteKey = getStructureSpriteKey(this, structure.structureId);
+    if (!spriteKey) return; // no sprite available, keep Graphics visible
+    const sDef = structuresData.structures.find(s => s.id === structure.structureId);
+    const tiles = (sDef as { widthTiles?: number } | undefined)?.widthTiles ?? 1;
+    const isVertical = structure.rotation === 1;
+    const footW = isVertical ? TILE_SIZE : tiles * TILE_SIZE;
+    const footH = isVertical ? tiles * TILE_SIZE : TILE_SIZE;
+    const img = this.add.image(structure.x + footW / 2, structure.y + footH / 2, spriteKey);
+    img.setDisplaySize(tiles * TILE_SIZE, TILE_SIZE);
+    if (isVertical) img.setRotation(Math.PI / 2);
+    img.setDepth(3);
+    gfx.setAlpha(0);
+  }
 
   private setBlockingTile(
     tileX: number,
